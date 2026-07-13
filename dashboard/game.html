@@ -725,13 +725,16 @@
             try {
                 const cartela = generateCartela();
                 const cartelaNumber = Math.floor(Math.random() * 9000) + 1000;
+                const flatCartela = cartela.flat();
                 const gameData = {
                     user_id: currentUser.id,
                     stake: stake,
                     status: 'active',
                     called_numbers: [],
                     marked_numbers: [],
-                    cartela: cartela,
+                    cartela: flatCartela,
+                    cartela_cols: 5,
+                    cartela_rows: 5,
                     cartela_number: cartelaNumber,
                     winner: null,
                     prize: 0,
@@ -748,7 +751,9 @@
                 await db.collection('cartelas').add({
                     game_id: currentGameId,
                     user_id: currentUser.id,
-                    cartela: cartela,
+                    cartela: flatCartela,
+                    cartela_cols: 5,
+                    cartela_rows: 5,
                     marked: [],
                     created_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -788,6 +793,21 @@
                 cartela.push(colNumbers);
             }
             return cartela;
+        }
+
+        function unflattenCartela(flat) {
+            if (!flat || !Array.isArray(flat)) return null;
+            if (flat.length === 25 && Array.isArray(flat[0])) return flat;
+            const cols = 5, rows = 5;
+            const result = [];
+            for (let c = 0; c < cols; c++) {
+                const col = [];
+                for (let r = 0; r < rows; r++) {
+                    col.push(flat[c * rows + r]);
+                }
+                result.push(col);
+            }
+            return result;
         }
 
         // ==================== GAME BOARD SETUP ====================
@@ -880,21 +900,24 @@
             const called = data.called_numbers || [];
             document.getElementById('game-derash').textContent = called.length;
             updateCalledNumbersDisplay(called);
-            if (data.cartela) {
+            const cartela = unflattenCartela(data.cartela);
+            if (cartela) {
+                data._cartela2d = cartela;
                 const marked = getMarkedNumbers(data);
-                renderCartela(data.cartela, marked);
-                updateGridHighlights(called, marked, data.cartela);
-                updateCartelaLines(data.cartela, marked);
+                renderCartela(cartela, marked);
+                updateGridHighlights(called, marked, cartela);
+                updateCartelaLines(cartela, marked);
             }
         }
 
         function getMarkedNumbers(data) {
             const called = data.called_numbers || [];
-            if (!data.cartela) return [];
+            const cartela = data._cartela2d || unflattenCartela(data.cartela);
+            if (!cartela) return [];
             const marked = [];
             for (let col = 0; col < 5; col++) {
                 for (let row = 0; row < 5; row++) {
-                    const num = data.cartela[col][row];
+                    const num = cartela[col][row];
                     if (num !== 0 && called.includes(num)) {
                         marked.push(num);
                     }
@@ -904,7 +927,8 @@
         }
 
         function autoMarkNumbers(data) {
-            if (!data.cartela) return;
+            const cartela = data._cartela2d || unflattenCartela(data.cartela);
+            if (!cartela) return;
             const called = data.called_numbers || [];
             const marked = getMarkedNumbers(data);
             if (marked.length > 0 && data.marked_numbers && data.marked_numbers.length !== marked.length) {
@@ -913,7 +937,7 @@
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(() => {});
             }
-            checkBingo(data.cartela, marked, data);
+            checkBingo(cartela, marked, data);
         }
 
         function updateCalledNumbersDisplay(called) {
@@ -1126,7 +1150,7 @@
         function showWinCelebration(data) {
             stopTimer();
             const modal = document.getElementById('win-modal');
-            const cartela = data.cartela;
+            const cartela = unflattenCartela(data.cartela);
             const marked = data.marked_numbers || getMarkedNumbers(data);
             const prize = data.prize || Math.round(data.stake * 15.2 * 100) / 100;
             document.getElementById('winner-name').textContent = currentUser.first_name + ' WON!';
