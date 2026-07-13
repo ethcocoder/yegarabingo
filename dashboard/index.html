@@ -25,13 +25,14 @@
             theme: {
                 extend: {
                     colors: {
-                        'bingo-dark': '#0D1117',
-                        'bingo-card': '#1A1A2E',
-                        'bingo-orange': '#FF8C00',
-                        'bingo-green': '#10B981',
-                        'bingo-blue': '#3B82F6',
-                        'bingo-purple': '#8B5CF6',
-                        'bingo-teal': '#14B8A6',
+                        'bd': '#0D1117',
+                        'bc': '#1A1A2E',
+                        'bo': '#FF8C00',
+                        'bg': '#10B981',
+                        'bb': '#3B82F6',
+                        'bp': '#8B5CF6',
+                        'bt': '#14B8A6',
+                        'bs': '#111827'
                     }
                 }
             }
@@ -39,1441 +40,1576 @@
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        * { font-family: 'Inter', sans-serif; }
-        body { background-color: #0D1117; }
+        *{font-family:'Inter',sans-serif;margin:0;padding:0;box-sizing:border-box;}
+        body{background:#0D1117;color:#fff;overflow-x:hidden;}
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-track{background:#1A1A2E;}
+        ::-webkit-scrollbar-thumb{background:#FF8C00;border-radius:3px;}
+        ::-webkit-scrollbar-thumb:hover{background:#ffaa33;}
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1A1A2E; }
-        ::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #ffaa33; }
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+        @keyframes pulseGlow{0%,100%{box-shadow:0 0 5px rgba(255,140,0,0.3);}50%{box-shadow:0 0 20px rgba(255,140,0,0.6);}}
+        @keyframes liveDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.5);}}
+        @keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
 
-        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(255,140,0,0.3); } 50% { box-shadow: 0 0 20px rgba(255,140,0,0.6); } }
-        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        @keyframes live-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.5); } }
-        @keyframes count-up { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
-        @keyframes border-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .anim-slide{animation:slideUp .5s ease-out forwards;}
+        .anim-fade{animation:fadeIn .4s ease-out forwards;}
+        .anim-glow{animation:pulseGlow 2s ease-in-out infinite;}
+        .anim-live{animation:liveDot 1.5s ease-in-out infinite;}
 
-        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
-        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
-        .animate-float { animation: float 3s ease-in-out infinite; }
-        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-        .animate-live-dot { animation: live-dot 1.5s ease-in-out infinite; }
-        .animate-count { animation: count-up 0.6s ease-out forwards; }
+        .glass{background:rgba(26,26,46,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.08);}
+        .glass-head{background:rgba(13,17,23,.75);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.06);}
 
-        .glass { background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); }
-        .glass-header { background: rgba(13, 17, 23, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .glass-input { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-grad{background:linear-gradient(135deg,#FF8C00,#ff6600);transition:all .3s ease;}
+        .btn-grad:hover{transform:scale(1.03);box-shadow:0 8px 25px rgba(255,140,0,.4);}
+        .btn-grad:active{transform:scale(.98);}
+        .btn-green-g{background:linear-gradient(135deg,#10B981,#059669);}
+        .btn-green-g:hover{box-shadow:0 8px 25px rgba(16,185,129,.4);}
+        .btn-blue-g{background:linear-gradient(135deg,#3B82F6,#2563EB);}
+        .btn-blue-g:hover{box-shadow:0 8px 25px rgba(59,130,246,.4);}
+        .btn-purple-g{background:linear-gradient(135deg,#8B5CF6,#7C3AED);}
+        .btn-purple-g:hover{box-shadow:0 8px 25px rgba(139,92,246,.4);}
+        .btn-red-g{background:linear-gradient(135deg,#EF4444,#DC2626);}
+        .btn-red-g:hover{box-shadow:0 8px 25px rgba(239,68,68,.4);}
+        .btn-teal-g{background:linear-gradient(135deg,#14B8A6,#0D9488);}
+        .btn-teal-g:hover{box-shadow:0 8px 25px rgba(20,184,166,.4);}
 
-        .gradient-border { position: relative; }
-        .gradient-border::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: linear-gradient(135deg, #FF8C00, #10B981, #3B82F6, #8B5CF6); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.3s ease; }
-        .gradient-border:hover::before { opacity: 1; }
+        .stat-card{transition:all .4s cubic-bezier(.175,.885,.32,1.275);}
+        .stat-card:hover{transform:translateY(-6px);}
 
-        .btn-gradient { background: linear-gradient(135deg, #FF8C00, #ff6600); transition: all 0.3s ease; }
-        .btn-gradient:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(255,140,0,0.4); }
-        .btn-gradient:active { transform: scale(0.98); }
+        .toggle-sw{position:relative;width:48px;height:24px;background:#374151;border-radius:12px;cursor:pointer;transition:all .3s ease;flex-shrink:0;}
+        .toggle-sw.on{background:linear-gradient(135deg,#10B981,#059669);}
+        .toggle-sw::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:all .3s ease;}
+        .toggle-sw.on::after{left:26px;}
 
-        .btn-green { background: linear-gradient(135deg, #10B981, #059669); }
-        .btn-green:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(16,185,129,0.4); }
+        .nav-item{transition:all .2s ease;cursor:pointer;}
+        .nav-item:hover{background:rgba(255,140,0,.1);}
+        .nav-item.active{background:rgba(255,140,0,.15);border-right:3px solid #FF8C00;color:#FF8C00;}
+        .nav-item .nav-icon{transition:all .3s ease;}
 
-        .btn-blue { background: linear-gradient(135deg, #3B82F6, #2563EB); }
-        .btn-blue:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(59,130,246,0.4); }
+        .tbl-row{transition:all .2s ease;}
+        .tbl-row:hover{background:rgba(255,140,0,.05);}
 
-        .btn-purple { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
-        .btn-purple:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(139,92,246,0.4); }
+        .modal-bg{background:rgba(0,0,0,.7);backdrop-filter:blur(8px);}
+        .modal-body{animation:slideUp .3s ease-out forwards;}
 
-        .btn-teal { background: linear-gradient(135deg, #14B8A6, #0D9488); }
-        .btn-teal:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(20,184,166,0.4); }
+        input:focus,select:focus,textarea:focus{outline:none;border-color:#FF8C00!important;box-shadow:0 0 0 3px rgba(255,140,0,.15);}
 
-        .btn-red { background: linear-gradient(135deg, #EF4444, #DC2626); }
-        .btn-red:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(239,68,68,0.4); }
+        #sidebar{transition:width .3s cubic-bezier(.4,0,.2,1),transform .3s cubic-bezier(.4,0,.2,1);}
+        #sidebar .nav-label{transition:opacity .2s ease,width .2s ease;}
+        #sidebar .sidebar-header-text{transition:opacity .2s ease,width .2s ease;}
+        #sidebar .sidebar-user-text{transition:opacity .2s ease;}
+        #mainContent{transition:margin-left .3s cubic-bezier(.4,0,.2,1);}
 
-        .stat-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .stat-card:hover { transform: translateY(-6px); }
+        .section{display:none;}
+        .section.active{display:block;}
 
-        .toggle-switch { position: relative; width: 48px; height: 24px; background: #374151; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
-        .toggle-switch.active { background: linear-gradient(135deg, #10B981, #059669); }
-        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: all 0.3s ease; }
-        .toggle-switch.active::after { left: 26px; }
+        .chart-bar{transition:height 1s cubic-bezier(.4,0,.2,1);}
 
-        .feed-item { transition: all 0.3s ease; }
-        .feed-item:hover { background: rgba(255,255,255,0.03); }
-
-        .table-row { transition: all 0.2s ease; }
-        .table-row:hover { background: rgba(255,140,0,0.05); }
-
-        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
-        .modal-content { animation: slide-up 0.3s ease-out forwards; }
-
-        .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
-
-        .nav-item { transition: all 0.2s ease; }
-        .nav-item:hover { background: rgba(255,140,0,0.1); }
-        .nav-item.active { background: rgba(255,140,0,0.15); border-right: 3px solid #FF8C00; }
-
-        .chart-bar { transition: height 1s cubic-bezier(0.4, 0, 0.2, 1); }
-
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #FF8C00; box-shadow: 0 0 0 3px rgba(255,140,0,0.15); }
+        @media(max-width:768px){
+            #sidebar{transform:translateX(-100%);position:fixed;z-index:90;width:250px!important;}
+            #sidebar.open{transform:translateX(0);}
+            #sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:85;}
+            #sidebarOverlay.open{display:block;}
+            #mainContent{margin-left:0!important;}
+        }
     </style>
 </head>
-<body class="text-white min-h-screen">
+<body class="min-h-screen">
 
-    <!-- Header -->
-    <header class="glass-header fixed top-0 left-0 right-0 z-50 px-6 py-3">
-        <div class="flex items-center justify-between max-w-[1920px] mx-auto">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-xl animate-float shadow-lg shadow-bingo-orange/20">🎯</div>
-                <div>
-                    <h1 class="text-lg font-bold bg-gradient-to-r from-bingo-orange to-yellow-400 bg-clip-text text-transparent">Yegara Bingo</h1>
-                    <p class="text-[10px] text-gray-500 font-medium tracking-wider uppercase">Admin Dashboard</p>
-                </div>
-            </div>
+<!-- Mobile Overlay -->
+<div id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
 
-            <div class="hidden md:flex items-center gap-2 glass rounded-xl px-4 py-2">
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" placeholder="Search players, games..." class="bg-transparent border-none text-sm text-gray-300 placeholder-gray-600 w-64 focus:ring-0">
-            </div>
-
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <button class="relative p-2 rounded-xl glass hover:bg-white/5 transition-all">
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                        <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-bingo-orange rounded-full text-[9px] font-bold flex items-center justify-center animate-pulse">3</span>
-                    </button>
-                </div>
-                <div class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 cursor-pointer hover:bg-white/5 transition-all">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-purple to-bingo-blue flex items-center justify-center text-sm font-bold">A</div>
-                    <div class="hidden sm:block">
-                        <p class="text-xs font-semibold">Admin</p>
-                        <p class="text-[10px] text-gray-500">Super Admin</p>
-                    </div>
-                </div>
-            </div>
+<!-- SIDEBAR -->
+<aside id="sidebar" class="fixed top-0 left-0 h-full bg-[#111827] z-90 flex flex-col" style="width:250px;">
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-4 py-5 border-b border-white/5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF8C00] to-yellow-500 flex items-center justify-center text-lg font-extrabold flex-shrink-0 shadow-lg shadow-[#FF8C00]/20">B</div>
+        <div class="sidebar-header-text overflow-hidden whitespace-nowrap" style="max-width:180px;">
+            <h1 class="text-sm font-bold bg-gradient-to-r from-[#FF8C00] to-yellow-400 bg-clip-text text-transparent leading-tight">Yegara Bingo</h1>
+            <p class="text-[9px] text-gray-500 font-medium tracking-wider uppercase">Admin Panel</p>
         </div>
-    </header>
+    </div>
 
-    <!-- Main Content -->
-    <main class="pt-20 pb-8 px-4 md:px-6 lg:px-8 max-w-[1920px] mx-auto">
+    <!-- Collapse Button -->
+    <button onclick="toggleSidebar()" class="absolute -right-3 top-7 w-6 h-6 rounded-full bg-[#FF8C00] flex items-center justify-center text-white text-xs shadow-lg hover:scale-110 transition-transform z-50 hidden md:flex">
+        <svg id="collapseIcon" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"/></svg>
+    </button>
 
-        <!-- Page Title Row -->
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 animate-slide-up">
-            <div>
-                <h2 class="text-2xl md:text-3xl font-bold text-white">Dashboard Overview</h2>
-                <p class="text-gray-500 text-sm mt-1">Welcome back, Admin. Here's what's happening today.</p>
+    <!-- Navigation -->
+    <nav class="flex-1 py-4 overflow-y-auto overflow-x-hidden">
+        <div class="px-3 mb-2">
+            <p class="nav-label text-[10px] text-gray-600 uppercase tracking-widest font-semibold px-3 mb-2 whitespace-nowrap overflow-hidden">Main Menu</p>
+        </div>
+        <div id="navItems">
+            <a class="nav-item active flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3" data-section="dashboard" onclick="switchSection('dashboard')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">📊</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">Dashboard</span>
+            </a>
+            <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="users" onclick="switchSection('users')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">👥</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">User Management</span>
+            </a>
+            <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="games" onclick="switchSection('games')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">🎮</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">Games</span>
+            </a>
+            <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="prediction" onclick="switchSection('prediction')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">🧠</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">Prediction Control</span>
+            </a>
+            <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="reports" onclick="switchSection('reports')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">📈</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">Reports</span>
+            </a>
+            <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="settings" onclick="switchSection('settings')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">⚙️</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">Settings</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- User Info at Bottom -->
+    <div class="border-t border-white/5 p-4">
+        <div class="flex items-center gap-3">
+            <div id="sidebarAvatar" class="w-9 h-9 rounded-lg bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] flex items-center justify-center text-sm font-bold flex-shrink-0">A</div>
+            <div class="sidebar-user-text overflow-hidden flex-1 min-w-0">
+                <p id="sidebarUsername" class="text-xs font-semibold truncate">Admin</p>
+                <p id="sidebarRole" class="text-[10px] text-gray-500 truncate">Super Admin</p>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="flex items-center gap-2 text-xs text-bingo-green font-medium glass px-3 py-1.5 rounded-full">
-                    <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
-                    System Online
-                </span>
-                <button onclick="openModal('createGameModal')" class="btn-gradient px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-bingo-orange/10">
-                    <span class="text-lg">+</span> New Game
+            <button onclick="logout()" class="sidebar-user-text text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" title="Logout">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- HEADER -->
+<header class="glass-head fixed top-0 right-0 z-50 px-4 md:px-6 py-3" id="mainHeader">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <!-- Mobile hamburger -->
+            <button onclick="toggleMobileSidebar()" class="md:hidden p-2 rounded-lg hover:bg-white/5 transition-all">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <h2 id="pageTitle" class="text-lg font-bold">Dashboard</h2>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Search -->
+            <div class="hidden md:flex items-center gap-2 glass rounded-xl px-3 py-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" placeholder="Search..." class="bg-transparent border-none text-sm text-gray-300 placeholder-gray-600 w-48 focus:ring-0">
+            </div>
+            <!-- Notifications -->
+            <div class="relative">
+                <button class="p-2 rounded-xl glass hover:bg-white/5 transition-all">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    <span id="notifBadge" class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF8C00] rounded-full text-[9px] font-bold flex items-center justify-center anim-live">0</span>
                 </button>
             </div>
+            <!-- User dropdown -->
+            <div class="relative" id="userDropdownWrap">
+                <button onclick="toggleUserDropdown()" class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 hover:bg-white/5 transition-all">
+                    <div id="headerAvatar" class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] flex items-center justify-center text-sm font-bold">A</div>
+                    <div class="hidden sm:block">
+                        <p id="headerUsername" class="text-xs font-semibold">Admin</p>
+                        <p id="headerRole" class="text-[10px] text-gray-500">Super Admin</p>
+                    </div>
+                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="userDropdown" class="hidden absolute right-0 top-full mt-2 w-48 glass rounded-xl py-2 shadow-xl z-50">
+                    <a class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-all cursor-pointer">
+                        <span>👤</span> Profile
+                    </a>
+                    <a class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-all cursor-pointer" onclick="switchSection('settings')">
+                        <span>⚙️</span> Settings
+                    </a>
+                    <div class="border-t border-white/5 my-1"></div>
+                    <a class="flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-all cursor-pointer" onclick="logout()">
+                        <span>🚪</span> Logout
+                    </a>
+                </div>
+            </div>
         </div>
+    </div>
+</header>
 
+<!-- MAIN CONTENT -->
+<div id="mainContent" class="pt-16 pb-8 px-4 md:px-6 lg:px-8" style="margin-left:250px;">
+
+<!-- ==================== DASHBOARD SECTION ==================== -->
+<div id="section-dashboard" class="section active">
+    <div class="max-w-[1600px] mx-auto">
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <!-- Total Players -->
-            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.1s;">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 mt-6">
+            <div class="stat-card glass rounded-2xl p-5 anim-slide" style="animation-delay:.1s;">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-orange/20 to-bingo-orange/5 flex items-center justify-center">
-                        <span class="text-2xl">👥</span>
-                    </div>
-                    <span class="text-bingo-green text-xs font-semibold bg-bingo-green/10 px-2 py-1 rounded-lg">+12.5%</span>
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF8C00]/20 to-[#FF8C00]/5 flex items-center justify-center"><span class="text-2xl">👥</span></div>
+                    <span class="text-[#10B981] text-xs font-semibold bg-[#10B981]/10 px-2 py-1 rounded-lg">Live</span>
                 </div>
-                <p class="text-3xl font-bold animate-count" id="totalPlayers">2,847</p>
-                <p class="text-gray-500 text-sm mt-1">Total Players</p>
-                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-bingo-orange to-yellow-500 rounded-full" style="width: 78%"></div>
-                </div>
+                <p class="text-3xl font-bold" id="statTotalUsers">0</p>
+                <p class="text-gray-500 text-sm mt-1">Total Users</p>
             </div>
-
-            <!-- Active Games -->
-            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.2s;">
+            <div class="stat-card glass rounded-2xl p-5 anim-slide" style="animation-delay:.2s;">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center">
-                        <span class="text-2xl">🎮</span>
-                    </div>
-                    <span class="text-bingo-green text-xs font-semibold bg-bingo-green/10 px-2 py-1 rounded-lg">Live</span>
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#10B981]/20 to-[#10B981]/5 flex items-center justify-center"><span class="text-2xl">🎮</span></div>
+                    <span class="text-[#10B981] text-xs font-semibold bg-[#10B981]/10 px-2 py-1 rounded-lg flex items-center gap-1"><span class="w-1.5 h-1.5 bg-[#10B981] rounded-full anim-live"></span>Live</span>
                 </div>
-                <p class="text-3xl font-bold animate-count">18</p>
+                <p class="text-3xl font-bold" id="statActiveGames">0</p>
                 <p class="text-gray-500 text-sm mt-1">Active Games</p>
-                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-bingo-green to-emerald-400 rounded-full" style="width: 45%"></div>
-                </div>
             </div>
-
-            <!-- Revenue -->
-            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.3s;">
+            <div class="stat-card glass rounded-2xl p-5 anim-slide" style="animation-delay:.3s;">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-blue/20 to-bingo-blue/5 flex items-center justify-center">
-                        <span class="text-2xl">💰</span>
-                    </div>
-                    <span class="text-bingo-green text-xs font-semibold bg-bingo-green/10 px-2 py-1 rounded-lg">+8.2%</span>
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3B82F6]/20 to-[#3B82F6]/5 flex items-center justify-center"><span class="text-2xl">💰</span></div>
+                    <span class="text-[#10B981] text-xs font-semibold bg-[#10B981]/10 px-2 py-1 rounded-lg">ETB</span>
                 </div>
-                <p class="text-3xl font-bold animate-count">$12,450</p>
+                <p class="text-3xl font-bold" id="statRevenue">0</p>
                 <p class="text-gray-500 text-sm mt-1">Total Revenue</p>
-                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-bingo-blue to-cyan-400 rounded-full" style="width: 62%"></div>
-                </div>
             </div>
-
-            <!-- Win Rate -->
-            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.4s;">
+            <div class="stat-card glass rounded-2xl p-5 anim-slide" style="animation-delay:.4s;">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-purple/20 to-bingo-purple/5 flex items-center justify-center">
-                        <span class="text-2xl">🏆</span>
-                    </div>
-                    <span class="text-bingo-orange text-xs font-semibold bg-bingo-orange/10 px-2 py-1 rounded-lg">Hot</span>
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8B5CF6]/20 to-[#8B5CF6]/5 flex items-center justify-center"><span class="text-2xl">🏆</span></div>
+                    <span class="text-[#FF8C00] text-xs font-semibold bg-[#FF8C00]/10 px-2 py-1 rounded-lg">Today</span>
                 </div>
-                <p class="text-3xl font-bold animate-count">34.7%</p>
-                <p class="text-gray-500 text-sm mt-1">Prediction Accuracy</p>
-                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-bingo-purple to-pink-400 rounded-full" style="width: 34.7%"></div>
-                </div>
+                <p class="text-3xl font-bold" id="statWinnersToday">0</p>
+                <p class="text-gray-500 text-sm mt-1">Winners Today</p>
             </div>
         </div>
 
-        <!-- Control Panel + Live Feed Row -->
+        <!-- Recent Games + Activity Feed -->
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-
-            <!-- Game Control Panel -->
-            <div class="xl:col-span-2 glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.3s;">
+            <!-- Recent Games -->
+            <div class="xl:col-span-2 glass rounded-2xl p-6 anim-slide" style="animation-delay:.3s;">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-lg font-bold flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-bingo-orange/10 flex items-center justify-center text-sm">🎛️</span>
-                        Game Control Panel
+                        <span class="w-8 h-8 rounded-lg bg-[#FF8C00]/10 flex items-center justify-center text-sm">🏅</span>
+                        Recent Games
                     </h3>
-                    <span class="text-xs text-gray-500 glass px-3 py-1 rounded-full">Last updated: Just now</span>
+                    <button onclick="switchSection('games')" class="text-xs text-[#FF8C00] hover:underline">View All</button>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Quick Start -->
-                    <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all group">
-                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                            <span class="text-xl">▶️</span>
-                        </div>
-                        <h4 class="font-semibold text-sm mb-1">Quick Start</h4>
-                        <p class="text-gray-500 text-xs mb-3">Start a new game instantly</p>
-                        <button onclick="openModal('createGameModal')" class="w-full btn-green py-2 rounded-lg text-xs font-semibold transition-all">Start Game</button>
-                    </div>
-
-                    <!-- Pause All -->
-                    <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all group">
-                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-orange/20 to-bingo-orange/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                            <span class="text-xl">⏸️</span>
-                        </div>
-                        <h4 class="font-semibold text-sm mb-1">Pause Games</h4>
-                        <p class="text-gray-500 text-xs mb-3">Pause all active games</p>
-                        <button class="w-full btn-gradient py-2 rounded-lg text-xs font-semibold transition-all">Pause All</button>
-                    </div>
-
-                    <!-- Stop All -->
-                    <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all group">
-                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500/20 to-red-500/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                            <span class="text-xl">⏹️</span>
-                        </div>
-                        <h4 class="font-semibold text-sm mb-1">Stop All</h4>
-                        <p class="text-gray-500 text-xs mb-3">Emergency stop all games</p>
-                        <button class="w-full btn-red py-2 rounded-lg text-xs font-semibold transition-all">Stop All</button>
-                    </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-white/5">
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase pb-3 px-3">Game ID</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase pb-3 px-3">Players</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase pb-3 px-3">Stake</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase pb-3 px-3">Status</th>
+                                <th class="text-left text-xs font-semibold text-gray-500 uppercase pb-3 px-3">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentGamesTable"></tbody>
+                    </table>
                 </div>
-
-                <!-- Active Games Row -->
-                <div class="mt-6">
-                    <h4 class="text-sm font-semibold text-gray-400 mb-3">Active Games</h4>
-                    <div class="space-y-2" id="activeGamesList">
-                        <div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">
-                            <div class="flex items-center gap-3">
-                                <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
-                                <div>
-                                    <p class="text-sm font-medium">Game #1042 - Room Alpha</p>
-                                    <p class="text-xs text-gray-500">156 players &middot; Round 4/10</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs glass px-2 py-1 rounded-lg text-bingo-green">Playing</span>
-                                <button onclick="openModal('selectWinnerModal')" class="btn-blue px-3 py-1.5 rounded-lg text-xs font-semibold">Select Winner</button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">
-                            <div class="flex items-center gap-3">
-                                <span class="w-2 h-2 bg-bingo-orange rounded-full animate-live-dot"></span>
-                                <div>
-                                    <p class="text-sm font-medium">Game #1041 - Room Beta</p>
-                                    <p class="text-xs text-gray-500">89 players &middot; Round 7/10</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs glass px-2 py-1 rounded-lg text-bingo-orange">Waiting</span>
-                                <button onclick="openModal('selectWinnerModal')" class="btn-blue px-3 py-1.5 rounded-lg text-xs font-semibold">Select Winner</button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">
-                            <div class="flex items-center gap-3">
-                                <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
-                                <div>
-                                    <p class="text-sm font-medium">Game #1040 - Room Gamma</p>
-                                    <p class="text-xs text-gray-500">234 players &middot; Round 2/10</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs glass px-2 py-1 rounded-lg text-bingo-green">Playing</span>
-                                <button onclick="openModal('selectWinnerModal')" class="btn-blue px-3 py-1.5 rounded-lg text-xs font-semibold">Select Winner</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div id="recentGamesEmpty" class="hidden text-center py-8 text-gray-500 text-sm">No games found</div>
             </div>
 
-            <!-- Live Activity Feed -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.4s;">
+            <!-- Activity Feed -->
+            <div class="glass rounded-2xl p-6 anim-slide" style="animation-delay:.4s;">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-lg font-bold flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-bingo-blue/10 flex items-center justify-center text-sm">📡</span>
-                        Live Activity
+                        <span class="w-8 h-8 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center text-sm">📡</span>
+                        Activity Feed
                     </h3>
-                    <span class="flex items-center gap-1.5 text-xs text-bingo-green">
-                        <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
-                        Live
-                    </span>
+                    <span class="flex items-center gap-1.5 text-xs text-[#10B981]"><span class="w-2 h-2 bg-[#10B981] rounded-full anim-live"></span>Live</span>
                 </div>
-
-                <div class="space-y-1 max-h-[420px] overflow-y-auto pr-1" id="activityFeed">
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-green">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-green">Player_284</span> won Game #1039</p>
-                            <span class="text-[10px] text-gray-600">2s ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-blue">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-blue">New Player</span> joined Room Alpha</p>
-                            <span class="text-[10px] text-gray-600">15s ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-orange">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-orange">System</span> started Round 4</p>
-                            <span class="text-[10px] text-gray-600">32s ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-purple">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-purple">Bot</span> called number B-12</p>
-                            <span class="text-[10px] text-gray-600">45s ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-teal">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-teal">Player_102</span> purchased card</p>
-                            <span class="text-[10px] text-gray-600">1m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-green">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-green">Player_556</span> won Game #1038</p>
-                            <span class="text-[10px] text-gray-600">1m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-blue">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-blue">New Player</span> joined Room Gamma</p>
-                            <span class="text-[10px] text-gray-600">2m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-red-400">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-red-400">Alert</span> Player_892 disconnected</p>
-                            <span class="text-[10px] text-gray-600">2m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-orange">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-orange">System</span> prediction algorithm updated</p>
-                            <span class="text-[10px] text-gray-600">3m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-purple">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-purple">Bot</span> called number G-07</p>
-                            <span class="text-[10px] text-gray-600">3m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-teal">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-teal">Player_321</span> purchased 3 cards</p>
-                            <span class="text-[10px] text-gray-600">4m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-green">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-green">Player_777</span> won Game #1037</p>
-                            <span class="text-[10px] text-gray-600">5m ago</span>
-                        </div>
-                    </div>
-                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-blue">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm"><span class="font-semibold text-bingo-blue">Backup</span> completed successfully</p>
-                            <span class="text-[10px] text-gray-600">6m ago</span>
-                        </div>
-                    </div>
-                </div>
+                <div class="space-y-1 max-h-[400px] overflow-y-auto pr-1" id="activityFeed"></div>
+                <div id="activityEmpty" class="text-center py-8 text-gray-500 text-sm">No activity yet</div>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Prediction Algorithm + Quick Actions Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
-            <!-- Prediction Algorithm Control -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.5s;">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-lg font-bold flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-bingo-purple/10 flex items-center justify-center text-sm">🧠</span>
-                        Prediction AI
-                    </h3>
-                    <span class="text-xs glass px-3 py-1 rounded-full text-bingo-purple">v2.4.1</span>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium">Enable Prediction</p>
-                            <p class="text-xs text-gray-500">AI-powered winner prediction</p>
-                        </div>
-                        <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium">Auto-Select Winner</p>
-                            <p class="text-xs text-gray-500">Automatically pick winners</p>
-                        </div>
-                        <div class="toggle-switch" onclick="this.classList.toggle('active')"></div>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium">Pattern Analysis</p>
-                            <p class="text-xs text-gray-500">Analyze winning patterns</p>
-                        </div>
-                        <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium">Anti-Fraud Detection</p>
-                            <p class="text-xs text-gray-500">Detect suspicious activity</p>
-                        </div>
-                        <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
-                    </div>
-
-                    <div class="mt-4 pt-4 border-t border-white/5">
-                        <label class="text-xs text-gray-400 block mb-2">Prediction Confidence Threshold</label>
-                        <div class="flex items-center gap-3">
-                            <input type="range" min="0" max="100" value="75" class="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-bingo-purple" id="confidenceSlider" oninput="document.getElementById('confidenceValue').textContent = this.value + '%'">
-                            <span id="confidenceValue" class="text-sm font-semibold text-bingo-purple w-10 text-right">75%</span>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 pt-4 border-t border-white/5">
-                        <label class="text-xs text-gray-400 block mb-2">Algorithm Mode</label>
-                        <select class="w-full glass-input rounded-lg px-3 py-2.5 text-sm text-white bg-bingo-dark border border-white/10">
-                            <option value="balanced" selected>Balanced Mode</option>
-                            <option value="aggressive">Aggressive Prediction</option>
-                            <option value="conservative">Conservative Mode</option>
-                            <option value="random">Random Selection</option>
-                        </select>
-                    </div>
-                </div>
+<!-- ==================== USER MANAGEMENT SECTION ==================== -->
+<div id="section-users" class="section">
+    <div class="max-w-[1600px] mx-auto mt-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div>
+                <h3 class="text-2xl font-bold">User Management</h3>
+                <p class="text-gray-500 text-sm mt-1">Manage all registered users</p>
             </div>
-
-            <!-- Quick Actions -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.6s;">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-lg font-bold flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-bingo-teal/10 flex items-center justify-center text-sm">⚡</span>
-                        Quick Actions
-                    </h3>
-                </div>
-
-                <div class="space-y-3">
-                    <button onclick="openModal('createGameModal')" class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
-                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">🎮</span>
-                        <div>
-                            <p class="text-sm font-semibold">Create New Game</p>
-                            <p class="text-xs text-gray-500">Set up a new bingo room</p>
-                        </div>
-                    </button>
-
-                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
-                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-blue/20 to-bingo-blue/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">📊</span>
-                        <div>
-                            <p class="text-sm font-semibold">Generate Report</p>
-                            <p class="text-xs text-gray-500">Daily/Weekly/Monthly stats</p>
-                        </div>
-                    </button>
-
-                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
-                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-purple/20 to-bingo-purple/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">📢</span>
-                        <div>
-                            <p class="text-sm font-semibold">Send Broadcast</p>
-                            <p class="text-xs text-gray-500">Message all players</p>
-                        </div>
-                    </button>
-
-                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
-                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-orange/20 to-bingo-orange/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">🔄</span>
-                        <div>
-                            <p class="text-sm font-semibold">Reset All Games</p>
-                            <p class="text-xs text-gray-500">Clear all active sessions</p>
-                        </div>
-                    </button>
-
-                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
-                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500/20 to-red-500/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">🚨</span>
-                        <div>
-                            <p class="text-sm font-semibold">Emergency Reset</p>
-                            <p class="text-xs text-gray-500">Nuclear option - use carefully</p>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <!-- System Status -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.7s;">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-lg font-bold flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-bingo-orange/10 flex items-center justify-center text-sm">💻</span>
-                        System Status
-                    </h3>
-                    <button class="text-xs text-bingo-orange hover:underline">Refresh</button>
-                </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-sm text-gray-400">CPU Usage</span>
-                            <span class="text-sm font-semibold text-bingo-green">23%</span>
-                        </div>
-                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-bingo-green to-emerald-400 rounded-full transition-all duration-1000" style="width: 23%"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-sm text-gray-400">Memory</span>
-                            <span class="text-sm font-semibold text-bingo-blue">67%</span>
-                        </div>
-                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-bingo-blue to-cyan-400 rounded-full transition-all duration-1000" style="width: 67%"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-sm text-gray-400">Disk Space</span>
-                            <span class="text-sm font-semibold text-bingo-orange">45%</span>
-                        </div>
-                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-bingo-orange to-yellow-400 rounded-full transition-all duration-1000" style="width: 45%"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-sm text-gray-400">Network I/O</span>
-                            <span class="text-sm font-semibold text-bingo-purple">12 MB/s</span>
-                        </div>
-                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-bingo-purple to-pink-400 rounded-full transition-all duration-1000" style="width: 32%"></div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 pt-4 border-t border-white/5">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="glass rounded-lg p-3 text-center">
-                                <p class="text-lg font-bold text-bingo-green">99.9%</p>
-                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Uptime</p>
-                            </div>
-                            <div class="glass rounded-lg p-3 text-center">
-                                <p class="text-lg font-bold text-bingo-blue">14ms</p>
-                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Latency</p>
-                            </div>
-                            <div class="glass rounded-lg p-3 text-center">
-                                <p class="text-lg font-bold text-bingo-orange">1,247</p>
-                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Connections</p>
-                            </div>
-                            <div class="glass rounded-lg p-3 text-center">
-                                <p class="text-lg font-bold text-bingo-purple">v3.2.1</p>
-                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Version</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <button onclick="openModal('addAdminModal')" class="btn-grad px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-[#FF8C00]/10">
+                <span class="text-lg">+</span> Add Admin
+            </button>
         </div>
 
-        <!-- Charts / Reports Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Players Over Time -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.6s;">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-sm font-bold">📈 Players Over Time</h3>
-                    <select class="text-xs glass px-2 py-1 rounded-lg bg-transparent border-none text-gray-400">
-                        <option>Last 7 Days</option>
-                        <option>Last 30 Days</option>
-                        <option>Last 90 Days</option>
-                    </select>
-                </div>
-                <div class="flex items-end justify-between h-40 gap-1.5" id="chart1">
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 45%"></div>
-                        <span class="text-[9px] text-gray-600">Mon</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 62%"></div>
-                        <span class="text-[9px] text-gray-600">Tue</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 55%"></div>
-                        <span class="text-[9px] text-gray-600">Wed</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 78%"></div>
-                        <span class="text-[9px] text-gray-600">Thu</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 90%"></div>
-                        <span class="text-[9px] text-gray-600">Fri</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-orange to-bingo-orange/50 rounded-t chart-bar animate-pulse-glow" style="height: 100%"></div>
-                        <span class="text-[9px] text-bingo-orange font-semibold">Sat</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 72%"></div>
-                        <span class="text-[9px] text-gray-600">Sun</span>
-                    </div>
-                </div>
+        <!-- Search + Filters -->
+        <div class="glass rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div class="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 w-full sm:w-auto">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" id="userSearchInput" placeholder="Search by name, username, or ID..." oninput="filterUsers()" class="bg-transparent border-none text-sm text-gray-300 placeholder-gray-600 w-full focus:ring-0">
             </div>
-
-            <!-- Revenue Chart -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.7s;">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-sm font-bold">💰 Revenue Breakdown</h3>
-                    <select class="text-xs glass px-2 py-1 rounded-lg bg-transparent border-none text-gray-400">
-                        <option>This Month</option>
-                        <option>Last Month</option>
-                    </select>
-                </div>
-                <div class="flex items-end justify-between h-40 gap-1.5">
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-green to-bingo-green/50 rounded-t chart-bar" style="height: 35%"></div>
-                        <span class="text-[9px] text-gray-600">Cards</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-orange to-bingo-orange/50 rounded-t chart-bar" style="height: 70%"></div>
-                        <span class="text-[9px] text-gray-600">Entry</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-purple to-bingo-purple/50 rounded-t chart-bar" style="height: 50%"></div>
-                        <span class="text-[9px] text-gray-600">Prizes</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-teal to-bingo-teal/50 rounded-t chart-bar" style="height: 85%"></div>
-                        <span class="text-[9px] text-gray-600">Tips</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 60%"></div>
-                        <span class="text-[9px] text-gray-600">Ads</span>
-                    </div>
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                        <div class="w-full bg-gradient-to-t from-red-400 to-red-400/50 rounded-t chart-bar" style="height: 25%"></div>
-                        <span class="text-[9px] text-gray-600">Fees</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Win Distribution -->
-            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.8s;">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-sm font-bold">🎯 Win Distribution</h3>
-                    <span class="text-xs text-gray-500">Last 24h</span>
-                </div>
-                <div class="flex items-center justify-center">
-                    <div class="relative w-36 h-36">
-                        <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="#10B981" stroke-width="12" stroke-dasharray="75.4 175.8" stroke-linecap="round" class="transition-all duration-1000"/>
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="#FF8C00" stroke-width="12" stroke-dasharray="50.3 200.9" stroke-dashoffset="-75.4" stroke-linecap="round" class="transition-all duration-1000"/>
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="#3B82F6" stroke-width="12" stroke-dasharray="37.7 213.5" stroke-dashoffset="-125.7" stroke-linecap="round" class="transition-all duration-1000"/>
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="#8B5CF6" stroke-width="12" stroke-dasharray="87.9 163.4" stroke-dashoffset="-163.4" stroke-linecap="round" class="transition-all duration-1000"/>
-                        </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center">
-                            <p class="text-xl font-bold">342</p>
-                            <p class="text-[10px] text-gray-500">Winners</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2 mt-4">
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-green"></span>
-                        <span class="text-gray-400">Full House (30%)</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-orange"></span>
-                        <span class="text-gray-400">Line (20%)</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-blue"></span>
-                        <span class="text-gray-400">Four Corners (15%)</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-purple"></span>
-                        <span class="text-gray-400">Pattern (35%)</span>
-                    </div>
-                </div>
-            </div>
+            <select id="userStatusFilter" onchange="filterUsers()" class="glass rounded-lg px-3 py-2 text-sm text-gray-400 bg-transparent border-none">
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="banned">Banned</option>
+            </select>
         </div>
 
-        <!-- Players Management Table -->
-        <div class="glass rounded-2xl p-6 mb-8 animate-slide-up" style="animation-delay: 0.8s;">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-                <h3 class="text-lg font-bold flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-lg bg-bingo-teal/10 flex items-center justify-center text-sm">👥</span>
-                    Player Management
-                </h3>
-                <div class="flex items-center gap-2">
-                    <div class="glass rounded-lg px-3 py-2 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="text" placeholder="Search players..." class="bg-transparent border-none text-sm text-gray-300 placeholder-gray-600 w-48 focus:ring-0">
-                    </div>
-                    <select class="glass rounded-lg px-3 py-2 text-sm text-gray-400 bg-transparent border-none">
-                        <option>All Status</option>
-                        <option>Active</option>
-                        <option>Inactive</option>
-                        <option>Banned</option>
-                    </select>
-                    <button class="btn-gradient px-4 py-2 rounded-lg text-xs font-semibold">Export CSV</button>
-                </div>
-            </div>
-
+        <!-- Users Table -->
+        <div class="glass rounded-2xl overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
                         <tr class="border-b border-white/5">
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Player</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Telegram ID</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Games Played</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Wins</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Win Rate</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Status</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Actions</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">User</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Telegram ID</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Balance</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Games</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Wins</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr class="table-row border-b border-white/[0.03]">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-sm font-bold">A</div>
-                                    <div>
-                                        <p class="text-sm font-semibold">Ahmed Hassan</p>
-                                        <p class="text-[10px] text-gray-500">@ahmed_h</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-400">1284739201</td>
-                            <td class="px-4 py-3 text-sm font-medium">156</td>
-                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">42</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div class="h-full bg-bingo-green rounded-full" style="width: 26.9%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400">26.9%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
-                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
-                                    Active
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="table-row border-b border-white/[0.03]">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-blue to-cyan-500 flex items-center justify-center text-sm font-bold">S</div>
-                                    <div>
-                                        <p class="text-sm font-semibold">Sarah Kim</p>
-                                        <p class="text-[10px] text-gray-500">@sarah_kim</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-400">9847120384</td>
-                            <td class="px-4 py-3 text-sm font-medium">203</td>
-                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">78</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div class="h-full bg-bingo-orange rounded-full" style="width: 38.4%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400">38.4%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
-                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
-                                    Active
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="table-row border-b border-white/[0.03]">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-purple to-pink-500 flex items-center justify-center text-sm font-bold">M</div>
-                                    <div>
-                                        <p class="text-sm font-semibold">Mohammed Ali</p>
-                                        <p class="text-[10px] text-gray-500">@mo_ali</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-400">5720384912</td>
-                            <td class="px-4 py-3 text-sm font-medium">89</td>
-                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">12</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div class="h-full bg-bingo-blue rounded-full" style="width: 13.5%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400">13.5%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full">
-                                    <span class="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
-                                    Inactive
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="table-row border-b border-white/[0.03]">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-teal to-emerald-500 flex items-center justify-center text-sm font-bold">L</div>
-                                    <div>
-                                        <p class="text-sm font-semibold">Lisa Chen</p>
-                                        <p class="text-[10px] text-gray-500">@lisa_chen</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-400">3019284756</td>
-                            <td class="px-4 py-3 text-sm font-medium">312</td>
-                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">124</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div class="h-full bg-bingo-purple rounded-full" style="width: 39.7%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400">39.7%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
-                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
-                                    Active
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="table-row border-b border-white/[0.03]">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-sm font-bold">J</div>
-                                    <div>
-                                        <p class="text-sm font-semibold">John Doe</p>
-                                        <p class="text-[10px] text-gray-500">@john_doe</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-400">8472019384</td>
-                            <td class="px-4 py-3 text-sm font-medium">45</td>
-                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">3</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div class="h-full bg-red-400 rounded-full" style="width: 6.7%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400">6.7%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-yellow-500/10 text-yellow-400 px-2.5 py-1 rounded-full">
-                                    <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></span>
-                                    Suspended
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="table-row">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-orange to-red-500 flex items-center justify-center text-sm font-bold">R</div>
-                                    <div>
-                                        <p class="text-sm font-semibold">Rosa Martinez</p>
-                                        <p class="text-[10px] text-gray-500">@rosa_m</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-400">2948102748</td>
-                            <td class="px-4 py-3 text-sm font-medium">178</td>
-                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">56</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div class="h-full bg-bingo-teal rounded-full" style="width: 31.5%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400">31.5%</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
-                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
-                                    Active
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
-                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="usersTableBody"></tbody>
                 </table>
             </div>
-
-            <div class="flex items-center justify-between mt-6 pt-4 border-t border-white/5">
-                <p class="text-xs text-gray-500">Showing 1-6 of 2,847 players</p>
-                <div class="flex items-center gap-1">
-                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">&laquo;</button>
-                    <button class="px-3 py-1.5 rounded-lg bg-bingo-orange text-xs font-semibold text-white">1</button>
-                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">2</button>
-                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">3</button>
-                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">...</button>
-                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">475</button>
-                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">&raquo;</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Games Section -->
-        <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.9s;">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-lg font-bold flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-lg bg-bingo-orange/10 flex items-center justify-center text-sm">🏅</span>
-                    Recent Games
-                </h3>
-                <button class="text-xs text-bingo-orange hover:underline">View All</button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold text-bingo-orange">#1042</span>
-                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-green">Live</span>
-                    </div>
-                    <p class="text-sm font-semibold mb-1">Room Alpha</p>
-                    <p class="text-xs text-gray-500 mb-3">156 players &middot; Prize: $500</p>
-                    <div class="flex items-center justify-between">
-                        <div class="flex -space-x-2">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-orange to-yellow-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">A</div>
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-blue to-cyan-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">B</div>
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-purple to-pink-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">C</div>
-                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+3</div>
-                        </div>
-                        <span class="text-[10px] text-gray-500">2m ago</span>
-                    </div>
-                </div>
-
-                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold text-bingo-orange">#1041</span>
-                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-orange">Waiting</span>
-                    </div>
-                    <p class="text-sm font-semibold mb-1">Room Beta</p>
-                    <p class="text-xs text-gray-500 mb-3">89 players &middot; Prize: $250</p>
-                    <div class="flex items-center justify-between">
-                        <div class="flex -space-x-2">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-green to-emerald-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">S</div>
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-teal to-teal-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">M</div>
-                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+1</div>
-                        </div>
-                        <span class="text-[10px] text-gray-500">8m ago</span>
-                    </div>
-                </div>
-
-                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold text-bingo-orange">#1040</span>
-                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-green">Completed</span>
-                    </div>
-                    <p class="text-sm font-semibold mb-1">Room Gamma</p>
-                    <p class="text-xs text-gray-500 mb-3">234 players &middot; Prize: $1,000</p>
-                    <div class="flex items-center justify-between">
-                        <div class="flex -space-x-2">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-orange to-red-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">R</div>
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-purple to-violet-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">L</div>
-                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+5</div>
-                        </div>
-                        <span class="text-[10px] text-gray-500">15m ago</span>
-                    </div>
-                </div>
-
-                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold text-bingo-orange">#1039</span>
-                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-green">Completed</span>
-                    </div>
-                    <p class="text-sm font-semibold mb-1">Room Delta</p>
-                    <p class="text-xs text-gray-500 mb-3">67 players &middot; Prize: $150</p>
-                    <div class="flex items-center justify-between">
-                        <div class="flex -space-x-2">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-blue to-blue-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">J</div>
-                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+0</div>
-                        </div>
-                        <span class="text-[10px] text-gray-500">22m ago</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="border-t border-white/5 py-6 px-6">
-        <div class="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-md bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-xs">🎯</div>
-                <span class="text-xs text-gray-500">Yegara Bingo Admin Dashboard &copy; 2026</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="#" class="text-xs text-gray-500 hover:text-bingo-orange transition-all">Documentation</a>
-                <a href="#" class="text-xs text-gray-500 hover:text-bingo-orange transition-all">Support</a>
-                <a href="#" class="text-xs text-gray-500 hover:text-bingo-orange transition-all">Settings</a>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Create Game Modal -->
-    <div id="createGameModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0" onclick="closeModal('createGameModal')"></div>
-        <div class="modal-content glass rounded-2xl w-full max-w-lg relative z-10 p-6">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center">
-                        <span class="text-xl">🎮</span>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold">Create New Game</h3>
-                        <p class="text-xs text-gray-500">Set up a new bingo game room</p>
-                    </div>
-                </div>
-                <button onclick="closeModal('createGameModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-
-            <form class="space-y-4">
-                <div>
-                    <label class="text-xs text-gray-400 block mb-1.5">Game Name</label>
-                    <input type="text" placeholder="e.g., Room Omega" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-gray-400 block mb-1.5">Max Players</label>
-                        <input type="number" placeholder="100" value="100" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-400 block mb-1.5">Entry Fee ($)</label>
-                        <input type="number" placeholder="5.00" value="5.00" step="0.01" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-gray-400 block mb-1.5">Prize Pool ($)</label>
-                        <input type="number" placeholder="500.00" value="500.00" step="0.01" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-400 block mb-1.5">Rounds</label>
-                        <select class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white bg-bingo-dark border border-white/10">
-                            <option value="5">5 Rounds</option>
-                            <option value="10" selected>10 Rounds</option>
-                            <option value="15">15 Rounds</option>
-                            <option value="20">20 Rounds</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-400 block mb-1.5">Win Pattern</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
-                            <input type="radio" name="pattern" value="fullhouse" class="accent-bingo-orange" checked>
-                            <span class="text-sm">🏠 Full House</span>
-                        </label>
-                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
-                            <input type="radio" name="pattern" value="line" class="accent-bingo-orange">
-                            <span class="text-sm">➖ Line</span>
-                        </label>
-                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
-                            <input type="radio" name="pattern" value="corners" class="accent-bingo-orange">
-                            <span class="text-sm">📐 Four Corners</span>
-                        </label>
-                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
-                            <input type="radio" name="pattern" value="custom" class="accent-bingo-orange">
-                            <span class="text-sm">🎨 Custom Pattern</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-400 block mb-1.5">Game Speed</label>
-                    <div class="flex items-center gap-3">
-                        <input type="range" min="1" max="5" value="3" class="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-bingo-orange" id="gameSpeed" oninput="document.getElementById('speedLabel').textContent = ['Very Slow','Slow','Normal','Fast','Very Fast'][this.value-1]">
-                        <span id="speedLabel" class="text-xs text-bingo-orange font-semibold w-16 text-right">Normal</span>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3 pt-2">
-                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
-                    <div>
-                        <p class="text-sm font-medium">Enable AI Prediction</p>
-                        <p class="text-xs text-gray-500">Use AI to analyze game patterns</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
-                    <div>
-                        <p class="text-sm font-medium">Auto-Start When Full</p>
-                        <p class="text-xs text-gray-500">Start game when max players reached</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3 pt-4">
-                    <button type="button" onclick="closeModal('createGameModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
-                    <button type="submit" class="flex-1 btn-green py-3 rounded-xl text-sm font-semibold shadow-lg shadow-bingo-green/10">Create Game</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Select Winner Modal -->
-    <div id="selectWinnerModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0" onclick="closeModal('selectWinnerModal')"></div>
-        <div class="modal-content glass rounded-2xl w-full max-w-lg relative z-10 p-6">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bingo-purple/20 to-bingo-purple/5 flex items-center justify-center">
-                        <span class="text-xl">🏆</span>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold">Select Winner</h3>
-                        <p class="text-xs text-gray-500">Game #1042 - Room Alpha</p>
-                    </div>
-                </div>
-                <button onclick="closeModal('selectWinnerModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-
-            <div class="glass rounded-xl p-4 mb-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm text-gray-400">Game Details</span>
-                    <span class="text-xs text-bingo-green flex items-center gap-1"><span class="w-1.5 h-1.5 bg-bingo-green rounded-full animate-live-dot"></span> Live</span>
-                </div>
-                <div class="grid grid-cols-3 gap-3">
-                    <div class="text-center">
-                        <p class="text-lg font-bold">156</p>
-                        <p class="text-[10px] text-gray-500">Players</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-lg font-bold">4/10</p>
-                        <p class="text-[10px] text-gray-500">Round</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-lg font-bold text-bingo-orange">$500</p>
-                        <p class="text-[10px] text-gray-500">Prize</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <label class="text-xs text-gray-400 block mb-2">Select Winner Method</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <button class="glass rounded-xl px-4 py-3 text-left hover:bg-white/[0.03] transition-all border-2 border-bingo-orange/50 bg-bingo-orange/5">
-                        <span class="text-lg block mb-1">🤖</span>
-                        <span class="text-sm font-semibold block">AI Prediction</span>
-                        <span class="text-[10px] text-gray-500">Let AI decide</span>
-                    </button>
-                    <button class="glass rounded-xl px-4 py-3 text-left hover:bg-white/[0.03] transition-all border-2 border-transparent">
-                        <span class="text-lg block mb-1">🎲</span>
-                        <span class="text-sm font-semibold block">Random Pick</span>
-                        <span class="text-[10px] text-gray-500">Random winner</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <label class="text-xs text-gray-400 block mb-1.5">Or Select Manually</label>
-                <div class="relative">
-                    <input type="text" placeholder="Search player by name or ID..." class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
-                    <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                </div>
-            </div>
-
-            <div class="mb-4 max-h-40 overflow-y-auto">
-                <label class="text-xs text-gray-400 block mb-2">Candidate Winners</label>
-                <div class="space-y-2">
-                    <label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-purple has-[:checked]:bg-bingo-purple/5 border-2 border-transparent">
-                        <input type="radio" name="winner" class="accent-bingo-purple">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-xs font-bold">A</div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold">Ahmed Hassan</p>
-                            <p class="text-[10px] text-gray-500">Full House completed &middot; 45s</p>
-                        </div>
-                        <span class="text-xs text-bingo-green font-semibold">98.2%</span>
-                    </label>
-                    <label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-purple has-[:checked]:bg-bingo-purple/5 border-2 border-transparent">
-                        <input type="radio" name="winner" class="accent-bingo-purple">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-blue to-cyan-500 flex items-center justify-center text-xs font-bold">S</div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold">Sarah Kim</p>
-                            <p class="text-[10px] text-gray-500">Full House completed &middot; 52s</p>
-                        </div>
-                        <span class="text-xs text-bingo-green font-semibold">95.7%</span>
-                    </label>
-                    <label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-purple has-[:checked]:bg-bingo-purple/5 border-2 border-transparent">
-                        <input type="radio" name="winner" class="accent-bingo-purple">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-teal to-emerald-500 flex items-center justify-center text-xs font-bold">L</div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold">Lisa Chen</p>
-                            <p class="text-[10px] text-gray-500">Full House completed &middot; 1m 2s</p>
-                        </div>
-                        <span class="text-xs text-bingo-orange font-semibold">87.3%</span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-3 pt-2">
-                <button type="button" onclick="closeModal('selectWinnerModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
-                <button type="button" onclick="closeModal('selectWinnerModal')" class="flex-1 btn-purple py-3 rounded-xl text-sm font-semibold shadow-lg shadow-bingo-purple/10">Confirm Winner</button>
+            <div id="usersTableEmpty" class="hidden text-center py-12 text-gray-500 text-sm">No users found</div>
+            <!-- Pagination -->
+            <div class="flex items-center justify-between px-4 py-4 border-t border-white/5">
+                <p id="usersPaginationInfo" class="text-xs text-gray-500">Showing 0 users</p>
+                <div id="usersPaginationControls" class="flex items-center gap-1"></div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // Firebase live data
-        async function loadDashboard() {
-            try {
-                const usersSnap = await db.collection('users').get();
-                const gamesSnap = await db.collection('games').get();
-                
-                let totalBalance = 0, activeGames = 0, winnersToday = 0;
-                const today = new Date(); today.setHours(0,0,0,0);
-                
-                usersSnap.forEach(doc => {
-                    const d = doc.data();
-                    totalBalance += d.balance || 0;
-                });
-                
-                gamesSnap.forEach(doc => {
-                    const d = doc.data();
-                    if (d.status === 'waiting' || d.status === 'active') activeGames++;
-                    if (d.winner && d.created_at && d.created_at.toDate() >= today) winnersToday++;
-                });
-                
-                animateNumber(document.getElementById('totalUsers'), usersSnap.size, 1000);
-                animateNumber(document.getElementById('activeGames'), activeGames, 1000);
-                animateNumber(document.getElementById('winnersToday'), winnersToday, 1000);
-                document.getElementById('totalBalance').textContent = totalBalance.toFixed(2);
-            } catch (e) {
-                console.error('Dashboard load error:', e);
-            }
-        }
+<!-- ==================== GAMES SECTION ==================== -->
+<div id="section-games" class="section">
+    <div class="max-w-[1600px] mx-auto mt-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div>
+                <h3 class="text-2xl font-bold">Games</h3>
+                <p class="text-gray-500 text-sm mt-1">Active and completed games</p>
+            </div>
+        </div>
 
-        async function loadPlayers() {
-            try {
-                const snap = await db.collection('users').orderBy('wins', 'desc').limit(50).get();
-                const tbody = document.getElementById('playersTable');
-                if (!tbody) return;
-                tbody.innerHTML = '';
-                
-                snap.forEach(doc => {
-                    const u = doc.data();
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-white/[0.02] transition-colors';
-                    tr.innerHTML = '<td class="px-6 py-4 font-mono text-xs text-gray-400">#' + (u.user_id || doc.id) + '</td>' +
-                        '<td class="px-6 py-4 font-medium">' + (u.first_name || 'Unknown') + '</td>' +
-                        '<td class="px-6 py-4 text-bingo-green font-semibold">' + (u.balance || 0).toFixed(2) + ' ETB</td>' +
-                        '<td class="px-6 py-4">' + (u.total_games || 0) + '</td>' +
-                        '<td class="px-6 py-4 text-bingo-orange font-semibold">' + (u.wins || 0) + '</td>' +
-                        '<td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-semibold ' + (u.is_playing ? 'bg-bingo-green/20 text-bingo-green' : 'bg-red-500/20 text-red-400') + '">' + (u.is_playing ? 'Playing' : 'Idle') + '</span></td>' +
-                        '<td class="px-6 py-4"><button class="btn-orange px-4 py-1.5 rounded-lg text-xs font-semibold" onclick="selectPlayer(' + u.user_id + ')">Select</button></td>';
-                    tbody.appendChild(tr);
-                });
-            } catch (e) {
-                console.error('Players load error:', e);
-            }
-        }
+        <!-- Active Games -->
+        <h4 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Active Games</h4>
+        <div class="glass rounded-2xl p-6 mb-8">
+            <div id="gamesActiveList" class="space-y-3"></div>
+            <div id="gamesActiveEmpty" class="text-center py-8 text-gray-500 text-sm">No active games</div>
+        </div>
 
-        async function loadRecentGames() {
-            try {
-                const snap = await db.collection('games').orderBy('created_at', 'desc').limit(10).get();
-                const feed = document.getElementById('activityFeed');
-                if (!feed) return;
-                feed.innerHTML = '';
-                
-                snap.forEach(doc => {
-                    const g = doc.data();
-                    const item = document.createElement('div');
-                    let border = 'border-bingo-blue', text = '';
-                    if (g.winner) {
-                        border = 'border-bingo-green';
-                        text = '<span class="font-semibold text-bingo-green">Player_' + g.user_id + '</span> won ' + (g.prize || 0) + ' ETB';
-                    } else if (g.status === 'active') {
-                        border = 'border-bingo-orange';
-                        text = '<span class="font-semibold text-bingo-orange">Game #' + doc.id.slice(0,6) + '</span> active — Stake: ' + g.stake + ' ETB';
-                    } else {
-                        border = 'border-bingo-purple';
-                        text = '<span class="font-semibold text-bingo-purple">Game #' + doc.id.slice(0,6) + '</span> waiting for players';
-                    }
-                    item.className = 'feed-item rounded-lg px-3 py-2.5 border-l-2 ' + border + ' opacity-0 transition-opacity duration-500';
-                    item.innerHTML = '<div class="flex items-center justify-between"><p class="text-sm">' + text + '</p><span class="text-[10px] text-gray-600">' + (g.created_at ? new Date(g.created_at.seconds * 1000).toLocaleTimeString() : '') + '</span></div>';
-                    feed.appendChild(item);
-                    requestAnimationFrame(function() { item.style.opacity = '1'; });
-                });
-            } catch (e) {
-                console.error('Games load error:', e);
-            }
-        }
+        <!-- Game History -->
+        <h4 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Game History</h4>
+        <div class="glass rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-white/5">
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Game ID</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Players</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Stake</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Winner</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gamesHistoryTable"></tbody>
+                </table>
+            </div>
+            <div id="gamesHistoryEmpty" class="text-center py-12 text-gray-500 text-sm">No game history</div>
+        </div>
+    </div>
+</div>
 
-        // Listen for real-time updates
-        db.collection('users').onSnapshot(() => { loadDashboard(); loadPlayers(); });
-        db.collection('games').onSnapshot(() => { loadDashboard(); loadRecentGames(); });
+<!-- ==================== PREDICTION CONTROL SECTION ==================== -->
+<div id="section-prediction" class="section">
+    <div class="max-w-[1200px] mx-auto mt-6">
+        <div class="mb-6">
+            <h3 class="text-2xl font-bold">Prediction Control</h3>
+            <p class="text-gray-500 text-sm mt-1">Configure winner prediction algorithm</p>
+        </div>
 
-        // Initial load
-        loadDashboard();
-        loadPlayers();
-        loadRecentGames();
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Mode Selector -->
+            <div class="glass rounded-2xl p-6">
+                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 flex items-center justify-center text-sm">🧠</span>
+                    Prediction Mode
+                </h4>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium">Algorithm Mode</p>
+                            <p class="text-xs text-gray-500">Select how winners are determined</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="predModeAuto" onclick="setPredictionMode('automatic')" class="glass rounded-xl px-4 py-4 text-left transition-all border-2 border-[#10B981]/50 bg-[#10B981]/5">
+                            <span class="text-lg block mb-1">🤖</span>
+                            <span class="text-sm font-semibold block">Automatic</span>
+                            <span class="text-[10px] text-gray-500">AI selects winner</span>
+                        </button>
+                        <button id="predModeAdmin" onclick="setPredictionMode('admin')" class="glass rounded-xl px-4 py-4 text-left transition-all border-2 border-transparent">
+                            <span class="text-lg block mb-1">👤</span>
+                            <span class="text-sm font-semibold block">Admin Control</span>
+                            <span class="text-[10px] text-gray-500">You select winner</span>
+                        </button>
+                    </div>
 
-        function openModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.body.style.overflow = 'hidden';
-        }
+                    <div class="border-t border-white/5 pt-4 mt-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium">Algorithm Enabled</p>
+                                <p class="text-xs text-gray-500">Toggle prediction algorithm</p>
+                            </div>
+                            <div id="predAlgoToggle" class="toggle-sw on" onclick="this.classList.toggle('on');savePredictionSettings()"></div>
+                        </div>
+                    </div>
 
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.body.style.overflow = '';
-        }
+                    <div class="border-t border-white/5 pt-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium">Anti-Fraud Detection</p>
+                                <p class="text-xs text-gray-500">Detect suspicious patterns</p>
+                            </div>
+                            <div class="toggle-sw on" onclick="this.classList.toggle('on')"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.fixed.inset-0.z-\\[100\\]').forEach(function(modal) {
-                    if (!modal.classList.contains('hidden')) {
-                        modal.classList.add('hidden');
-                        modal.classList.remove('flex');
-                    }
-                });
-                document.body.style.overflow = '';
-            }
+            <!-- Current Game Status -->
+            <div class="glass rounded-2xl p-6">
+                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-[#FF8C00]/10 flex items-center justify-center text-sm">📡</span>
+                    Current Game Status
+                </h4>
+                <div id="predCurrentGame" class="space-y-4">
+                    <div class="glass rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm text-gray-400">Active Game</span>
+                            <span id="predGameStatus" class="text-xs glass px-2 py-1 rounded-full text-[#10B981]">Loading...</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div>
+                                <p id="predGamePlayers" class="text-lg font-bold">0</p>
+                                <p class="text-[10px] text-gray-500">Players</p>
+                            </div>
+                            <div>
+                                <p id="predGameRound" class="text-lg font-bold">-</p>
+                                <p class="text-[10px] text-gray-500">Round</p>
+                            </div>
+                            <div>
+                                <p id="predGameStake" class="text-lg font-bold text-[#FF8C00]">0</p>
+                                <p class="text-[10px] text-gray-500">Stake</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Select Player (shown when admin mode) -->
+                <div id="adminSelectPanel" class="hidden mt-4">
+                    <h5 class="text-sm font-semibold text-gray-400 mb-3">Select Player for Guaranteed Win</h5>
+                    <div class="relative mb-3">
+                        <input type="text" id="adminPlayerSearch" placeholder="Search player..." oninput="filterAdminPlayers()" class="w-full glass rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-[#0D1117] border border-white/10">
+                    </div>
+                    <div id="adminPlayersList" class="max-h-60 overflow-y-auto space-y-2"></div>
+                    <div id="adminPlayersEmpty" class="text-center py-6 text-gray-500 text-sm">No active players found</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== REPORTS SECTION ==================== -->
+<div id="section-reports" class="section">
+    <div class="max-w-[1600px] mx-auto mt-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div>
+                <h3 class="text-2xl font-bold">Reports</h3>
+                <p class="text-gray-500 text-sm mt-1">Analytics and statistics overview</p>
+            </div>
+            <button class="btn-grad px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+                📥 Export Report
+            </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="glass rounded-2xl p-5">
+                <p class="text-sm text-gray-400 mb-2">Total Games Played</p>
+                <p id="reportTotalGames" class="text-3xl font-bold">0</p>
+                <div class="mt-2 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-[#FF8C00] to-yellow-500 rounded-full" style="width:100%"></div></div>
+            </div>
+            <div class="glass rounded-2xl p-5">
+                <p class="text-sm text-gray-400 mb-2">Total Stakes Collected</p>
+                <p id="reportTotalStakes" class="text-3xl font-bold">0 ETB</p>
+                <div class="mt-2 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-[#10B981] to-emerald-400 rounded-full" style="width:100%"></div></div>
+            </div>
+            <div class="glass rounded-2xl p-5">
+                <p class="text-sm text-gray-400 mb-2">Avg Players per Game</p>
+                <p id="reportAvgPlayers" class="text-3xl font-bold">0</p>
+                <div class="mt-2 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-[#3B82F6] to-cyan-400 rounded-full" style="width:100%"></div></div>
+            </div>
+            <div class="glass rounded-2xl p-5">
+                <p class="text-sm text-gray-400 mb-2">Completion Rate</p>
+                <p id="reportCompletionRate" class="text-3xl font-bold">0%</p>
+                <div class="mt-2 h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-[#8B5CF6] to-pink-400 rounded-full" style="width:100%"></div></div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="glass rounded-2xl p-6">
+                <h4 class="text-sm font-bold mb-4">📈 Games Over Time (Last 7 Days)</h4>
+                <div class="flex items-end justify-between h-48 gap-2" id="reportGamesChart"></div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+                <h4 class="text-sm font-bold mb-4">💰 Revenue Over Time (Last 7 Days)</h4>
+                <div class="flex items-end justify-between h-48 gap-2" id="reportRevenueChart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== SETTINGS SECTION ==================== -->
+<div id="section-settings" class="section">
+    <div class="max-w-[900px] mx-auto mt-6">
+        <div class="mb-6">
+            <h3 class="text-2xl font-bold">Settings</h3>
+            <p class="text-gray-500 text-sm mt-1">Bot and dashboard configuration</p>
+        </div>
+
+        <!-- Bot Configuration -->
+        <div class="glass rounded-2xl p-6 mb-6">
+            <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-lg bg-[#FF8C00]/10 flex items-center justify-center text-sm">🤖</span>
+                Bot Configuration
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Bot Name</label>
+                    <input type="text" value="Yegara Bingo" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Default Stake (ETB)</label>
+                    <input type="number" value="10" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Max Players</label>
+                    <input type="number" value="100" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Card Price (ETB)</label>
+                    <input type="number" value="5" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+            </div>
+            <div class="mt-4 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium">Maintenance Mode</p>
+                    <p class="text-xs text-gray-500">Disable bot for maintenance</p>
+                </div>
+                <div class="toggle-sw" onclick="this.classList.toggle('on')"></div>
+            </div>
+            <button class="btn-grad mt-6 px-6 py-2.5 rounded-xl text-sm font-semibold">Save Configuration</button>
+        </div>
+
+        <!-- Firebase Project Info -->
+        <div class="glass rounded-2xl p-6 mb-6">
+            <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center text-sm">🔥</span>
+                Firebase Project
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Project ID</label>
+                    <input type="text" value="bingo-bot-5c708" readonly class="w-full rounded-xl px-4 py-3 text-sm text-gray-400 bg-[#0D1117] border border-white/10 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Region</label>
+                    <input type="text" value="us-central1" readonly class="w-full rounded-xl px-4 py-3 text-sm text-gray-400 bg-[#0D1117] border border-white/10 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">App ID</label>
+                    <input type="text" value="1:988357359269:web:eb8ce31819d6853c717f4c" readonly class="w-full rounded-xl px-4 py-3 text-sm text-gray-400 bg-[#0D1117] border border-white/10 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Status</label>
+                    <div class="flex items-center gap-2 px-4 py-3">
+                        <span class="w-2 h-2 bg-[#10B981] rounded-full anim-live"></span>
+                        <span class="text-sm text-[#10B981] font-semibold">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="glass rounded-2xl p-6">
+            <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 flex items-center justify-center text-sm">🔒</span>
+                Change Password
+            </h4>
+            <div class="space-y-4 max-w-md">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Current Password</label>
+                    <input type="password" id="settingsCurrentPw" placeholder="Enter current password" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">New Password</label>
+                    <input type="password" id="settingsNewPw" placeholder="Enter new password" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Confirm New Password</label>
+                    <input type="password" id="settingsConfirmPw" placeholder="Confirm new password" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                </div>
+                <div id="settingsPwMsg" class="hidden text-sm rounded-xl px-4 py-3"></div>
+                <button onclick="changeAdminPassword()" class="btn-purple-g px-6 py-3 rounded-xl text-sm font-semibold transition-all">Update Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div> <!-- end mainContent -->
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- User Details Modal -->
+<div id="userDetailsModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('userDetailsModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-lg relative z-10 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold">User Details</h3>
+            <button onclick="closeModal('userDetailsModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div id="userDetailsContent" class="space-y-4"></div>
+    </div>
+</div>
+
+<!-- Edit Balance Modal -->
+<div id="editBalanceModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('editBalanceModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-md relative z-10 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold">Edit Balance</h3>
+            <button onclick="closeModal('editBalanceModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-400 mb-4">Editing balance for: <span id="editBalanceUser" class="text-white font-semibold"></span></p>
+        <p class="text-sm text-gray-400 mb-1">Current Balance: <span id="editBalanceCurrent" class="text-[#10B981] font-semibold"></span></p>
+        <div class="mt-4">
+            <label class="text-xs text-gray-400 block mb-1.5">New Balance (ETB)</label>
+            <input type="number" id="editBalanceInput" step="0.01" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+        </div>
+        <div class="flex items-center gap-3 mt-6">
+            <button onclick="closeModal('editBalanceModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="saveEditBalance()" class="flex-1 btn-green-g py-3 rounded-xl text-sm font-semibold">Save Balance</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Admin Modal -->
+<div id="addAdminModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('addAdminModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-md relative z-10 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold">Add New Admin</h3>
+            <button onclick="closeModal('addAdminModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs text-gray-400 block mb-1.5">Display Name</label>
+                <input type="text" id="addAdminDisplayName" placeholder="e.g., John Admin" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 block mb-1.5">Username</label>
+                <input type="text" id="addAdminUsername" placeholder="e.g., john" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 block mb-1.5">Password</label>
+                <input type="password" id="addAdminPassword" placeholder="Enter password" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 block mb-1.5">Role</label>
+                <select id="addAdminRole" class="w-full rounded-xl px-4 py-3 text-sm text-white bg-[#0D1117] border border-white/10">
+                    <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                </select>
+            </div>
+            <div id="addAdminMsg" class="hidden text-sm rounded-xl px-4 py-3"></div>
+        </div>
+        <div class="flex items-center gap-3 mt-6">
+            <button onclick="closeModal('addAdminModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="addAdmin()" class="flex-1 btn-grad py-3 rounded-xl text-sm font-semibold">Create Admin</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('deleteConfirmModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-sm relative z-10 p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">⚠️</span>
+        </div>
+        <h3 class="text-lg font-bold mb-2">Delete User</h3>
+        <p class="text-sm text-gray-400 mb-6">Are you sure you want to delete <span id="deleteUserName" class="text-white font-semibold"></span>? This action cannot be undone.</p>
+        <div class="flex items-center gap-3">
+            <button onclick="closeModal('deleteConfirmModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="confirmDeleteUser()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== AUTH CHECK ====================
+(function(){
+    if(localStorage.getItem('loggedIn') !== 'true'){
+        window.location.href = 'login.html';
+        return;
+    }
+    var u = localStorage.getItem('username') || 'Admin';
+    var r = localStorage.getItem('role') || 'admin';
+    var initial = u.charAt(0).toUpperCase();
+    var roleLabel = r === 'super_admin' ? 'Super Admin' : 'Admin';
+    document.getElementById('sidebarUsername').textContent = u;
+    document.getElementById('sidebarRole').textContent = roleLabel;
+    document.getElementById('sidebarAvatar').textContent = initial;
+    document.getElementById('headerUsername').textContent = u;
+    document.getElementById('headerRole').textContent = roleLabel;
+    document.getElementById('headerAvatar').textContent = initial;
+})();
+
+function logout(){
+    localStorage.removeItem('loggedIn');
+    localStorage.removeItem('username');
+    localStorage.removeItem('role');
+    window.location.href = 'login.html';
+}
+
+// ==================== SIDEBAR ====================
+var sidebarCollapsed = false;
+
+function toggleSidebar(){
+    var sb = document.getElementById('sidebar');
+    var mc = document.getElementById('mainContent');
+    var icon = document.getElementById('collapseIcon');
+    sidebarCollapsed = !sidebarCollapsed;
+    if(sidebarCollapsed){
+        sb.style.width = '70px';
+        mc.style.marginLeft = '70px';
+        icon.style.transform = 'rotate(180deg)';
+        sb.querySelectorAll('.nav-label').forEach(function(el){el.style.opacity='0';el.style.width='0';el.style.overflow='hidden';});
+        sb.querySelectorAll('.sidebar-header-text').forEach(function(el){el.style.opacity='0';el.style.width='0';el.style.overflow='hidden';});
+        sb.querySelectorAll('.sidebar-user-text').forEach(function(el){el.style.opacity='0';el.style.width='0';el.style.overflow='hidden';});
+    } else {
+        sb.style.width = '250px';
+        mc.style.marginLeft = '250px';
+        icon.style.transform = 'rotate(0deg)';
+        sb.querySelectorAll('.nav-label').forEach(function(el){el.style.opacity='1';el.style.width='';el.style.overflow='';});
+        sb.querySelectorAll('.sidebar-header-text').forEach(function(el){el.style.opacity='1';el.style.width='';el.style.overflow='';});
+        sb.querySelectorAll('.sidebar-user-text').forEach(function(el){el.style.opacity='1';el.style.width='';el.style.overflow='';});
+    }
+}
+
+function toggleMobileSidebar(){
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+
+// ==================== USER DROPDOWN ====================
+function toggleUserDropdown(){
+    document.getElementById('userDropdown').classList.toggle('hidden');
+}
+document.addEventListener('click', function(e){
+    var wrap = document.getElementById('userDropdownWrap');
+    if(wrap && !wrap.contains(e.target)){
+        document.getElementById('userDropdown').classList.add('hidden');
+    }
+});
+
+// ==================== SECTION SWITCHING ====================
+var currentSection = 'dashboard';
+var sectionTitles = {
+    dashboard: 'Dashboard',
+    users: 'User Management',
+    games: 'Games',
+    prediction: 'Prediction Control',
+    reports: 'Reports',
+    settings: 'Settings'
+};
+
+function switchSection(name){
+    currentSection = name;
+    document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+    var sec = document.getElementById('section-' + name);
+    if(sec) sec.classList.add('active');
+    document.getElementById('pageTitle').textContent = sectionTitles[name] || name;
+    document.querySelectorAll('.nav-item').forEach(function(n){
+        n.classList.remove('active');
+        n.classList.add('text-gray-400');
+    });
+    var activeNav = document.querySelector('.nav-item[data-section="'+name+'"]');
+    if(activeNav){
+        activeNav.classList.add('active');
+        activeNav.classList.remove('text-gray-400');
+    }
+    // Close mobile sidebar
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+    // Close user dropdown
+    document.getElementById('userDropdown').classList.add('hidden');
+}
+
+// ==================== MODALS ====================
+function openModal(id){
+    var m = document.getElementById(id);
+    if(m){m.classList.remove('hidden');m.classList.add('flex');document.body.style.overflow='hidden';}
+}
+function closeModal(id){
+    var m = document.getElementById(id);
+    if(m){m.classList.add('hidden');m.classList.remove('flex');document.body.style.overflow='';}
+}
+document.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){
+        document.querySelectorAll('[id$="Modal"]').forEach(function(m){
+            if(!m.classList.contains('hidden')){m.classList.add('hidden');m.classList.remove('flex');}
         });
+        document.body.style.overflow='';
+    }
+});
 
-        // Animate stats on load
-        function animateNumber(el, target, duration) {
-            let start = 0;
-            let current = 0;
-            const increment = target / (duration / 16);
-            const timer = setInterval(function() {
-                current += increment;
-                if (current >= target) {
-                    current = target;
-                    clearInterval(timer);
-                }
-                if (typeof target === 'number' && target > 999) {
-                    el.textContent = Math.floor(current).toLocaleString();
-                } else {
-                    el.textContent = Math.floor(current);
-                }
-            }, 16);
+// ==================== DATA ====================
+var allUsers = [];
+var allGames = [];
+var userPageSize = 10;
+var userPage = 1;
+
+// Animate number
+function animateNum(el, target, dur){
+    if(!el) return;
+    var start = 0;
+    var startTime = null;
+    function step(ts){
+        if(!startTime) startTime = ts;
+        var p = Math.min((ts - startTime) / dur, 1);
+        var val = Math.floor(p * target);
+        el.textContent = val.toLocaleString();
+        if(p < 1) requestAnimationFrame(step);
+    }
+    if(target > 0) requestAnimationFrame(step);
+    else el.textContent = '0';
+}
+
+// Format timestamp
+function fmtTime(ts){
+    if(!ts) return '-';
+    try {
+        var d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    } catch(e){return '-';}
+}
+
+function fmtTimeShort(ts){
+    if(!ts) return '-';
+    try {
+        var d = ts.toDate ? ts.toDate() : new Date(ts);
+        var now = new Date();
+        var diff = Math.floor((now - d) / 1000);
+        if(diff < 60) return diff + 's ago';
+        if(diff < 3600) return Math.floor(diff/60) + 'm ago';
+        if(diff < 86400) return Math.floor(diff/3600) + 'h ago';
+        return Math.floor(diff/86400) + 'd ago';
+    } catch(e){return '-';}
+}
+
+// ==================== DASHBOARD ====================
+var totalRevenue = 0;
+var winnersToday = 0;
+var activeGamesCount = 0;
+
+function processDashboardData(){
+    // Users
+    var totalUsersEl = document.getElementById('statTotalUsers');
+    animateNum(totalUsersEl, allUsers.length, 800);
+
+    // Games stats
+    activeGamesCount = 0;
+    totalRevenue = 0;
+    winnersToday = 0;
+    var today = new Date(); today.setHours(0,0,0,0);
+
+    allGames.forEach(function(g){
+        if(g.status === 'waiting' || g.status === 'active') activeGamesCount++;
+        totalRevenue += (g.stake || 0) * (g.players_count || 0);
+        if(g.status === 'completed' && g.winner){
+            try {
+                var gDate = g.created_at && g.created_at.toDate ? g.created_at.toDate() : (g.created_at ? new Date(g.created_at) : null);
+                if(gDate && gDate >= today) winnersToday++;
+            } catch(e){}
         }
+    });
 
-        // Simulate live feed updates
-        const feedEvents = [
-            { text: '<span class="font-semibold text-bingo-green">Player_' + Math.floor(Math.random()*900+100) + '</span> won a round', border: 'border-bingo-green', color: 'text-bingo-green' },
-            { text: '<span class="font-semibold text-bingo-blue">New Player</span> joined Room Alpha', border: 'border-bingo-blue', color: 'text-bingo-blue' },
-            { text: '<span class="font-semibold text-bingo-purple">Bot</span> called number ' + String.fromCharCode(65+Math.floor(Math.random()*7)) + '-' + Math.floor(Math.random()*75+1).toString().padStart(2,'0'), border: 'border-bingo-purple', color: 'text-bingo-purple' },
-            { text: '<span class="font-semibold text-bingo-teal">Player_' + Math.floor(Math.random()*900+100) + '</span> purchased a card', border: 'border-bingo-teal', color: 'text-bingo-teal' },
-            { text: '<span class="font-semibold text-bingo-orange">System</span> started new round', border: 'border-bingo-orange', color: 'text-bingo-orange' },
-        ];
+    animateNum(document.getElementById('statActiveGames'), activeGamesCount, 800);
+    animateNum(document.getElementById('statRevenue'), Math.floor(totalRevenue), 800);
+    animateNum(document.getElementById('statWinnersToday'), winnersToday, 800);
 
-        setInterval(function() {
-            const feed = document.getElementById('activityFeed');
-            if (!feed) return;
-            const event = feedEvents[Math.floor(Math.random() * feedEvents.length)];
-            const item = document.createElement('div');
-            item.className = 'feed-item rounded-lg px-3 py-2.5 border-l-2 ' + event.border + ' opacity-0 transition-opacity duration-500';
-            item.innerHTML = '<div class="flex items-center justify-between"><p class="text-sm">' + event.text + '</p><span class="text-[10px] text-gray-600">Just now</span></div>';
-            feed.insertBefore(item, feed.firstChild);
-            requestAnimationFrame(function() { item.style.opacity = '1'; });
-            if (feed.children.length > 20) {
-                feed.removeChild(feed.lastChild);
+    // Notif badge
+    document.getElementById('notifBadge').textContent = activeGamesCount;
+
+    // Recent games table
+    var sorted = allGames.slice().sort(function(a,b){
+        var ta = a.created_at ? (a.created_at.seconds || 0) : 0;
+        var tb = b.created_at ? (b.created_at.seconds || 0) : 0;
+        return tb - ta;
+    });
+    var recent = sorted.slice(0, 10);
+    var tbody = document.getElementById('recentGamesTable');
+    var empty = document.getElementById('recentGamesEmpty');
+    if(!tbody) return;
+
+    if(recent.length === 0){
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+
+    tbody.innerHTML = recent.map(function(g){
+        var id = g.id || '-';
+        var shortId = typeof id === 'string' ? id.substring(0,8) : id;
+        var players = g.players_count || g.players || 0;
+        var stake = g.stake || 0;
+        var status = g.status || '-';
+        var statusColor = status === 'completed' ? 'text-[#10B981] bg-[#10B981]/10' : (status === 'active' ? 'text-[#FF8C00] bg-[#FF8C00]/10' : 'text-[#3B82F6] bg-[#3B82F6]/10');
+        return '<tr class="tbl-row border-b border-white/[0.03]">' +
+            '<td class="px-3 py-3 text-sm font-mono text-gray-400">#' + shortId + '</td>' +
+            '<td class="px-3 py-3 text-sm">' + players + '</td>' +
+            '<td class="px-3 py-3 text-sm text-[#FF8C00] font-semibold">' + stake + ' ETB</td>' +
+            '<td class="px-3 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ' + statusColor + '">' + status + '</span></td>' +
+            '<td class="px-3 py-3 text-xs text-gray-500">' + fmtTimeShort(g.created_at) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    // Activity feed
+    buildActivityFeed(sorted);
+}
+
+function buildActivityFeed(sortedGames){
+    var feed = document.getElementById('activityFeed');
+    var emptyEl = document.getElementById('activityEmpty');
+    if(!feed) return;
+
+    var items = [];
+    sortedGames.forEach(function(g){
+        var id = g.id || '';
+        var shortId = typeof id === 'string' ? id.substring(0,8) : id;
+        if(g.status === 'completed' && g.winner){
+            items.push({
+                text: '<span class="font-semibold text-[#10B981]">Winner</span> Game #' + shortId + ' — ' + (g.winner_name || 'User') + ' won ' + (g.prize || g.stake*2 || 0) + ' ETB',
+                border: 'border-[#10B981]',
+                time: fmtTimeShort(g.created_at)
+            });
+        } else if(g.status === 'active'){
+            items.push({
+                text: '<span class="font-semibold text-[#FF8C00]">Game</span> #' + shortId + ' is active — ' + (g.players_count||0) + ' players',
+                border: 'border-[#FF8C00]',
+                time: fmtTimeShort(g.created_at)
+            });
+        } else {
+            items.push({
+                text: '<span class="font-semibold text-[#3B82F6]">Game</span> #' + shortId + ' waiting for players',
+                border: 'border-[#3B82F6]',
+                time: fmtTimeShort(g.created_at)
+            });
+        }
+    });
+
+    if(items.length === 0){
+        feed.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+    }
+    emptyEl.classList.add('hidden');
+
+    feed.innerHTML = items.slice(0, 20).map(function(item){
+        return '<div class="rounded-lg px-3 py-2.5 border-l-2 ' + item.border + ' hover:bg-white/[0.02] transition-all">' +
+            '<div class="flex items-center justify-between">' +
+            '<p class="text-sm">' + item.text + '</p>' +
+            '<span class="text-[10px] text-gray-600 flex-shrink-0 ml-2">' + item.time + '</span>' +
+            '</div></div>';
+    }).join('');
+}
+
+// ==================== USER MANAGEMENT ====================
+function renderUsersTable(){
+    var search = (document.getElementById('userSearchInput').value || '').toLowerCase();
+    var statusFilter = document.getElementById('userStatusFilter').value;
+
+    var filtered = allUsers.filter(function(u){
+        var name = (u.first_name || '').toLowerCase();
+        var uname = (u.username || '').toLowerCase();
+        var uid = String(u.user_id || '').toLowerCase();
+        var matchSearch = !search || name.indexOf(search) > -1 || uname.indexOf(search) > -1 || uid.indexOf(search) > -1;
+        var matchStatus = statusFilter === 'all' || (u.status || 'active') === statusFilter;
+        return matchSearch && matchStatus;
+    });
+
+    var totalPages = Math.max(1, Math.ceil(filtered.length / userPageSize));
+    if(userPage > totalPages) userPage = totalPages;
+    var start = (userPage - 1) * userPageSize;
+    var pageItems = filtered.slice(start, start + userPageSize);
+
+    var tbody = document.getElementById('usersTableBody');
+    var emptyEl = document.getElementById('usersTableEmpty');
+    if(!tbody) return;
+
+    if(pageItems.length === 0){
+        tbody.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+    } else {
+        emptyEl.classList.add('hidden');
+        tbody.innerHTML = pageItems.map(function(u){
+            var name = u.first_name || 'Unknown';
+            var initial = name.charAt(0).toUpperCase();
+            var uname = u.username ? '@' + u.username : '-';
+            var uid = u.user_id || '-';
+            var balance = (u.balance || 0).toFixed(2);
+            var games = u.total_games || u.games_played || 0;
+            var wins = u.wins || 0;
+            var status = u.status || 'active';
+            var statusClass = status === 'active' ? 'bg-[#10B981]/10 text-[#10B981]' : (status === 'banned' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400');
+            var colors = ['from-[#FF8C00] to-yellow-500','from-[#3B82F6] to-cyan-500','from-[#8B5CF6] to-pink-500','from-[#14B8A6] to-emerald-500','from-red-500 to-orange-500'];
+            var color = colors[Math.abs(hashStr(uid)) % colors.length];
+            var docId = u._docId || '';
+
+            return '<tr class="tbl-row border-b border-white/[0.03]">' +
+                '<td class="px-4 py-3"><div class="flex items-center gap-3">' +
+                    '<div class="w-9 h-9 rounded-lg bg-gradient-to-br ' + color + ' flex items-center justify-center text-sm font-bold">' + initial + '</div>' +
+                    '<div><p class="text-sm font-semibold">' + escHtml(name) + '</p><p class="text-[10px] text-gray-500">' + escHtml(uname) + '</p></div>' +
+                '</div></td>' +
+                '<td class="px-4 py-3 text-sm text-gray-400 font-mono">' + escHtml(String(uid)) + '</td>' +
+                '<td class="px-4 py-3 text-sm text-[#10B981] font-semibold">' + balance + ' ETB</td>' +
+                '<td class="px-4 py-3 text-sm font-medium">' + games + '</td>' +
+                '<td class="px-4 py-3 text-sm font-medium text-[#FF8C00]">' + wins + '</td>' +
+                '<td class="px-4 py-3"><span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ' + statusClass + '"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>' + status + '</span></td>' +
+                '<td class="px-4 py-3"><div class="flex items-center gap-1">' +
+                    '<button onclick="viewUser(\'' + escHtml(docId) + '\')" class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View"><span class="text-sm">👁️</span></button>' +
+                    '<button onclick="openEditBalance(\'' + escHtml(docId) + '\',\'' + escHtml(name) + '\',' + (u.balance||0) + ')" class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit Balance"><span class="text-sm">💰</span></button>' +
+                    '<button onclick="toggleBanUser(\'' + escHtml(docId) + '\',\'' + escHtml(status) + '\')" class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban/Unban"><span class="text-sm">' + (status === 'banned' ? '✅' : '🚫') + '</span></button>' +
+                    '<button onclick="requestDeleteUser(\'' + escHtml(docId) + '\',\'' + escHtml(name) + '\')" class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Delete"><span class="text-sm">🗑️</span></button>' +
+                '</div></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    // Pagination info
+    document.getElementById('usersPaginationInfo').textContent = 'Showing ' + (filtered.length > 0 ? start + 1 : 0) + '-' + Math.min(start + userPageSize, filtered.length) + ' of ' + filtered.length + ' users';
+
+    // Pagination controls
+    var pgDiv = document.getElementById('usersPaginationControls');
+    var pgHtml = '';
+    pgHtml += '<button onclick="goUserPage(' + (userPage-1) + ')" class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all ' + (userPage<=1?'opacity-30 pointer-events-none':'') + '">&laquo;</button>';
+    for(var i = 1; i <= totalPages && i <= 7; i++){
+        pgHtml += '<button onclick="goUserPage(' + i + ')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ' + (i===userPage ? 'bg-[#FF8C00] text-white' : 'glass text-gray-400 hover:text-white') + '">' + i + '</button>';
+    }
+    if(totalPages > 7) pgHtml += '<span class="px-2 text-xs text-gray-500">...</span><button onclick="goUserPage(' + totalPages + ')" class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">' + totalPages + '</button>';
+    pgHtml += '<button onclick="goUserPage(' + (userPage+1) + ')" class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all ' + (userPage>=totalPages?'opacity-30 pointer-events-none':'') + '">&raquo;</button>';
+    pgDiv.innerHTML = pgHtml;
+}
+
+function filterUsers(){ userPage = 1; renderUsersTable(); }
+function goUserPage(p){ userPage = p; renderUsersTable(); }
+
+function hashStr(s){ var h = 0; for(var i=0;i<s.length;i++){h = ((h<<5)-h)+s.charCodeAt(i);h|=0;} return h; }
+function escHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// User actions
+function viewUser(docId){
+    var u = allUsers.find(function(x){return x._docId === docId;});
+    if(!u) return;
+    var content = document.getElementById('userDetailsContent');
+    var name = u.first_name || 'Unknown';
+    var games = u.total_games || u.games_played || 0;
+    var wins = u.wins || 0;
+    var winRate = games > 0 ? ((wins / games) * 100).toFixed(1) : '0.0';
+    content.innerHTML =
+        '<div class="flex items-center gap-4 mb-4">' +
+            '<div class="w-14 h-14 rounded-xl bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] flex items-center justify-center text-xl font-bold">' + name.charAt(0).toUpperCase() + '</div>' +
+            '<div><p class="text-lg font-bold">' + escHtml(name) + '</p><p class="text-sm text-gray-400">@' + escHtml(u.username || 'no_username') + '</p></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="glass rounded-xl p-3 text-center"><p class="text-lg font-bold text-[#10B981]">' + (u.balance||0).toFixed(2) + '</p><p class="text-[10px] text-gray-500">Balance (ETB)</p></div>' +
+            '<div class="glass rounded-xl p-3 text-center"><p class="text-lg font-bold text-[#3B82F6]">' + games + '</p><p class="text-[10px] text-gray-500">Games Played</p></div>' +
+            '<div class="glass rounded-xl p-3 text-center"><p class="text-lg font-bold text-[#FF8C00]">' + wins + '</p><p class="text-[10px] text-gray-500">Wins</p></div>' +
+            '<div class="glass rounded-xl p-3 text-center"><p class="text-lg font-bold text-[#8B5CF6]">' + winRate + '%</p><p class="text-[10px] text-gray-500">Win Rate</p></div>' +
+        '</div>' +
+        '<div class="border-t border-white/5 pt-4 mt-2 space-y-2 text-sm">' +
+            '<div class="flex justify-between"><span class="text-gray-400">Telegram ID</span><span class="font-mono">' + escHtml(String(u.user_id || '-')) + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-400">Status</span><span class="' + ((u.status||'active')==='active'?'text-[#10B981]':'text-red-400') + '">' + (u.status||'active') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-400">Registered</span><span>' + fmtTime(u.created_at || u.join_date) + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-400">Currently Playing</span><span>' + (u.is_playing ? 'Yes' : 'No') + '</span></div>' +
+        '</div>';
+    openModal('userDetailsModal');
+}
+
+var editingUserId = null;
+function openEditBalance(docId, name, balance){
+    editingUserId = docId;
+    document.getElementById('editBalanceUser').textContent = name;
+    document.getElementById('editBalanceCurrent').textContent = balance.toFixed(2) + ' ETB';
+    document.getElementById('editBalanceInput').value = balance;
+    openModal('editBalanceModal');
+}
+
+function saveEditBalance(){
+    if(!editingUserId) return;
+    var newBal = parseFloat(document.getElementById('editBalanceInput').value);
+    if(isNaN(newBal)){
+        alert('Please enter a valid number');
+        return;
+    }
+    db.collection('users').doc(editingUserId).update({balance: newBal})
+    .then(function(){
+        closeModal('editBalanceModal');
+        editingUserId = null;
+    })
+    .catch(function(e){
+        console.error('Error updating balance:', e);
+        alert('Failed to update balance');
+    });
+}
+
+function toggleBanUser(docId, currentStatus){
+    var newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+    db.collection('users').doc(docId).update({status: newStatus})
+    .catch(function(e){console.error('Error toggling ban:', e);alert('Failed to update status');});
+}
+
+var deleteUserId = null;
+function requestDeleteUser(docId, name){
+    deleteUserId = docId;
+    document.getElementById('deleteUserName').textContent = name;
+    openModal('deleteConfirmModal');
+}
+
+function confirmDeleteUser(){
+    if(!deleteUserId) return;
+    db.collection('users').doc(deleteUserId).delete()
+    .then(function(){
+        closeModal('deleteConfirmModal');
+        deleteUserId = null;
+    })
+    .catch(function(e){console.error('Error deleting user:', e);alert('Failed to delete user');});
+}
+
+// Add Admin
+function addAdmin(){
+    var displayName = document.getElementById('addAdminDisplayName').value.trim();
+    var username = document.getElementById('addAdminUsername').value.trim();
+    var password = document.getElementById('addAdminPassword').value.trim();
+    var role = document.getElementById('addAdminRole').value;
+    var msgEl = document.getElementById('addAdminMsg');
+
+    if(!displayName || !username || !password){
+        msgEl.textContent = 'All fields are required';
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+        msgEl.classList.remove('hidden');
+        return;
+    }
+
+    db.collection('admins').where('username','==',username).get()
+    .then(function(snap){
+        if(!snap.empty){
+            msgEl.textContent = 'Username already exists';
+            msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+            msgEl.classList.remove('hidden');
+            return;
+        }
+        return db.collection('admins').add({
+            displayName: displayName,
+            username: username,
+            password: password,
+            role: role,
+            isActive: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    })
+    .then(function(){
+        if(msgEl.classList.contains('hidden') || !msgEl.textContent.includes('exists')){
+            msgEl.textContent = 'Admin created successfully!';
+            msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20';
+            msgEl.classList.remove('hidden');
+            document.getElementById('addAdminDisplayName').value = '';
+            document.getElementById('addAdminUsername').value = '';
+            document.getElementById('addAdminPassword').value = '';
+            setTimeout(function(){closeModal('addAdminModal');msgEl.classList.add('hidden');},1500);
+        }
+    })
+    .catch(function(e){
+        console.error('Error adding admin:', e);
+        msgEl.textContent = 'Error: ' + e.message;
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+        msgEl.classList.remove('hidden');
+    });
+}
+
+// ==================== GAMES ====================
+function renderGames(){
+    // Active games
+    var activeList = document.getElementById('gamesActiveList');
+    var activeEmpty = document.getElementById('gamesActiveEmpty');
+    var active = allGames.filter(function(g){return g.status === 'active' || g.status === 'waiting';});
+
+    if(active.length === 0){
+        activeList.innerHTML = '';
+        activeEmpty.classList.remove('hidden');
+    } else {
+        activeEmpty.classList.add('hidden');
+        activeList.innerHTML = active.map(function(g){
+            var id = g.id || '';
+            var shortId = typeof id === 'string' ? id.substring(0,8) : id;
+            var statusDot = g.status === 'active' ? 'bg-[#10B981] anim-live' : 'bg-[#FF8C00] anim-live';
+            var statusText = g.status === 'active' ? 'text-[#10B981]' : 'text-[#FF8C00]';
+            var players = g.players_count || g.players || 0;
+            return '<div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">' +
+                '<div class="flex items-center gap-3">' +
+                    '<span class="w-2 h-2 rounded-full ' + statusDot + '"></span>' +
+                    '<div><p class="text-sm font-medium">Game #' + shortId + '</p>' +
+                    '<p class="text-xs text-gray-500">' + players + ' players &middot; Stake: ' + (g.stake||0) + ' ETB</p></div>' +
+                '</div>' +
+                '<div class="flex items-center gap-2">' +
+                    '<span class="text-xs glass px-2 py-1 rounded-full ' + statusText + '">' + g.status + '</span>' +
+                    '<button onclick="endGame(\'' + escHtml(id) + '\')" class="btn-red-g px-3 py-1.5 rounded-lg text-xs font-semibold">End Game</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    // Game history
+    var sorted = allGames.slice().sort(function(a,b){
+        var ta = a.created_at ? (a.created_at.seconds || 0) : 0;
+        var tb = b.created_at ? (b.created_at.seconds || 0) : 0;
+        return tb - ta;
+    });
+    var completed = sorted.filter(function(g){return g.status === 'completed';});
+    var histBody = document.getElementById('gamesHistoryTable');
+    var histEmpty = document.getElementById('gamesHistoryEmpty');
+
+    if(completed.length === 0){
+        histBody.innerHTML = '';
+        histEmpty.classList.remove('hidden');
+    } else {
+        histEmpty.classList.add('hidden');
+        histBody.innerHTML = completed.slice(0, 50).map(function(g){
+            var id = g.id || '';
+            var shortId = typeof id === 'string' ? id.substring(0,8) : id;
+            var statusColor = 'text-[#10B981] bg-[#10B981]/10';
+            return '<tr class="tbl-row border-b border-white/[0.03]">' +
+                '<td class="px-4 py-3 text-sm font-mono text-gray-400">#' + shortId + '</td>' +
+                '<td class="px-4 py-3 text-sm">' + (g.players_count||0) + '</td>' +
+                '<td class="px-4 py-3 text-sm text-[#FF8C00] font-semibold">' + (g.stake||0) + ' ETB</td>' +
+                '<td class="px-4 py-3 text-sm text-[#10B981]">' + escHtml(g.winner_name || g.winner || '-') + '</td>' +
+                '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ' + statusColor + '">completed</span></td>' +
+                '<td class="px-4 py-3 text-xs text-gray-500">' + fmtTime(g.created_at) + '</td>' +
+            '</tr>';
+        }).join('');
+    }
+}
+
+function endGame(gameId){
+    if(!confirm('Are you sure you want to end this game?')) return;
+    db.collection('games').doc(gameId).update({status: 'completed'})
+    .catch(function(e){console.error('Error ending game:', e);alert('Failed to end game');});
+}
+
+// ==================== PREDICTION CONTROL ====================
+var currentPredMode = 'automatic';
+var selectedAdminPlayer = null;
+
+function setPredictionMode(mode){
+    currentPredMode = mode;
+    var autoBtn = document.getElementById('predModeAuto');
+    var adminBtn = document.getElementById('predModeAdmin');
+    var adminPanel = document.getElementById('adminSelectPanel');
+
+    if(mode === 'automatic'){
+        autoBtn.className = 'glass rounded-xl px-4 py-4 text-left transition-all border-2 border-[#10B981]/50 bg-[#10B981]/5';
+        adminBtn.className = 'glass rounded-xl px-4 py-4 text-left transition-all border-2 border-transparent';
+        adminPanel.classList.add('hidden');
+    } else {
+        adminBtn.className = 'glass rounded-xl px-4 py-4 text-left transition-all border-2 border-[#FF8C00]/50 bg-[#FF8C00]/5';
+        autoBtn.className = 'glass rounded-xl px-4 py-4 text-left transition-all border-2 border-transparent';
+        adminPanel.classList.remove('hidden');
+        renderAdminPlayers();
+    }
+    savePredictionSettings();
+}
+
+function renderAdminPlayers(){
+    var activePlayers = allUsers.filter(function(u){return u.is_playing;});
+    var list = document.getElementById('adminPlayersList');
+    var empty = document.getElementById('adminPlayersEmpty');
+
+    if(activePlayers.length === 0){
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+
+    list.innerHTML = activePlayers.map(function(u){
+        var name = u.first_name || 'Unknown';
+        var selClass = selectedAdminPlayer === u._docId ? 'border-[#FF8C00]/50 bg-[#FF8C00]/5' : 'border-transparent';
+        return '<label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all border-2 ' + selClass + '">' +
+            '<input type="radio" name="adminWinner" value="' + escHtml(u._docId) + '" ' + (selectedAdminPlayer === u._docId ? 'checked' : '') + ' onchange="selectedAdminPlayer=\'' + escHtml(u._docId) + '\';renderAdminPlayers()" class="accent-[#FF8C00]">' +
+            '<div class="flex-1"><p class="text-sm font-semibold">' + escHtml(name) + '</p>' +
+            '<p class="text-[10px] text-gray-500">ID: ' + escHtml(String(u.user_id||'')) + '</p></div>' +
+            '<span class="text-xs text-[#FF8C00] font-semibold">' + (u.balance||0).toFixed(2) + ' ETB</span>' +
+        '</label>';
+    }).join('');
+}
+
+function filterAdminPlayers(){
+    var search = (document.getElementById('adminPlayerSearch').value || '').toLowerCase();
+    var activePlayers = allUsers.filter(function(u){
+        if(!u.is_playing) return false;
+        var name = (u.first_name || '').toLowerCase();
+        var uid = String(u.user_id || '').toLowerCase();
+        return name.indexOf(search) > -1 || uid.indexOf(search) > -1;
+    });
+
+    var list = document.getElementById('adminPlayersList');
+    var empty = document.getElementById('adminPlayersEmpty');
+    if(activePlayers.length === 0){
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+
+    list.innerHTML = activePlayers.map(function(u){
+        var name = u.first_name || 'Unknown';
+        var selClass = selectedAdminPlayer === u._docId ? 'border-[#FF8C00]/50 bg-[#FF8C00]/5' : 'border-transparent';
+        return '<label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all border-2 ' + selClass + '">' +
+            '<input type="radio" name="adminWinner" value="' + escHtml(u._docId) + '" ' + (selectedAdminPlayer === u._docId ? 'checked' : '') + ' onchange="selectedAdminPlayer=\'' + escHtml(u._docId) + '\'" class="accent-[#FF8C00]">' +
+            '<div class="flex-1"><p class="text-sm font-semibold">' + escHtml(name) + '</p>' +
+            '<p class="text-[10px] text-gray-500">ID: ' + escHtml(String(u.user_id||'')) + '</p></div>' +
+            '<span class="text-xs text-[#FF8C00] font-semibold">' + (u.balance||0).toFixed(2) + ' ETB</span>' +
+        '</label>';
+    }).join('');
+}
+
+function savePredictionSettings(){
+    var algoOn = document.getElementById('predAlgoToggle').classList.contains('on');
+    db.collection('settings').doc('prediction').set({
+        mode: currentPredMode,
+        algorithmEnabled: algoOn,
+        selectedAdminPlayer: selectedAdminPlayer,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(e){console.error('Error saving prediction settings:', e);});
+}
+
+function updatePredCurrentGame(){
+    var activeGame = allGames.find(function(g){return g.status === 'active';});
+    document.getElementById('predGameStatus').textContent = activeGame ? activeGame.status : 'No active game';
+    document.getElementById('predGamePlayers').textContent = activeGame ? (activeGame.players_count || 0) : 0;
+    document.getElementById('predGameRound').textContent = activeGame ? (activeGame.current_round || '-') : '-';
+    document.getElementById('predGameStake').textContent = activeGame ? (activeGame.stake || 0) : 0;
+}
+
+// ==================== REPORTS ====================
+function updateReports(){
+    var completed = allGames.filter(function(g){return g.status === 'completed';});
+    var totalGames = allGames.length;
+    var totalStakes = 0;
+    var totalPlayers = 0;
+    allGames.forEach(function(g){
+        totalStakes += (g.stake || 0) * (g.players_count || 0);
+        totalPlayers += (g.players_count || 0);
+    });
+    var avgPlayers = totalGames > 0 ? Math.round(totalPlayers / totalGames) : 0;
+    var completionRate = totalGames > 0 ? Math.round((completed.length / totalGames) * 100) : 0;
+
+    document.getElementById('reportTotalGames').textContent = totalGames.toLocaleString();
+    document.getElementById('reportTotalStakes').textContent = totalStakes.toLocaleString() + ' ETB';
+    document.getElementById('reportAvgPlayers').textContent = avgPlayers;
+    document.getElementById('reportCompletionRate').textContent = completionRate + '%';
+
+    // Build charts (last 7 days)
+    var days = [];
+    for(var i = 6; i >= 0; i--){
+        var d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0,0,0,0);
+        days.push({date: d, games: 0, revenue: 0});
+    }
+
+    allGames.forEach(function(g){
+        var gDate = null;
+        try {
+            gDate = g.created_at && g.created_at.toDate ? g.created_at.toDate() : (g.created_at ? new Date(g.created_at) : null);
+        } catch(e){}
+        if(!gDate) return;
+        gDate.setHours(0,0,0,0);
+        for(var j = 0; j < days.length; j++){
+            if(gDate.getTime() === days[j].date.getTime()){
+                days[j].games++;
+                days[j].revenue += (g.stake || 0) * (g.players_count || 0);
+                break;
             }
-        }, 5000);
-    </script>
+        }
+    });
+
+    var maxGames = Math.max.apply(null, days.map(function(d){return d.games;}));
+    if(maxGames === 0) maxGames = 1;
+    var maxRev = Math.max.apply(null, days.map(function(d){return d.revenue;}));
+    if(maxRev === 0) maxRev = 1;
+
+    var chartColors = ['#FF8C00','#3B82F6','#10B981','#8B5CF6','#14B8A6','#FF8C00','#3B82F6'];
+
+    document.getElementById('reportGamesChart').innerHTML = days.map(function(d, idx){
+        var pct = (d.games / maxGames * 100);
+        var dayName = d.date.toLocaleDateString('en', {weekday:'short'});
+        return '<div class="flex-1 flex flex-col items-center gap-1">' +
+            '<div class="w-full rounded-t chart-bar" style="height:' + pct + '%;background:linear-gradient(to top,' + chartColors[idx] + ',' + chartColors[idx] + '80);"></div>' +
+            '<span class="text-[9px] text-gray-600">' + dayName + '</span>' +
+            '<span class="text-[9px] text-gray-500 font-semibold">' + d.games + '</span>' +
+        '</div>';
+    }).join('');
+
+    document.getElementById('reportRevenueChart').innerHTML = days.map(function(d, idx){
+        var pct = (d.revenue / maxRev * 100);
+        var dayName = d.date.toLocaleDateString('en', {weekday:'short'});
+        return '<div class="flex-1 flex flex-col items-center gap-1">' +
+            '<div class="w-full rounded-t chart-bar" style="height:' + Math.max(pct, 2) + '%;background:linear-gradient(to top,' + chartColors[idx] + ',' + chartColors[idx] + '80);"></div>' +
+            '<span class="text-[9px] text-gray-600">' + dayName + '</span>' +
+            '<span class="text-[9px] text-gray-500 font-semibold">' + d.revenue + '</span>' +
+        '</div>';
+    }).join('');
+}
+
+// ==================== SETTINGS ====================
+function changeAdminPassword(){
+    var curPw = document.getElementById('settingsCurrentPw').value.trim();
+    var newPw = document.getElementById('settingsNewPw').value.trim();
+    var confirmPw = document.getElementById('settingsConfirmPw').value.trim();
+    var msgEl = document.getElementById('settingsPwMsg');
+
+    if(!curPw || !newPw || !confirmPw){
+        msgEl.textContent = 'All fields are required';
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+        msgEl.classList.remove('hidden');
+        return;
+    }
+    if(newPw !== confirmPw){
+        msgEl.textContent = 'New passwords do not match';
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+        msgEl.classList.remove('hidden');
+        return;
+    }
+    if(newPw.length < 6){
+        msgEl.textContent = 'Password must be at least 6 characters';
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+        msgEl.classList.remove('hidden');
+        return;
+    }
+
+    var username = localStorage.getItem('username');
+    db.collection('admins').where('username','==',username).limit(1).get()
+    .then(function(snap){
+        if(snap.empty){
+            msgEl.textContent = 'Admin not found';
+            msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+            msgEl.classList.remove('hidden');
+            return;
+        }
+        var doc = snap.docs[0];
+        if(doc.data().password !== curPw){
+            msgEl.textContent = 'Current password is incorrect';
+            msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+            msgEl.classList.remove('hidden');
+            return;
+        }
+        return doc.ref.update({password: newPw});
+    })
+    .then(function(result){
+        if(result === undefined) return;
+        msgEl.textContent = 'Password updated successfully!';
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20';
+        msgEl.classList.remove('hidden');
+        document.getElementById('settingsCurrentPw').value = '';
+        document.getElementById('settingsNewPw').value = '';
+        document.getElementById('settingsConfirmPw').value = '';
+    })
+    .catch(function(e){
+        console.error('Error changing password:', e);
+        msgEl.textContent = 'Error: ' + e.message;
+        msgEl.className = 'text-sm rounded-xl px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20';
+        msgEl.classList.remove('hidden');
+    });
+}
+
+// ==================== FIRESTORE LISTENERS ====================
+// Users listener
+db.collection('users').onSnapshot(function(snap){
+    allUsers = [];
+    snap.forEach(function(doc){
+        var data = doc.data();
+        data._docId = doc.id;
+        allUsers.push(data);
+    });
+    processDashboardData();
+    renderUsersTable();
+    renderGames();
+    updatePredCurrentGame();
+    updateReports();
+    if(currentPredMode === 'admin' && !document.getElementById('adminSelectPanel').classList.contains('hidden')){
+        renderAdminPlayers();
+    }
+}, function(err){
+    console.error('Users snapshot error:', err);
+});
+
+// Games listener
+db.collection('games').onSnapshot(function(snap){
+    allGames = [];
+    snap.forEach(function(doc){
+        var data = doc.data();
+        data.id = doc.id;
+        allGames.push(data);
+    });
+    processDashboardData();
+    renderGames();
+    updatePredCurrentGame();
+    updateReports();
+}, function(err){
+    console.error('Games snapshot error:', err);
+});
+
+// Load prediction settings
+db.collection('settings').doc('prediction').get()
+.then(function(doc){
+    if(doc.exists){
+        var data = doc.data();
+        currentPredMode = data.mode || 'automatic';
+        selectedAdminPlayer = data.selectedAdminPlayer || null;
+        setPredictionMode(currentPredMode);
+        if(data.algorithmEnabled === false){
+            document.getElementById('predAlgoToggle').classList.remove('on');
+        }
+    }
+})
+.catch(function(e){console.error('Error loading prediction settings:', e);});
+
+// Handle responsive margin on load
+window.addEventListener('resize', function(){
+    if(window.innerWidth >= 768 && !sidebarCollapsed){
+        document.getElementById('mainContent').style.marginLeft = '250px';
+    } else if(window.innerWidth >= 768 && sidebarCollapsed){
+        document.getElementById('mainContent').style.marginLeft = '70px';
+    } else {
+        document.getElementById('mainContent').style.marginLeft = '0';
+    }
+});
+</script>
 </body>
 </html>
