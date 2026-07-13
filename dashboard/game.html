@@ -596,14 +596,17 @@
         async function initUser() {
             const tgUser = getTelegramUser();
             if (!tgUser) {
-                showToast('Please open this game from Telegram.');
+                document.getElementById('user-greeting').textContent = 'Open this game from the Telegram bot to play!';
+                console.log('No Telegram user data. tg:', !!tg, 'initDataUnsafe:', tg ? !!tg.initDataUnsafe : false);
                 return;
             }
             const uid = tgUser.id;
+            console.log('Initializing user:', uid, tgUser.first_name, tgUser.username);
             try {
                 const userDoc = await db.collection('users').doc(String(uid)).get();
                 if (userDoc.exists) {
                     currentUser = { id: uid, ...userDoc.data() };
+                    console.log('Existing user loaded:', currentUser.username);
                 } else {
                     const newUserData = {
                         user_id: uid,
@@ -620,13 +623,14 @@
                     };
                     await db.collection('users').doc(String(uid)).set(newUserData);
                     currentUser = { id: uid, ...newUserData };
+                    console.log('New user created:', currentUser.username);
                 }
                 updateAllDisplays();
                 listenToUserData();
                 startStatsListener();
             } catch (err) {
                 console.error('Error initializing user:', err);
-                showToast('Error connecting. Please restart.');
+                document.getElementById('user-greeting').textContent = 'Connection error: ' + err.message;
             }
         }
 
