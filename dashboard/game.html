@@ -2,24 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yegara Bingo - Game</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yegara Bingo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBzemnXChPIBwCSCBIT2TgfMVhYiHc_JrY",
-            authDomain: "bingo-bot-5c708.firebaseapp.com",
-            projectId: "bingo-bot-5c708",
-            storageBucket: "bingo-bot-5c708.firebasestorage.app",
-            messagingSenderId: "988357359269",
-            appId: "1:988357359269:web:eb8ce31819d6853c717f4c",
-            measurementId: "G-2P5YYZWKF1"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -38,360 +26,1356 @@
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: linear-gradient(135deg, #0D1117 0%, #1A1A2E 100%); min-height: 100vh; }
-        
-        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(255,140,0,0.3); } 50% { box-shadow: 0 0 20px rgba(255,140,0,0.6); } }
-        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
-        @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        body { background: #0D1117; color: white; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        .screen { display: none; min-height: 100vh; padding-bottom: 80px; }
+        .screen.active { display: block; }
+        .glass { background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .gradient-green { background: linear-gradient(135deg, #10B981, #14B8A6); }
+        .gradient-blue { background: linear-gradient(135deg, #3B82F6, #8B5CF6); }
+        .gradient-orange { background: linear-gradient(135deg, #FF8C00, #FF6B00); }
+        .btn-hover { transition: all 0.3s ease; }
+        .btn-hover:active { transform: scale(0.95); }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(255,140,0,0.5); } 50% { box-shadow: 0 0 20px rgba(255,140,0,0.8); } }
+        @keyframes pulse-red { 0%, 100% { color: #EF4444; } 50% { color: #FCA5A5; } }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        @keyframes bounce-in { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes spin-crown { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(10deg) scale(1.1); } 100% { transform: rotate(0deg) scale(1); } }
+        @keyframes glow-text { 0%, 100% { text-shadow: 0 0 10px rgba(255,140,0,0.5); } 50% { text-shadow: 0 0 30px rgba(255,140,0,0.8), 0 0 60px rgba(255,140,0,0.4); } }
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        .crown-anim { animation: spin-crown 1s ease-in-out infinite; }
+        .glow-text { animation: glow-text 1.5s ease-in-out infinite; }
+        .float-anim { animation: float 2s ease-in-out infinite; }
+        .confetti { position: fixed; width: 10px; height: 10px; animation: confetti-fall 3s linear forwards; z-index: 1000; pointer-events: none; }
+        .bingo-cell { transition: all 0.3s ease; }
+        .bingo-cell:active { transform: scale(0.9); }
+        .number-called { animation: pulse-glow 1s ease-in-out infinite; }
+        .number-marked { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; }
+        .timer-pulse { animation: pulse-red 0.5s ease-in-out infinite; }
+        .nav-item { transition: all 0.3s ease; }
+        .nav-item.active { color: #FF8C00; }
+        .nav-item:active { transform: scale(0.9); }
+        .screen-transition { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .info-bar::-webkit-scrollbar { display: none; }
+        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); }
+        .win-cartela-cell { transition: all 0.3s ease; }
+        .stat-card { transition: all 0.3s ease; }
+        .stat-card:active { transform: scale(0.95); }
+        .telegram-header { -webkit-app-region: drag; }
+        .telegram-header button { -webkit-app-region: no-drag; }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        
-        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
-        .animate-float { animation: float 3s ease-in-out infinite; }
-        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-        .animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
-        
-        .glass { background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
-        .glass-light { background: rgba(255,255,255,0.05); backdrop-filter: blur(8px); }
-        
-        .gradient-border { position: relative; }
-        .gradient-border::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: linear-gradient(135deg, #FF8C00, #10B981, #3B82F6, #8B5CF6); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.3s; }
-        .gradient-border:hover::before { opacity: 1; }
-        
-        .btn-gradient-green { background: linear-gradient(135deg, #10B981, #14B8A6); }
-        .btn-gradient-blue { background: linear-gradient(135deg, #3B82F6, #8B5CF6); }
-        .btn-gradient-orange { background: linear-gradient(135deg, #FF8C00, #FFA500); }
-        
-        .bingo-cell { transition: all 0.2s ease; }
-        .bingo-cell:hover { transform: scale(1.05); }
-        .bingo-cell.selected { background: #FF8C00; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
-        
-        .card-b { background: #10B981; }
-        .card-i { background: #3B82F6; }
-        .card-n { background: #8B5CF6; }
-        .card-g { background: #FF8C00; }
-        .card-o { background: #14B8A6; }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1A1A2E; }
-        ::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 3px; }
-        
-        .mobile-frame { max-width: 420px; margin: 0 auto; }
+        .loading-shimmer { background: linear-gradient(90deg, #1A1A2E 25%, #2A2A3E 50%, #1A1A2E 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .bingo-grid-header { font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
     </style>
 </head>
-<body class="text-white">
-    <!-- WELCOME SCREEN -->
-    <div id="welcomeScreen" class="mobile-frame min-h-screen p-4">
+<body class="bg-bingo-dark">
+
+    <!-- Telegram Mini App Header -->
+    <div id="telegram-header" class="telegram-header fixed top-0 left-0 right-0 z-50 bg-bingo-dark/95 backdrop-blur-sm border-b border-white/10 h-14 flex items-center justify-between px-4 max-w-[420px] mx-auto">
+        <button onclick="Telegram.WebApp.close()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white/70">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <span class="text-sm font-semibold text-white">Yegara Bingo</span>
+        <button onclick="Telegram.WebApp.showPopup({title:'Yegara Bingo',message:'A fun bingo game! Select stake and play.'})" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white/70">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="4" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="10" cy="16" r="2"/></svg>
+        </button>
+    </div>
+
+    <!-- ==================== SCREEN 1: HOME ==================== -->
+    <div id="screen-home" class="screen active pt-14">
         <!-- Header -->
-        <div class="glass rounded-2xl p-4 mb-6 flex items-center justify-between animate-slide-up">
+        <div class="px-4 py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-r from-bingo-orange to-yellow-500 rounded-xl flex items-center justify-center font-bold text-lg">B</div>
-                <span class="text-lg font-bold">Yegara Bingo</span>
+                <div class="w-10 h-10 rounded-xl gradient-orange flex items-center justify-center text-white font-black text-xl">B</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">Yegara Bingo</h1>
+                    <p class="text-xs text-white/50">Play & Win Big!</p>
+                </div>
             </div>
-            <button class="glass-light px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/10 transition flex items-center gap-2">
-                <span>?</span> Rules
+            <button onclick="showRules()" class="w-9 h-9 rounded-full glass flex items-center justify-center text-white/70 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </button>
         </div>
 
-        <!-- Hero -->
-        <div class="text-center mb-8 animate-slide-up" style="animation-delay: 0.1s">
-            <h1 class="text-3xl font-bold mb-2">Welcome to <span class="text-bingo-orange">Yegara Bingo</span></h1>
-            <p class="text-gray-400">Choose your stake and start winning!</p>
+        <!-- Welcome Banner -->
+        <div class="px-4 mb-6">
+            <div class="glass rounded-2xl p-5 text-center">
+                <div class="text-3xl mb-2">🎯</div>
+                <h2 class="text-lg font-bold text-white mb-1">Welcome to <span class="text-bingo-orange">Yegara Bingo</span></h2>
+                <p class="text-sm text-white/60">Pick your stake and start playing!</p>
+                <div id="user-greeting" class="text-xs text-bingo-teal mt-2 font-medium"></div>
+            </div>
         </div>
 
         <!-- Stake Selection -->
-        <div class="glass rounded-2xl p-6 mb-6 animate-slide-up" style="animation-delay: 0.2s">
-            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                <span class="text-bingo-orange">🎯</span> Choose Your Stake
-            </h2>
-            <div class="space-y-3">
-                <button onclick="startGame(10)" class="w-full btn-gradient-green text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] hover:shadow-lg hover:shadow-bingo-green/30 transition-all duration-300">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-                    Play 10 ETB
+        <div class="px-4 mb-6">
+            <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Choose Your Stake</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="selectStake(10)" class="gradient-green rounded-2xl p-5 btn-hover text-center shadow-lg shadow-green-500/20">
+                    <div class="text-3xl mb-2">💰</div>
+                    <div class="text-xl font-bold text-white">10 ETB</div>
+                    <div class="text-xs text-white/80 mt-1">Prize: <span class="font-bold">152 ETB</span></div>
                 </button>
-                <button onclick="startGame(20)" class="w-full btn-gradient-blue text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] hover:shadow-lg hover:shadow-bingo-blue/30 transition-all duration-300">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
-                    Play 20 ETB
+                <button onclick="selectStake(20)" class="gradient-blue rounded-2xl p-5 btn-hover text-center shadow-lg shadow-purple-500/20">
+                    <div class="text-3xl mb-2">💎</div>
+                    <div class="text-xl font-bold text-white">20 ETB</div>
+                    <div class="text-xs text-white/80 mt-1">Prize: <span class="font-bold">304 ETB</span></div>
                 </button>
             </div>
         </div>
 
-        <!-- Stats -->
-        <div class="glass rounded-2xl p-6 mb-6 animate-slide-up" style="animation-delay: 0.3s">
-            <div class="grid grid-cols-3 gap-4 text-center">
-                <div>
-                    <div class="text-2xl font-bold text-bingo-orange animate-bounce-subtle" id="statPlayers">24,557</div>
-                    <div class="text-xs text-gray-400 mt-1">Active Players</div>
+        <!-- Live Stats -->
+        <div class="px-4 mb-6">
+            <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Live Stats</h3>
+            <div class="grid grid-cols-3 gap-3">
+                <div class="glass rounded-xl p-3 text-center stat-card">
+                    <div id="stat-players" class="text-xl font-bold text-bingo-green">0</div>
+                    <div class="text-[10px] text-white/50 mt-1">Active Players</div>
                 </div>
-                <div class="border-x border-white/10">
-                    <div class="text-2xl font-bold text-bingo-green" id="statGames">2,195</div>
-                    <div class="text-xs text-gray-400 mt-1">Games Played</div>
+                <div class="glass rounded-xl p-3 text-center stat-card">
+                    <div id="stat-games" class="text-xl font-bold text-bingo-blue">0</div>
+                    <div class="text-[10px] text-white/50 mt-1">Games Played</div>
                 </div>
-                <div>
-                    <div class="text-2xl font-bold text-bingo-purple" id="statWinners">477</div>
-                    <div class="text-xs text-gray-400 mt-1">Winners Daily</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom Nav -->
-        <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] glass rounded-t-2xl px-4 py-3">
-            <div class="flex justify-around">
-                <button class="flex flex-col items-center gap-1 text-bingo-orange">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z"/></svg>
-                    <span class="text-[10px] font-medium">Game</span>
-                </button>
-                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="text-[10px] font-medium">History</span>
-                </button>
-                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                    <span class="text-[10px] font-medium">Wallet</span>
-                </button>
-                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                    <span class="text-[10px] font-medium">Profile</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- GAME BOARD SCREEN -->
-    <div id="gameScreen" class="mobile-frame min-h-screen p-4 hidden">
-        <!-- Header -->
-        <div class="glass rounded-2xl p-3 mb-3 flex items-center justify-between animate-slide-up">
-            <button onclick="goHome()" class="glass-light p-2 rounded-xl hover:bg-white/10 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            <div class="flex items-center gap-2">
-                <span class="font-bold">Yegara Bingo</span>
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </div>
-            <button class="glass-light p-2 rounded-xl hover:bg-white/10 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
-            </button>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-2 mb-3 animate-slide-up" style="animation-delay: 0.1s">
-            <button onclick="goHome()" class="flex-1 glass-light py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back
-            </button>
-            <button onclick="refreshGame()" class="flex-1 glass-light py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Refresh
-            </button>
-        </div>
-
-        <!-- Info Bar -->
-        <div class="glass rounded-xl p-3 mb-3 animate-slide-up" style="animation-delay: 0.15s">
-            <div class="grid grid-cols-5 gap-2 text-center text-[10px]">
-                <div>
-                    <div class="text-gray-400">MAIN WALLET</div>
-                    <div class="font-bold text-sm" id="mainWallet">0.00</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">PLAY WALLET</div>
-                    <div class="font-bold text-sm text-bingo-green" id="playWallet">20.00</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">STAKE</div>
-                    <div class="font-bold text-sm text-bingo-orange" id="stakeDisplay">10</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">DERASH</div>
-                    <div class="font-bold text-sm text-bingo-purple" id="derashDisplay">120</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">TIMER</div>
-                    <div class="font-bold text-sm text-red-500 animate-pulse-glow" id="timerDisplay">60s</div>
+                <div class="glass rounded-xl p-3 text-center stat-card">
+                    <div id="stat-winners" class="text-xl font-bold text-bingo-orange">0</div>
+                    <div class="text-[10px] text-white/50 mt-1">Winners Today</div>
                 </div>
             </div>
         </div>
 
-        <!-- Bingo Grid -->
-        <div class="glass rounded-2xl p-3 mb-3 animate-slide-up" style="animation-delay: 0.2s">
-            <!-- Column Headers -->
-            <div class="grid grid-cols-8 gap-1 mb-1">
-                <div class="text-center py-1"><span class="font-bold text-bingo-green text-xs">B</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-blue text-xs">I</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-purple text-xs">N</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-orange text-xs">G</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-teal text-xs">O</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-green text-xs">B</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-blue text-xs">I</span></div>
-                <div class="text-center py-1"><span class="font-bold text-bingo-purple text-xs">N</span></div>
-            </div>
-            <!-- Grid Numbers -->
-            <div class="grid grid-cols-8 gap-1" id="bingoGrid">
-                <!-- Numbers will be generated by JS -->
+        <!-- Quick Balance Preview -->
+        <div class="px-4 mb-6">
+            <div class="glass rounded-2xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-white/60">Your Balance</span>
+                    <span id="home-balance" class="text-lg font-bold text-bingo-green">0 ETB</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-white/60">Play Wallet</span>
+                    <span id="home-play-wallet" class="text-lg font-bold text-bingo-orange">0 ETB</span>
+                </div>
             </div>
         </div>
 
-        <!-- Bottom Nav -->
-        <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] glass rounded-t-2xl px-4 py-3">
-            <div class="flex justify-around">
-                <button class="flex flex-col items-center gap-1 text-bingo-orange">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z"/></svg>
-                    <span class="text-[10px] font-medium">Game</span>
-                </button>
-                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="text-[10px] font-medium">History</span>
-                </button>
-                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                    <span class="text-[10px] font-medium">Wallet</span>
-                </button>
-                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                    <span class="text-[10px] font-medium">Profile</span>
-                </button>
+        <!-- Rules Summary -->
+        <div class="px-4 mb-6">
+            <div class="glass rounded-2xl p-4">
+                <h3 class="text-sm font-semibold text-white/70 mb-3">How to Play</h3>
+                <div class="space-y-2 text-xs text-white/60">
+                    <div class="flex items-start gap-2"><span class="text-bingo-green font-bold">1.</span> Select your stake amount</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-blue font-bold">2.</span> Numbers are drawn automatically every round</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-purple font-bold">3.</span> Match numbers on your cartela (card)</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-orange font-bold">4.</span> Get a full row, column or diagonal to win!</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-teal font-bold">5.</span> Prize is <span class="font-bold text-white">stake × 15.2</span></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- WIN CELEBRATION SCREEN -->
-    <div id="winScreen" class="mobile-frame min-h-screen p-4 hidden flex flex-col items-center justify-center">
-        <div class="glass rounded-3xl p-8 w-full text-center animate-slide-up">
-            <!-- Crown -->
-            <div class="text-7xl mb-4 animate-float">👑</div>
-            
-            <!-- Title -->
-            <h1 class="text-4xl font-black text-bingo-orange mb-4 animate-pulse-glow">BINGO!</h1>
-            
-            <!-- Winner Card -->
-            <div class="glass rounded-2xl p-6 mb-6 gradient-border">
-                <div class="flex items-center justify-center gap-2 mb-4">
-                    <span class="text-2xl">😊</span>
-                    <span class="text-xl font-bold" id="winnerName">kid_ddy</span>
-                    <span class="text-xl font-bold">WON!</span>
-                    <span class="text-2xl">😊</span>
+    <!-- ==================== SCREEN 2: GAME BOARD ==================== -->
+    <div id="screen-game" class="screen pt-14">
+        <!-- Top Bar -->
+        <div class="px-4 py-3 flex items-center justify-between border-b border-white/5">
+            <button onclick="navigateTo('home'); leaveGame();" class="w-9 h-9 rounded-full glass flex items-center justify-center text-white/70">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <h2 class="text-sm font-semibold text-white">Yegara Bingo</h2>
+            <button onclick="refreshGame()" class="w-9 h-9 rounded-full glass flex items-center justify-center text-white/70">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+        </div>
+
+        <!-- Info Bar (horizontal scroll) -->
+        <div class="info-bar flex gap-2 px-4 py-3 overflow-x-auto" style="scrollbar-width: none;">
+            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[120px]">
+                <div class="text-[10px] text-white/50 uppercase">Main Wallet</div>
+                <div id="game-balance" class="text-sm font-bold text-bingo-green">0 ETB</div>
+            </div>
+            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[120px]">
+                <div class="text-[10px] text-white/50 uppercase">Play Wallet</div>
+                <div id="game-play-wallet" class="text-sm font-bold text-bingo-orange">0 ETB</div>
+            </div>
+            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
+                <div class="text-[10px] text-white/50 uppercase">Stake</div>
+                <div id="game-stake" class="text-sm font-bold text-bingo-blue">0 ETB</div>
+            </div>
+            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
+                <div class="text-[10px] text-white/50 uppercase">Derash</div>
+                <div id="game-derash" class="text-sm font-bold text-bingo-teal">0</div>
+            </div>
+            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
+                <div class="text-[10px] text-white/50 uppercase">Timer</div>
+                <div id="game-timer" class="text-sm font-bold text-white">60s</div>
+            </div>
+        </div>
+
+        <!-- Game Status -->
+        <div class="px-4 py-2">
+            <div id="game-status" class="glass rounded-xl p-3 text-center">
+                <div class="text-sm font-semibold text-white">Waiting for game to start...</div>
+                <div id="game-status-sub" class="text-xs text-white/50 mt-1">Numbers will be called automatically</div>
+            </div>
+        </div>
+
+        <!-- Called Numbers Display -->
+        <div class="px-4 py-2">
+            <div class="glass rounded-xl p-3">
+                <div class="text-xs text-white/50 uppercase mb-2">Last Called Numbers</div>
+                <div id="called-numbers-display" class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: none;"></div>
+            </div>
+        </div>
+
+        <!-- Bingo Grid (8 columns × 13 rows) -->
+        <div class="px-4 py-2">
+            <div class="glass rounded-2xl p-3">
+                <div class="text-xs text-white/50 uppercase mb-2">Number Grid</div>
+                <!-- Column Headers -->
+                <div id="grid-headers" class="grid grid-cols-8 gap-1 mb-1"></div>
+                <!-- Grid Numbers -->
+                <div id="bingo-grid" class="grid grid-cols-8 gap-1"></div>
+            </div>
+        </div>
+
+        <!-- Player's Cartela -->
+        <div class="px-4 py-2 mb-4">
+            <div class="glass rounded-2xl p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-white/50 uppercase">Your Cartela #<span id="cartela-number">0</span></div>
+                    <div id="cartela-lines" class="text-xs text-bingo-green font-semibold"></div>
                 </div>
-                
-                <div class="flex items-center justify-center gap-2 mb-2">
-                    <span class="text-lg">🏆</span>
-                    <span class="text-gray-300">Winning Cartela:</span>
-                    <span class="font-bold text-bingo-orange" id="cartelaNumber">213</span>
-                </div>
-                
-                <div class="text-2xl font-bold text-bingo-green mb-6">
-                    Prize Award: <span id="prizeAmount">152.00 ETB</span>
-                </div>
-                
-                <!-- 5x5 Bingo Card -->
-                <div class="bg-bingo-dark rounded-xl p-4">
-                    <!-- B I N G O Headers -->
-                    <div class="grid grid-cols-5 gap-1 mb-2">
-                        <div class="card-b text-center py-1 rounded-lg font-bold text-sm">B</div>
-                        <div class="card-i text-center py-1 rounded-lg font-bold text-sm">I</div>
-                        <div class="card-n text-center py-1 rounded-lg font-bold text-sm">N</div>
-                        <div class="card-g text-center py-1 rounded-lg font-bold text-sm">G</div>
-                        <div class="card-o text-center py-1 rounded-lg font-bold text-sm">O</div>
+                <div class="text-center">
+                    <div class="grid grid-cols-5 gap-1 max-w-[280px] mx-auto" id="cartela-headers">
+                        <div class="bingo-grid-header text-bingo-green text-center py-1">B</div>
+                        <div class="bingo-grid-header text-bingo-blue text-center py-1">I</div>
+                        <div class="bingo-grid-header text-bingo-purple text-center py-1">N</div>
+                        <div class="bingo-grid-header text-bingo-orange text-center py-1">G</div>
+                        <div class="bingo-grid-header text-bingo-teal text-center py-1">O</div>
                     </div>
-                    <!-- Card Numbers -->
-                    <div class="grid grid-cols-5 gap-1" id="winCard">
-                        <!-- Will be populated by JS -->
+                    <div class="grid grid-cols-5 gap-1 max-w-[280px] mx-auto" id="cartela-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SCREEN 3: HISTORY ==================== -->
+    <div id="screen-history" class="screen pt-14">
+        <div class="px-4 py-4">
+            <h2 class="text-xl font-bold text-white mb-4">Game History</h2>
+            <div id="history-list" class="space-y-3">
+                <!-- Empty state -->
+                <div id="history-empty" class="text-center py-12">
+                    <div class="text-5xl mb-4">📜</div>
+                    <p class="text-white/50">No games yet</p>
+                    <p class="text-white/30 text-sm mt-1">Your game history will appear here</p>
+                </div>
+                <div id="history-loading" class="hidden space-y-3">
+                    <div class="glass rounded-xl p-4 loading-shimmer h-20"></div>
+                    <div class="glass rounded-xl p-4 loading-shimmer h-20"></div>
+                    <div class="glass rounded-xl p-4 loading-shimmer h-20"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SCREEN 4: WALLET ==================== -->
+    <div id="screen-wallet" class="screen pt-14">
+        <div class="px-4 py-4">
+            <h2 class="text-xl font-bold text-white mb-4">Wallet</h2>
+
+            <!-- Balance Cards -->
+            <div class="glass rounded-2xl p-5 text-center mb-4">
+                <div class="text-xs text-white/50 uppercase mb-1">Main Balance</div>
+                <div id="wallet-balance" class="text-4xl font-black text-bingo-green">0 ETB</div>
+            </div>
+
+            <div class="glass rounded-2xl p-4 text-center mb-4">
+                <div class="text-xs text-white/50 uppercase mb-1">Play Wallet</div>
+                <div id="wallet-play" class="text-2xl font-bold text-bingo-orange">0 ETB</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button onclick="Telegram.WebApp.showPopup({title:'Coming Soon',message:'Deposit feature will be available soon!'})" class="gradient-green rounded-xl p-4 text-center btn-hover">
+                    <div class="text-lg mb-1">💳</div>
+                    <div class="text-sm font-semibold text-white">Deposit</div>
+                </button>
+                <button onclick="Telegram.WebApp.showPopup({title:'Coming Soon',message:'Withdrawal feature will be available soon!'})" class="gradient-orange rounded-xl p-4 text-center btn-hover">
+                    <div class="text-lg mb-1">💸</div>
+                    <div class="text-sm font-semibold text-white">Withdraw</div>
+                </button>
+            </div>
+
+            <button onclick="showTransferModal()" class="w-full glass rounded-xl p-4 btn-hover flex items-center justify-center gap-2 mb-6 border border-bingo-teal/30">
+                <svg class="w-5 h-5 text-bingo-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
+                <span class="text-sm font-semibold text-bingo-teal">Transfer Between Wallets</span>
+            </button>
+
+            <!-- Transaction History -->
+            <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Recent Transactions</h3>
+            <div id="transaction-list" class="space-y-2">
+                <div class="glass rounded-xl p-4 text-center">
+                    <p class="text-white/30 text-sm">No transactions yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SCREEN 5: PROFILE ==================== -->
+    <div id="screen-profile" class="screen pt-14">
+        <div class="px-4 py-4">
+            <h2 class="text-xl font-bold text-white mb-6">Profile</h2>
+
+            <!-- Avatar -->
+            <div class="text-center mb-6">
+                <div id="profile-avatar" class="w-20 h-20 rounded-full gradient-orange mx-auto flex items-center justify-center text-3xl font-black text-white mb-3">?</div>
+                <div id="profile-name" class="text-xl font-bold text-white">Loading...</div>
+                <div id="profile-id" class="text-sm text-white/50">@username</div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="glass rounded-xl p-3 text-center stat-card">
+                    <div id="profile-games" class="text-xl font-bold text-bingo-blue">0</div>
+                    <div class="text-[10px] text-white/50 mt-1">Games</div>
+                </div>
+                <div class="glass rounded-xl p-3 text-center stat-card">
+                    <div id="profile-wins" class="text-xl font-bold text-bingo-green">0</div>
+                    <div class="text-[10px] text-white/50 mt-1">Wins</div>
+                </div>
+                <div class="glass rounded-xl p-3 text-center stat-card">
+                    <div id="profile-winrate" class="text-xl font-bold text-bingo-orange">0%</div>
+                    <div class="text-[10px] text-white/50 mt-1">Win Rate</div>
+                </div>
+            </div>
+
+            <!-- Total Earnings -->
+            <div class="glass rounded-2xl p-4 mb-6">
+                <div class="text-center">
+                    <div class="text-xs text-white/50 uppercase mb-1">Total Earnings</div>
+                    <div id="profile-earnings" class="text-3xl font-black text-bingo-green">0 ETB</div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="space-y-3 mb-6">
+                <button onclick="Telegram.WebApp.showPopup({title:'Settings',message:'Account settings coming soon!'})" class="w-full glass rounded-xl p-4 btn-hover flex items-center gap-3">
+                    <svg class="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span class="text-sm text-white/70">Account Settings</span>
+                    <svg class="w-4 h-4 text-white/30 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+                <button onclick="Telegram.WebApp.showPopup({title:'Help',message:'Need help? Contact @yegarabingobot'})" class="w-full glass rounded-xl p-4 btn-hover flex items-center gap-3">
+                    <svg class="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="text-sm text-white/70">Help & Support</span>
+                    <svg class="w-4 h-4 text-white/30 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+
+            <!-- Logout -->
+            <button onclick="logout()" class="w-full rounded-xl bg-red-500/10 border border-red-500/30 p-4 btn-hover text-center">
+                <span class="text-sm font-semibold text-red-400">Log Out</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== BOTTOM NAV ==================== -->
+    <div id="bottom-nav" class="fixed bottom-0 left-0 right-0 z-50 bg-bingo-dark/95 backdrop-blur-sm border-t border-white/10 max-w-[420px] mx-auto">
+        <div class="flex items-center justify-around py-2">
+            <button onclick="navigateTo('home')" class="nav-item active flex flex-col items-center gap-1 px-4 py-1" data-screen="home">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                <span class="text-[10px]">Game</span>
+            </button>
+            <button onclick="navigateTo('history')" class="nav-item flex flex-col items-center gap-1 px-4 py-1" data-screen="history">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="text-[10px]">History</span>
+            </button>
+            <button onclick="navigateTo('wallet')" class="nav-item flex flex-col items-center gap-1 px-4 py-1" data-screen="wallet">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                <span class="text-[10px]">Wallet</span>
+            </button>
+            <button onclick="navigateTo('profile')" class="nav-item flex flex-col items-center gap-1 px-4 py-1" data-screen="profile">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <span class="text-[10px]">Profile</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== WIN CELEBRATION MODAL ==================== -->
+    <div id="win-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="glass rounded-3xl p-6 w-full max-w-[380px] text-center relative overflow-hidden border border-bingo-orange/30">
+                <!-- Confetti Container -->
+                <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+                <!-- Crown -->
+                <div class="text-6xl crown-anim mb-3">👑</div>
+
+                <!-- BINGO Title -->
+                <h1 class="text-4xl font-black text-bingo-orange glow-text mb-4">BINGO!</h1>
+
+                <!-- Winner Info -->
+                <div class="glass rounded-xl p-4 mb-4">
+                    <div id="winner-name" class="text-lg font-bold text-white">Player</div>
+                    <div class="text-xs text-white/50">Won with Cartela #<span id="winner-cartela">0</span></div>
+                    <div class="mt-2">
+                        <div class="text-xs text-white/50">Prize</div>
+                        <div id="winner-prize" class="text-2xl font-black text-bingo-green">0 ETB</div>
+                    </div>
+                </div>
+
+                <!-- Winning Card Display -->
+                <div class="glass rounded-xl p-3 mb-4">
+                    <div class="grid grid-cols-5 gap-1 max-w-[240px] mx-auto mb-1">
+                        <div class="bingo-grid-header text-bingo-green text-center py-1">B</div>
+                        <div class="bingo-grid-header text-bingo-blue text-center py-1">I</div>
+                        <div class="bingo-grid-header text-bingo-purple text-center py-1">N</div>
+                        <div class="bingo-grid-header text-bingo-orange text-center py-1">G</div>
+                        <div class="bingo-grid-header text-bingo-teal text-center py-1">O</div>
+                    </div>
+                    <div id="win-cartela-grid" class="grid grid-cols-5 gap-1 max-w-[240px] mx-auto"></div>
+                </div>
+
+                <!-- Countdown -->
+                <div class="text-sm text-white/50">Returning to home in <span id="win-countdown" class="font-bold text-bingo-orange">8</span>s</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== RULES MODAL ==================== -->
+    <div id="rules-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="modal-overlay absolute inset-0" onclick="hideRules()"></div>
+        <div class="absolute inset-x-4 top-[10%] max-w-[380px] mx-auto">
+            <div class="glass rounded-2xl p-5 border border-white/10">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-white">How to Play</h3>
+                    <button onclick="hideRules()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="space-y-3 text-sm text-white/70">
+                    <p><span class="text-bingo-orange font-bold">1.</span> Choose your stake (10 or 20 ETB)</p>
+                    <p><span class="text-bingo-green font-bold">2.</span> You receive a random 5×5 bingo cartela</p>
+                    <p><span class="text-bingo-blue font-bold">3.</span> Numbers from 1-104 are called each round</p>
+                    <p><span class="text-bingo-purple font-bold">4.</span> Numbers on your cartela are auto-marked</p>
+                    <p><span class="text-bingo-teal font-bold">5.</span> Complete a row, column, or diagonal to win</p>
+                    <p><span class="text-bingo-orange font-bold">6.</span> Prize = Stake × 15.2 (e.g., 10 ETB → 152 ETB)</p>
+                    <p class="text-white/40 text-xs mt-3">* Each round lasts 60 seconds. Play responsibly.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TRANSFER MODAL ==================== -->
+    <div id="transfer-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="modal-overlay absolute inset-0" onclick="hideTransferModal()"></div>
+        <div class="absolute inset-x-4 top-[25%] max-w-[380px] mx-auto">
+            <div class="glass rounded-2xl p-5 border border-white/10">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-white">Transfer Funds</h3>
+                    <button onclick="hideTransferModal()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs text-white/50 uppercase mb-1 block">Amount (ETB)</label>
+                        <input id="transfer-amount" type="number" min="1" placeholder="Enter amount" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-bingo-orange">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="transferFunds('toPlay')" class="gradient-green rounded-xl p-3 text-center btn-hover">
+                            <div class="text-xs text-white/80">Main → Play</div>
+                        </button>
+                        <button onclick="transferFunds('toMain')" class="gradient-blue rounded-xl p-3 text-center btn-hover">
+                            <div class="text-xs text-white/80">Play → Main</div>
+                        </button>
                     </div>
                 </div>
             </div>
-            
-            <!-- Countdown -->
-            <div class="text-gray-400 text-sm" id="countdown">
-                ⚫ Returning to home in <span id="countdownTimer" class="text-bingo-orange font-bold">6</span> s
+        </div>
+    </div>
+
+    <!-- ==================== LOADING OVERLAY ==================== -->
+    <div id="loading-overlay" class="fixed inset-0 z-[200] hidden">
+        <div class="modal-overlay absolute inset-0 flex items-center justify-center">
+            <div class="glass rounded-2xl p-8 text-center">
+                <div class="text-4xl mb-3 float-anim">🎯</div>
+                <div id="loading-text" class="text-sm text-white/70">Loading...</div>
             </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST ==================== -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[150] hidden">
+        <div class="glass rounded-xl px-5 py-3 border border-white/10">
+            <div id="toast-text" class="text-sm text-white font-medium"></div>
         </div>
     </div>
 
     <script>
-        // Generate Bingo Grid
-        function generateGrid() {
-            const grid = document.getElementById('bingoGrid');
-            grid.innerHTML = '';
-            for (let i = 1; i <= 104; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'bingo-cell bg-bingo-dark/80 rounded-lg p-2 text-center text-xs font-medium cursor-pointer hover:bg-white/10 transition-all';
-                cell.textContent = i;
-                cell.onclick = function() { this.classList.toggle('selected'); };
-                grid.appendChild(cell);
+        // ==================== FIREBASE INIT ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzemnXChPIBwCSCBIT2TgfMVhYiHc_JrY",
+            authDomain: "bingo-bot-5c708.firebaseapp.com",
+            projectId: "bingo-bot-5c708",
+            storageBucket: "bingo-bot-5c708.firebasestorage.app",
+            messagingSenderId: "988357359269",
+            appId: "1:988357359269:web:eb8ce31819d6853c717f4c",
+            measurementId: "G-2P5YYZWKF1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // ==================== STATE ====================
+        let currentUser = null;
+        let currentStake = 0;
+        let currentGameId = null;
+        let currentGameData = null;
+        let gameUnsubscribe = null;
+        let timerInterval = null;
+        let timerSeconds = 60;
+        let userUnsubscribe = null;
+        let statsUnsubscribe = null;
+        let winCountdownInterval = null;
+        let currentScreen = 'home';
+
+        // ==================== TELEGRAM INIT ====================
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            tg.setHeaderColor('#0D1117');
+            tg.setBackgroundColor('#0D1117');
+        }
+
+        // ==================== AUTH / USER ====================
+        function getTelegramUser() {
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                return tg.initDataUnsafe.user;
+            }
+            return {
+                id: 12345678,
+                first_name: 'Test',
+                username: 'testuser'
+            };
+        }
+
+        async function initUser() {
+            const tgUser = getTelegramUser();
+            const uid = tgUser.id;
+            try {
+                const userDoc = await db.collection('users').doc(String(uid)).get();
+                if (userDoc.exists) {
+                    currentUser = { id: uid, ...userDoc.data() };
+                } else {
+                    const newUserData = {
+                        user_id: uid,
+                        first_name: tgUser.first_name || 'Player',
+                        username: tgUser.username || 'player' + uid,
+                        balance: 100,
+                        play_wallet: 50,
+                        total_games: 0,
+                        wins: 0,
+                        losses: 0,
+                        is_playing: false,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    await db.collection('users').doc(String(uid)).set(newUserData);
+                    currentUser = { id: uid, ...newUserData };
+                }
+                updateAllDisplays();
+                listenToUserData();
+                startStatsListener();
+            } catch (err) {
+                console.error('Error initializing user:', err);
+                showToast('Error connecting. Please restart.');
             }
         }
 
-        // Generate Win Card
-        function generateWinCard() {
-            const card = document.getElementById('winCard');
-            card.innerHTML = '';
-            const numbers = [
-                [11, 16, 43, 46, 66],
-                [12, 24, 39, 53, 69],
-                [2, 23, '⭐', 51, 72],
-                [4, 27, 34, 48, 61],
-                [5, 22, 33, 59, 68]
-            ];
-            const matched = [[11, 16], [12], [46], [34, 48], [68]];
-            
-            numbers.forEach((row, ri) => {
-                row.forEach((num, ci) => {
-                    const cell = document.createElement('div');
-                    const isMatched = matched[ri] && matched[ri].includes(num);
-                    cell.className = `rounded-lg p-2 text-center text-sm font-bold ${num === '⭐' ? 'bg-bingo-green' : isMatched ? 'bg-bingo-green' : 'bg-white'}`;
-                    cell.style.color = num === '⭐' ? 'white' : isMatched ? 'white' : '#1A1A2E';
-                    cell.textContent = num;
-                    card.appendChild(cell);
+        function listenToUserData() {
+            if (userUnsubscribe) userUnsubscribe();
+            userUnsubscribe = db.collection('users').doc(String(currentUser.id)).onSnapshot(doc => {
+                if (doc.exists) {
+                    currentUser = { id: currentUser.id, ...doc.data() };
+                    updateAllDisplays();
+                }
+            });
+        }
+
+        function startStatsListener() {
+            if (statsUnsubscribe) statsUnsubscribe();
+            statsUnsubscribe = db.collection('users').where('is_playing', '==', true).onSnapshot(snap => {
+                document.getElementById('stat-players').textContent = snap.size;
+            });
+            db.collection('games').get().then(snap => {
+                document.getElementById('stat-games').textContent = snap.size;
+            });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            db.collection('games').where('status', '==', 'completed').where('prize', '>', 0).where('updated_at', '>=', today).get().then(snap => {
+                document.getElementById('stat-winners').textContent = snap.size;
+            }).catch(() => {
+                db.collection('games').where('status', '==', 'completed').where('prize', '>', 0).get().then(snap => {
+                    const todayGames = snap.docs.filter(doc => {
+                        const data = doc.data();
+                        if (data.updated_at) {
+                            const d = data.updated_at.toDate ? data.updated_at.toDate() : new Date(data.updated_at);
+                            return d >= today;
+                        }
+                        return false;
+                    });
+                    document.getElementById('stat-winners').textContent = todayGames.length;
                 });
             });
         }
 
-        function startGame(stake) {
-            document.getElementById('welcomeScreen').classList.add('hidden');
-            document.getElementById('gameScreen').classList.remove('hidden');
-            document.getElementById('stakeDisplay').textContent = stake;
-            generateGrid();
+        // ==================== DISPLAY UPDATES ====================
+        function updateAllDisplays() {
+            if (!currentUser) return;
+            const bal = currentUser.balance || 0;
+            const pw = currentUser.play_wallet || 0;
+            document.getElementById('home-balance').textContent = bal + ' ETB';
+            document.getElementById('home-play-wallet').textContent = pw + ' ETB';
+            document.getElementById('game-balance').textContent = bal + ' ETB';
+            document.getElementById('game-play-wallet').textContent = pw + ' ETB';
+            document.getElementById('wallet-balance').textContent = bal + ' ETB';
+            document.getElementById('wallet-play').textContent = pw + ' ETB';
+            document.getElementById('user-greeting').textContent = 'Hello, ' + (currentUser.first_name || 'Player') + '!';
+            document.getElementById('profile-name').textContent = currentUser.first_name || 'Player';
+            document.getElementById('profile-id').textContent = '@' + (currentUser.username || 'player');
+            const initial = (currentUser.first_name || 'P')[0].toUpperCase();
+            document.getElementById('profile-avatar').textContent = initial;
+            document.getElementById('profile-games').textContent = currentUser.total_games || 0;
+            document.getElementById('profile-wins').textContent = currentUser.wins || 0;
+            const totalGames = currentUser.total_games || 0;
+            const wins = currentUser.wins || 0;
+            const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+            document.getElementById('profile-winrate').textContent = winRate + '%';
+            const earnings = (currentUser.wins || 0) * 152;
+            document.getElementById('profile-earnings').textContent = earnings + ' ETB';
         }
 
-        function goHome() {
-            document.getElementById('gameScreen').classList.add('hidden');
-            document.getElementById('winScreen').classList.add('hidden');
-            document.getElementById('welcomeScreen').classList.remove('hidden');
+        // ==================== NAVIGATION ====================
+        function navigateTo(screen) {
+            if (currentScreen === 'game' && screen !== 'game') {
+                leaveGame();
+            }
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById('screen-' + screen);
+            if (target) {
+                target.classList.add('active');
+                target.classList.add('screen-transition');
+            }
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navBtn = document.querySelector('.nav-item[data-screen="' + screen + '"]');
+            if (navBtn) navBtn.classList.add('active');
+            currentScreen = screen;
+            if (screen === 'history') loadHistory();
         }
 
-        function showWin() {
-            document.getElementById('gameScreen').classList.add('hidden');
-            document.getElementById('welcomeScreen').classList.add('hidden');
-            document.getElementById('winScreen').classList.remove('hidden');
-            document.getElementById('winScreen').style.display = 'flex';
-            generateWinCard();
-            startCountdown();
+        // ==================== STAKE SELECTION ====================
+        async function selectStake(stake) {
+            if (!currentUser) {
+                showToast('Loading user data...');
+                return;
+            }
+            if (currentUser.play_wallet < stake) {
+                showToast('Insufficient play wallet! Transfer funds first.');
+                return;
+            }
+            currentStake = stake;
+            showLoading('Starting game...');
+            try {
+                const cartela = generateCartela();
+                const cartelaNumber = Math.floor(Math.random() * 9000) + 1000;
+                const gameData = {
+                    user_id: currentUser.id,
+                    stake: stake,
+                    status: 'active',
+                    called_numbers: [],
+                    marked_numbers: [],
+                    cartela: cartela,
+                    cartela_number: cartelaNumber,
+                    winner: null,
+                    prize: 0,
+                    created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                const gameRef = await db.collection('games').add(gameData);
+                currentGameId = gameRef.id;
+                await db.collection('users').doc(String(currentUser.id)).update({
+                    play_wallet: firebase.firestore.FieldValue.increment(-stake),
+                    is_playing: true,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                await db.collection('cartelas').add({
+                    game_id: currentGameId,
+                    user_id: currentUser.id,
+                    cartela: cartela,
+                    marked: [],
+                    created_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                hideLoading();
+                navigateTo('game');
+                setupGameBoard(stake, cartela, cartelaNumber);
+                listenToGame(currentGameId);
+            } catch (err) {
+                console.error('Error starting game:', err);
+                hideLoading();
+                showToast('Error starting game. Please try again.');
+            }
         }
 
-        function startCountdown() {
-            let count = 6;
-            const timer = setInterval(() => {
-                count--;
-                document.getElementById('countdownTimer').textContent = count;
-                if (count <= 0) {
-                    clearInterval(timer);
-                    goHome();
+        // ==================== CARTERA GENERATION ====================
+        function generateCartela() {
+            const ranges = [
+                { min: 1, max: 20 },
+                { min: 21, max: 40 },
+                { min: 41, max: 60 },
+                { min: 61, max: 80 },
+                { min: 81, max: 100 }
+            ];
+            const cartela = [];
+            for (let col = 0; col < 5; col++) {
+                const colNumbers = [];
+                const available = [];
+                for (let n = ranges[col].min; n <= ranges[col].max; n++) available.push(n);
+                for (let row = 0; row < 5; row++) {
+                    if (col === 2 && row === 2) {
+                        colNumbers.push(0);
+                    } else {
+                        const idx = Math.floor(Math.random() * available.length);
+                        colNumbers.push(available.splice(idx, 1)[0]);
+                    }
+                }
+                cartela.push(colNumbers);
+            }
+            return cartela;
+        }
+
+        // ==================== GAME BOARD SETUP ====================
+        function setupGameBoard(stake, cartela, cartelaNumber) {
+            document.getElementById('game-stake').textContent = stake + ' ETB';
+            document.getElementById('game-derash').textContent = 0;
+            document.getElementById('game-timer').textContent = '60s';
+            document.getElementById('game-timer').classList.remove('timer-pulse');
+            document.getElementById('cartela-number').textContent = cartelaNumber;
+            document.getElementById('called-numbers-display').innerHTML = '';
+            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Numbers are being called...</div>';
+            renderGrid(cartela);
+            renderCartela(cartela, []);
+            startTimer();
+        }
+
+        // ==================== BINGO GRID (8×13 = 104) ====================
+        function renderGrid(cartela) {
+            const headers = document.getElementById('grid-headers');
+            const grid = document.getElementById('bingo-grid');
+            const headerLetters = ['B', 'I', 'N', 'G', 'O', 'B', 'I', 'N'];
+            const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal', 'text-bingo-green', 'text-bingo-blue', 'text-bingo-purple'];
+            headers.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                headers.innerHTML += `<div class="bingo-grid-header ${headerColors[i]} text-center py-1">${headerLetters[i]}</div>`;
+            }
+            grid.innerHTML = '';
+            for (let row = 0; row < 13; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const num = row * 8 + col + 1;
+                    const cell = document.createElement('div');
+                    cell.id = 'grid-cell-' + num;
+                    cell.className = 'bingo-cell bg-bingo-dark/50 rounded-lg text-center py-1 text-[10px] font-medium text-white/70 cursor-pointer flex items-center justify-center aspect-square';
+                    cell.textContent = num;
+                    cell.onclick = () => onGridCellClick(num);
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function onGridCellClick(num) {
+            showToast('Number ' + num);
+        }
+
+        // ==================== CARTELA RENDER ====================
+        function renderCartela(cartela, marked) {
+            const grid = document.getElementById('cartela-grid');
+            grid.innerHTML = '';
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const num = cartela[col][row];
+                    const cell = document.createElement('div');
+                    const isCenter = (col === 2 && row === 2);
+                    const isMarked = isCenter || (marked && marked.includes(num));
+                    cell.className = 'bingo-cell rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
+                    if (isCenter) {
+                        cell.className += 'bg-bingo-orange/20 text-bingo-orange border border-bingo-orange/30';
+                        cell.innerHTML = '⭐';
+                    } else if (isMarked) {
+                        cell.className += 'number-marked text-white shadow-lg shadow-orange-500/20';
+                        cell.textContent = num;
+                    } else {
+                        cell.className += 'bg-white/5 text-white/80 border border-white/10';
+                        cell.textContent = num;
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        // ==================== GAME LISTENER ====================
+        function listenToGame(gameId) {
+            if (gameUnsubscribe) gameUnsubscribe();
+            gameUnsubscribe = db.collection('games').doc(gameId).onSnapshot(doc => {
+                if (!doc.exists) return;
+                currentGameData = { id: doc.id, ...doc.data() };
+                const data = currentGameData;
+                updateGameDisplay(data);
+                autoMarkNumbers(data);
+                if (data.status === 'completed' && data.winner === currentUser.id) {
+                    showWinCelebration(data);
+                } else if (data.status === 'completed') {
+                    showToast('Game over! Better luck next time.');
+                    setTimeout(() => navigateTo('home'), 2000);
+                }
+            });
+        }
+
+        function updateGameDisplay(data) {
+            const called = data.called_numbers || [];
+            document.getElementById('game-derash').textContent = called.length;
+            updateCalledNumbersDisplay(called);
+            if (data.cartela) {
+                const marked = getMarkedNumbers(data);
+                renderCartela(data.cartela, marked);
+                updateGridHighlights(called, marked, data.cartela);
+                updateCartelaLines(data.cartela, marked);
+            }
+        }
+
+        function getMarkedNumbers(data) {
+            const called = data.called_numbers || [];
+            if (!data.cartela) return [];
+            const marked = [];
+            for (let col = 0; col < 5; col++) {
+                for (let row = 0; row < 5; row++) {
+                    const num = data.cartela[col][row];
+                    if (num !== 0 && called.includes(num)) {
+                        marked.push(num);
+                    }
+                }
+            }
+            return marked;
+        }
+
+        function autoMarkNumbers(data) {
+            if (!data.cartela) return;
+            const called = data.called_numbers || [];
+            const marked = getMarkedNumbers(data);
+            if (marked.length > 0 && data.marked_numbers && data.marked_numbers.length !== marked.length) {
+                db.collection('games').doc(data.id).update({
+                    marked_numbers: marked,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(() => {});
+            }
+            checkBingo(data.cartela, marked, data);
+        }
+
+        function updateCalledNumbersDisplay(called) {
+            const container = document.getElementById('called-numbers-display');
+            const lastNumbers = called.slice(-10);
+            container.innerHTML = '';
+            lastNumbers.forEach((num, idx) => {
+                const isLast = idx === lastNumbers.length - 1;
+                const el = document.createElement('div');
+                el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-xs font-bold ';
+                if (isLast) {
+                    el.className += 'bg-bingo-orange text-white number-called';
+                } else {
+                    el.className += 'bg-white/10 text-white/70';
+                }
+                el.textContent = num;
+                container.appendChild(el);
+            });
+            container.scrollLeft = container.scrollWidth;
+        }
+
+        function updateGridHighlights(called, marked, cartela) {
+            for (let num = 1; num <= 104; num++) {
+                const cell = document.getElementById('grid-cell-' + num);
+                if (!cell) continue;
+                cell.className = 'bingo-cell rounded-lg text-center py-1 text-[10px] font-medium cursor-pointer flex items-center justify-center aspect-square ';
+                if (called.includes(num)) {
+                    if (marked.includes(num)) {
+                        cell.className += 'bg-bingo-orange/30 text-bingo-orange border border-bingo-orange/50 number-called';
+                    } else {
+                        cell.className += 'bg-bingo-green/20 text-bingo-green border border-bingo-green/30';
+                    }
+                } else {
+                    const isInCartela = isNumberInCartela(num, cartela);
+                    if (isInCartela) {
+                        cell.className += 'bg-white/10 text-white border border-white/20';
+                    } else {
+                        cell.className += 'bg-bingo-dark/50 text-white/70';
+                    }
+                }
+            }
+        }
+
+        function isNumberInCartela(num, cartela) {
+            if (!cartela) return false;
+            for (let col = 0; col < 5; col++) {
+                for (let row = 0; row < 5; row++) {
+                    if (cartela[col][row] === num) return true;
+                }
+            }
+            return false;
+        }
+
+        function updateCartelaLines(cartela, marked) {
+            let lines = 0;
+            const markedSet = new Set(marked);
+            for (let row = 0; row < 5; row++) {
+                let complete = true;
+                for (let col = 0; col < 5; col++) {
+                    const num = cartela[col][row];
+                    if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
+                }
+                if (complete) lines++;
+            }
+            for (let col = 0; col < 5; col++) {
+                let complete = true;
+                for (let row = 0; row < 5; row++) {
+                    const num = cartela[col][row];
+                    if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
+                }
+                if (complete) lines++;
+            }
+            let diag1 = true, diag2 = true;
+            for (let i = 0; i < 5; i++) {
+                const n1 = cartela[i][i];
+                const n2 = cartela[i][4 - i];
+                if (n1 !== 0 && !markedSet.has(n1)) diag1 = false;
+                if (n2 !== 0 && !markedSet.has(n2)) diag2 = false;
+            }
+            if (diag1) lines++;
+            if (diag2) lines++;
+            const el = document.getElementById('cartela-lines');
+            if (lines > 0) {
+                el.textContent = lines + '/12 lines';
+                el.className = 'text-xs font-semibold text-bingo-orange';
+            } else {
+                el.textContent = '';
+                el.className = 'text-xs text-white/50';
+            }
+        }
+
+        // ==================== TIMER ====================
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerSeconds = 60;
+            const timerEl = document.getElementById('game-timer');
+            timerEl.classList.remove('timer-pulse');
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                if (timerSeconds <= 0) {
+                    timerSeconds = 60;
+                }
+                timerEl.textContent = timerSeconds + 's';
+                if (timerSeconds <= 10) {
+                    timerEl.classList.add('timer-pulse');
+                } else {
+                    timerEl.classList.remove('timer-pulse');
                 }
             }, 1000);
         }
 
-        // Timer simulation
-        let gameTimer = 60;
-        setInterval(() => {
-            if (!document.getElementById('gameScreen').classList.contains('hidden')) {
-                gameTimer--;
-                if (gameTimer <= 0) gameTimer = 60;
-                document.getElementById('timerDisplay').textContent = gameTimer + 's';
-            }
-        }, 1000);
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
 
-        // Initialize
-        generateGrid();
+        // ==================== BINGO CHECK ====================
+        function checkBingo(cartela, marked, data) {
+            if (!cartela || !marked || marked.length < 5) return;
+            const markedSet = new Set(marked);
+            let hasBingo = false;
+            for (let row = 0; row < 5; row++) {
+                let complete = true;
+                for (let col = 0; col < 5; col++) {
+                    const num = cartela[col][row];
+                    if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
+                }
+                if (complete) { hasBingo = true; break; }
+            }
+            if (!hasBingo) {
+                for (let col = 0; col < 5; col++) {
+                    let complete = true;
+                    for (let row = 0; row < 5; row++) {
+                        const num = cartela[col][row];
+                        if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
+                    }
+                    if (complete) { hasBingo = true; break; }
+                }
+            }
+            if (!hasBingo) {
+                let diag1 = true, diag2 = true;
+                for (let i = 0; i < 5; i++) {
+                    if (cartela[i][i] !== 0 && !markedSet.has(cartela[i][i])) diag1 = false;
+                    if (cartela[i][4 - i] !== 0 && !markedSet.has(cartela[i][4 - i])) diag2 = false;
+                }
+                if (diag1 || diag2) hasBingo = true;
+            }
+            if (hasBingo && data.status === 'active' && data.winner === null) {
+                endGame(data.id, data.user_id, data);
+            }
+        }
+
+        async function endGame(gameId, userId, data) {
+            try {
+                const prize = Math.round(data.stake * 15.2 * 100) / 100;
+                await db.collection('games').doc(gameId).update({
+                    status: 'completed',
+                    winner: userId,
+                    prize: prize,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                await db.collection('users').doc(String(userId)).update({
+                    play_wallet: firebase.firestore.FieldValue.increment(prize),
+                    total_games: firebase.firestore.FieldValue.increment(1),
+                    wins: firebase.firestore.FieldValue.increment(1),
+                    is_playing: false,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) {
+                console.error('Error ending game:', err);
+            }
+        }
+
+        // ==================== LEAVE GAME ====================
+        async function leaveGame() {
+            stopTimer();
+            if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
+            if (currentGameId && currentGameData && currentGameData.status !== 'completed') {
+                try {
+                    await db.collection('games').doc(currentGameId).update({
+                        status: 'completed',
+                        winner: null,
+                        prize: 0,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    await db.collection('users').doc(String(currentUser.id)).update({
+                        is_playing: false,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (err) {
+                    console.error('Error leaving game:', err);
+                }
+            }
+            currentGameId = null;
+            currentGameData = null;
+        }
+
+        function refreshGame() {
+            if (currentGameId) {
+                showToast('Refreshing...');
+                db.collection('games').doc(currentGameId).get().then(doc => {
+                    if (doc.exists) {
+                        currentGameData = { id: doc.id, ...doc.data() };
+                        updateGameDisplay(currentGameData);
+                    }
+                });
+            }
+        }
+
+        // ==================== WIN CELEBRATION ====================
+        function showWinCelebration(data) {
+            stopTimer();
+            const modal = document.getElementById('win-modal');
+            const cartela = data.cartela;
+            const marked = data.marked_numbers || getMarkedNumbers(data);
+            const prize = data.prize || Math.round(data.stake * 15.2 * 100) / 100;
+            document.getElementById('winner-name').textContent = currentUser.first_name + ' WON!';
+            document.getElementById('winner-cartela').textContent = data.cartela_number;
+            document.getElementById('winner-prize').textContent = prize + ' ETB';
+            const grid = document.getElementById('win-cartela-grid');
+            grid.innerHTML = '';
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const num = cartela[col][row];
+                    const cell = document.createElement('div');
+                    const isCenter = (col === 2 && row === 2);
+                    const isMarked = isCenter || marked.includes(num);
+                    cell.className = 'win-cartela-cell rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
+                    if (isCenter) {
+                        cell.className += 'bg-bingo-orange/20 text-bingo-orange';
+                        cell.innerHTML = '⭐';
+                    } else if (isMarked) {
+                        cell.className += 'bg-bingo-green text-white';
+                        cell.textContent = num;
+                    } else {
+                        cell.className += 'bg-white text-gray-800';
+                        cell.textContent = num;
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+            modal.classList.remove('hidden');
+            createConfetti();
+            let countdown = 8;
+            document.getElementById('win-countdown').textContent = countdown;
+            winCountdownInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('win-countdown').textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(winCountdownInterval);
+                    modal.classList.add('hidden');
+                    navigateTo('home');
+                }
+            }, 1000);
+        }
+
+        function createConfetti() {
+            const container = document.getElementById('confetti-container');
+            container.innerHTML = '';
+            const colors = ['#FF8C00', '#10B981', '#3B82F6', '#8B5CF6', '#14B8A6', '#F59E0B', '#EF4444'];
+            for (let i = 0; i < 30; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.top = '-10px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.width = (5 + Math.random() * 10) + 'px';
+                confetti.style.height = (5 + Math.random() * 10) + 'px';
+                container.appendChild(confetti);
+            }
+            setTimeout(() => { container.innerHTML = ''; }, 4000);
+        }
+
+        // ==================== HISTORY ====================
+        async function loadHistory() {
+            const historyList = document.getElementById('history-list');
+            const emptyState = document.getElementById('history-empty');
+            const loadingState = document.getElementById('history-loading');
+            if (!currentUser) return;
+            emptyState.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            try {
+                const snapshot = await db.collection('games')
+                    .where('user_id', '==', currentUser.id)
+                    .orderBy('created_at', 'desc')
+                    .limit(50)
+                    .get();
+                loadingState.classList.add('hidden');
+                if (snapshot.empty) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                historyList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const card = createHistoryCard(doc.id, data);
+                    historyList.appendChild(card);
+                });
+            } catch (err) {
+                console.error('Error loading history:', err);
+                loadingState.classList.add('hidden');
+                try {
+                    const snapshot = await db.collection('games')
+                        .where('user_id', '==', currentUser.id)
+                        .get();
+                    if (snapshot.empty) {
+                        emptyState.classList.remove('hidden');
+                        return;
+                    }
+                    historyList.innerHTML = '';
+                    const sorted = snapshot.docs.sort((a, b) => {
+                        const ta = a.data().created_at?.toMillis?.() || 0;
+                        const tb = b.data().created_at?.toMillis?.() || 0;
+                        return tb - ta;
+                    });
+                    sorted.forEach(doc => {
+                        const data = doc.data();
+                        const card = createHistoryCard(doc.id, data);
+                        historyList.appendChild(card);
+                    });
+                } catch (err2) {
+                    console.error('Error loading history fallback:', err2);
+                    emptyState.classList.remove('hidden');
+                }
+            }
+        }
+
+        function createHistoryCard(id, data) {
+            const card = document.createElement('div');
+            card.className = 'glass rounded-xl p-4';
+            let statusColor = 'text-white/50';
+            let statusText = data.status || 'unknown';
+            let statusIcon = '⏳';
+            if (data.status === 'completed') {
+                if (data.winner === currentUser.id) {
+                    statusColor = 'text-bingo-green';
+                    statusText = 'Won';
+                    statusIcon = '🏆';
+                } else if (data.winner) {
+                    statusColor = 'text-red-400';
+                    statusText = 'Lost';
+                    statusIcon = '❌';
+                } else {
+                    statusColor = 'text-white/50';
+                    statusText = 'Cancelled';
+                    statusIcon = '⏸️';
+                }
+            } else if (data.status === 'active') {
+                statusColor = 'text-bingo-blue';
+                statusText = 'Active';
+                statusIcon = '🎮';
+            }
+            let dateStr = '';
+            if (data.created_at) {
+                try {
+                    const d = data.created_at.toDate ? data.created_at.toDate() : new Date(data.created_at);
+                    dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } catch (e) {
+                    dateStr = 'N/A';
+                }
+            }
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="text-2xl">${statusIcon}</div>
+                        <div>
+                            <div class="text-sm font-semibold text-white">Cartela #${data.cartela_number || 'N/A'}</div>
+                            <div class="text-xs text-white/50">Stake: ${data.stake || 0} ETB</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-semibold ${statusColor}">${statusText}</div>
+                        ${data.prize > 0 ? '<div class="text-xs text-bingo-green font-bold">+' + data.prize + ' ETB</div>' : ''}
+                        <div class="text-[10px] text-white/30 mt-1">${dateStr}</div>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // ==================== TRANSFER ====================
+        function showTransferModal() {
+            document.getElementById('transfer-modal').classList.remove('hidden');
+            document.getElementById('transfer-amount').value = '';
+        }
+
+        function hideTransferModal() {
+            document.getElementById('transfer-modal').classList.add('hidden');
+        }
+
+        async function transferFunds(direction) {
+            const amount = parseFloat(document.getElementById('transfer-amount').value);
+            if (!amount || amount <= 0) {
+                showToast('Enter a valid amount');
+                return;
+            }
+            if (!currentUser) return;
+            try {
+                const userRef = db.collection('users').doc(String(currentUser.id));
+                const userDoc = await userRef.get();
+                const userData = userDoc.data();
+                if (direction === 'toPlay') {
+                    if (userData.balance < amount) {
+                        showToast('Insufficient main balance');
+                        return;
+                    }
+                    await userRef.update({
+                        balance: firebase.firestore.FieldValue.increment(-amount),
+                        play_wallet: firebase.firestore.FieldValue.increment(amount),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    if (userData.play_wallet < amount) {
+                        showToast('Insufficient play wallet');
+                        return;
+                    }
+                    await userRef.update({
+                        play_wallet: firebase.firestore.FieldValue.increment(-amount),
+                        balance: firebase.firestore.FieldValue.increment(amount),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                hideTransferModal();
+                showToast('Transfer successful!');
+            } catch (err) {
+                console.error('Transfer error:', err);
+                showToast('Transfer failed. Please try again.');
+            }
+        }
+
+        // ==================== MODALS ====================
+        function showRules() {
+            document.getElementById('rules-modal').classList.remove('hidden');
+        }
+
+        function hideRules() {
+            document.getElementById('rules-modal').classList.add('hidden');
+        }
+
+        function showLoading(text) {
+            document.getElementById('loading-text').textContent = text || 'Loading...';
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        // ==================== LOGOUT ====================
+        async function logout() {
+            try {
+                if (currentUser) {
+                    await db.collection('users').doc(String(currentUser.id)).update({
+                        is_playing: false,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                if (userUnsubscribe) userUnsubscribe();
+                if (statsUnsubscribe) statsUnsubscribe();
+                if (gameUnsubscribe) gameUnsubscribe();
+                currentUser = null;
+                showToast('Logged out');
+                if (tg) tg.close();
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
+        }
+
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initUser();
+        });
+
+        // Handle back button
+        window.addEventListener('popstate', (e) => {
+            if (currentScreen !== 'home') {
+                navigateTo('home');
+            } else if (tg) {
+                tg.close();
+            }
+        });
+
+        // Prevent pull to refresh
+        document.body.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) return;
+        }, { passive: true });
     </script>
 </body>
 </html>
