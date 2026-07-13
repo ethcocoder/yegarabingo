@@ -519,13 +519,40 @@
                         <input type="number" id="withdrawAmount" placeholder="Enter amount" min="10" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-bingo-orange">
                     </div>
                     <div>
-                        <label class="text-xs text-white/50 uppercase mb-1 block">TeleBirr Number</label>
+                        <label class="text-xs text-white/50 uppercase mb-1 block">TeleBirr Phone Number</label>
                         <input type="text" id="withdrawTelebirr" placeholder="+251911000000" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-bingo-orange">
+                    </div>
+                    <div>
+                        <label class="text-xs text-white/50 uppercase mb-1 block">TeleBirr Full Name</label>
+                        <input type="text" id="withdrawTelebirrName" placeholder="Name on TeleBirr account" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-bingo-orange">
                     </div>
                     <div class="flex gap-3">
                         <button onclick="hideScreen('withdrawModal')" class="flex-1 bg-white/10 text-white py-3 rounded-xl font-medium btn-hover">Cancel</button>
                         <button onclick="submitWithdrawal()" class="flex-1 rounded-xl py-3 font-medium btn-hover text-white" style="background: linear-gradient(135deg, #EF4444, #F97316);">Submit</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== REGISTRATION MODAL ==================== -->
+    <div id="registerModal" class="fixed inset-0 z-[200] hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="glass rounded-3xl p-6 w-full max-w-[380px] text-center border border-bingo-orange/30">
+                <div class="text-4xl mb-3">👋</div>
+                <h2 class="text-xl font-bold text-white mb-1">Welcome to Yegara Bingo!</h2>
+                <p class="text-sm text-white/50 mb-5">Complete your profile to start playing</p>
+                <div class="space-y-3 text-left">
+                    <div>
+                        <label class="text-xs text-white/50 uppercase mb-1 block">Display Name</label>
+                        <input type="text" id="regName" placeholder="Your name" maxlength="30" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-bingo-orange">
+                    </div>
+                    <div>
+                        <label class="text-xs text-white/50 uppercase mb-1 block">Phone Number</label>
+                        <input type="tel" id="regPhone" placeholder="+251911000000" maxlength="15" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-bingo-orange">
+                    </div>
+                    <button onclick="submitRegistration()" class="w-full rounded-xl py-3 font-semibold text-white btn-hover" style="background: linear-gradient(135deg, #FF8C00, #FF6B00);">Start Playing</button>
                 </div>
             </div>
         </div>
@@ -610,6 +637,8 @@
                         user_id: uid,
                         first_name: tgUser.first_name || 'Player',
                         username: tgUser.username || 'player' + uid,
+                        phone: '',
+                        telebirr_name: '',
                         balance: 100,
                         play_wallet: 50,
                         total_games: 0,
@@ -625,9 +654,46 @@
                 updateAllDisplays();
                 listenToUserData();
                 startStatsListener();
+                if (!currentUser.phone) {
+                    showRegistration();
+                }
             } catch (err) {
                 console.error('Error initializing user:', err);
                 document.getElementById('user-greeting').textContent = 'Error: ' + err.message;
+            }
+        }
+
+        function showRegistration() {
+            document.getElementById('regName').value = currentUser.first_name || '';
+            document.getElementById('regPhone').value = currentUser.phone || '';
+            document.getElementById('registerModal').classList.remove('hidden');
+        }
+
+        async function submitRegistration() {
+            const name = document.getElementById('regName').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            if (!name) {
+                showToast('Please enter your name');
+                return;
+            }
+            if (!phone || !phone.startsWith('+251')) {
+                showToast('Enter valid phone number (+251...)');
+                return;
+            }
+            try {
+                await db.collection('users').doc(String(currentUser.id)).update({
+                    first_name: name,
+                    phone: phone,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentUser.first_name = name;
+                currentUser.phone = phone;
+                updateAllDisplays();
+                document.getElementById('registerModal').classList.add('hidden');
+                showToast('Profile complete! Enjoy playing!');
+            } catch (err) {
+                console.error('Registration error:', err);
+                showToast('Error saving profile. Try again.');
             }
         }
 
@@ -1440,23 +1506,19 @@
         }
 
         async function requestWithdrawal() {
-            const user = firebase.auth().currentUser;
-            if (!user) return;
-            try {
-                const userDoc = await db.collection('users').doc(String(currentUser.id)).get();
-                const balance = userDoc.data()?.balance || 0;
-                document.getElementById('withdraw-available').textContent = balance + ' ETB';
-            } catch (err) {
-                console.error('Error fetching balance:', err);
-            }
-            document.getElementById('withdrawModal').classList.remove('hidden');
+            if (!currentUser) return;
+            const balance = currentUser.balance || 0;
+            document.getElementById('withdraw-available').textContent = balance + ' ETB';
             document.getElementById('withdrawAmount').value = '';
-            document.getElementById('withdrawTelebirr').value = '';
+            document.getElementById('withdrawTelebirr').value = currentUser.phone || '';
+            document.getElementById('withdrawTelebirrName').value = currentUser.telebirr_name || '';
+            document.getElementById('withdrawModal').classList.remove('hidden');
         }
 
         async function submitWithdrawal() {
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
             const telebirr = document.getElementById('withdrawTelebirr').value.trim();
+            const telebirrName = document.getElementById('withdrawTelebirrName').value.trim();
 
             if (!amount || amount < 10) {
                 showToast('Minimum withdrawal is 10 ETB');
@@ -1465,6 +1527,11 @@
 
             if (!telebirr || !telebirr.startsWith('+251')) {
                 showToast('Enter valid TeleBirr number (+251...)');
+                return;
+            }
+
+            if (!telebirrName) {
+                showToast('Enter the name on your TeleBirr account');
                 return;
             }
 
@@ -1482,24 +1549,30 @@
 
                 await db.collection('users').doc(String(userId)).update({
                     balance: currentBalance - amount,
-                    updatedAt: new Date()
+                    telebirr_name: telebirrName,
+                    phone: telebirr,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
                 await db.collection('withdrawals').add({
-                    userId: userId,
+                    user_id: userId,
                     username: currentUser.username || 'unknown',
-                    firstName: currentUser.first_name || 'Unknown',
+                    first_name: currentUser.first_name || 'Unknown',
                     amount: amount,
-                    telebirrNumber: telebirr,
+                    telebirr_number: telebirr,
+                    telebirr_name: telebirrName,
                     status: 'pending',
-                    createdAt: new Date(),
-                    processedAt: null,
-                    adminNote: ''
+                    created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                    processed_at: null,
+                    admin_note: ''
                 });
 
+                currentUser.balance = currentBalance - amount;
+                currentUser.telebirr_name = telebirrName;
+                currentUser.phone = telebirr;
+                updateAllDisplays();
                 hideScreen('withdrawModal');
                 showToast('Withdrawal request submitted!');
-                loadUserData();
             } catch (err) {
                 console.error('Withdrawal error:', err);
                 showToast('Withdrawal failed. Please try again.');
