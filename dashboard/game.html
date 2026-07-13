@@ -209,7 +209,7 @@
             </div>
             <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
                 <div class="text-[10px] text-white/50 uppercase">Timer</div>
-                <div id="game-timer" class="text-sm font-bold text-white">60s</div>
+                <div id="game-timer" class="text-sm font-bold text-white">180s</div>
             </div>
         </div>
 
@@ -229,14 +229,14 @@
             </div>
         </div>
 
-        <!-- Bingo Grid (8 columns × 13 rows) -->
+        <!-- Bingo Grid (5 columns × 20 rows) -->
         <div class="px-4 py-2">
             <div class="glass rounded-2xl p-3">
                 <div class="text-xs text-white/50 uppercase mb-2">Number Grid</div>
                 <!-- Column Headers -->
-                <div id="grid-headers" class="grid grid-cols-8 gap-1 mb-1"></div>
+                <div id="grid-headers" class="grid grid-cols-5 gap-1 mb-1"></div>
                 <!-- Grid Numbers -->
-                <div id="bingo-grid" class="grid grid-cols-8 gap-1"></div>
+                <div id="bingo-grid" class="grid grid-cols-5 gap-1"></div>
             </div>
         </div>
 
@@ -574,6 +574,7 @@
         let statsUnsubscribe = null;
         let winCountdownInterval = null;
         let currentScreen = 'home';
+        let numberCallIndex = 0;
 
         // ==================== TELEGRAM INIT ====================
         const tg = window.Telegram?.WebApp;
@@ -589,15 +590,15 @@
             if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 return tg.initDataUnsafe.user;
             }
-            return {
-                id: 12345678,
-                first_name: 'Test',
-                username: 'testuser'
-            };
+            return null;
         }
 
         async function initUser() {
             const tgUser = getTelegramUser();
+            if (!tgUser) {
+                showToast('Please open this game from Telegram.');
+                return;
+            }
             const uid = tgUser.id;
             try {
                 const userDoc = await db.collection('users').doc(String(uid)).get();
@@ -810,11 +811,52 @@
             return result;
         }
 
+        let numberCallInterval = null;
+        let allNumbers = [];
+
+        function startNumberCalling(gameId) {
+            allNumbers = [];
+            for (let n = 1; n <= 100; n++) allNumbers.push(n);
+            for (let i = allNumbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
+            }
+            numberCallIndex = 0;
+            numberCallInterval = setInterval(async () => {
+                if (numberCallIndex >= allNumbers.length) {
+                    clearInterval(numberCallInterval);
+                    return;
+                }
+                const num = allNumbers[numberCallIndex];
+                numberCallIndex++;
+                try {
+                    const gameDoc = await db.collection('games').doc(gameId).get();
+                    if (!gameDoc.exists) { clearInterval(numberCallInterval); return; }
+                    const gameData = gameDoc.data();
+                    if (gameData.status !== 'active') { clearInterval(numberCallInterval); return; }
+                    const called = gameData.called_numbers || [];
+                    if (!called.includes(num)) {
+                        called.push(num);
+                        await db.collection('games').doc(gameId).update({
+                            called_numbers: called,
+                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error calling number:', e);
+                }
+            }, 3000);
+        }
+
+        function stopNumberCalling() {
+            if (numberCallInterval) { clearInterval(numberCallInterval); numberCallInterval = null; }
+        }
+
         // ==================== GAME BOARD SETUP ====================
         function setupGameBoard(stake, cartela, cartelaNumber) {
             document.getElementById('game-stake').textContent = stake + ' ETB';
             document.getElementById('game-derash').textContent = 0;
-            document.getElementById('game-timer').textContent = '60s';
+            document.getElementById('game-timer').textContent = '180s';
             document.getElementById('game-timer').classList.remove('timer-pulse');
             document.getElementById('cartela-number').textContent = cartelaNumber;
             document.getElementById('called-numbers-display').innerHTML = '';
@@ -822,34 +864,31 @@
             renderGrid(cartela);
             renderCartela(cartela, []);
             startTimer();
+            startNumberCalling(currentGameId);
         }
 
-        // ==================== BINGO GRID (8×13 = 104) ====================
+        // ==================== BINGO GRID (5 columns × 20 rows = 100) ====================
         function renderGrid(cartela) {
             const headers = document.getElementById('grid-headers');
             const grid = document.getElementById('bingo-grid');
-            const headerLetters = ['B', 'I', 'N', 'G', 'O', 'B', 'I', 'N'];
-            const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal', 'text-bingo-green', 'text-bingo-blue', 'text-bingo-purple'];
+            const headerLetters = ['B', 'I', 'N', 'G', 'O'];
+            const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal'];
             headers.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                headers.innerHTML += `<div class="bingo-grid-header ${headerColors[i]} text-center py-1">${headerLetters[i]}</div>`;
+            for (let i = 0; i < 5; i++) {
+                headers.innerHTML += `<div class="bingo-grid-header ${headerColors[i]} text-center py-1 font-bold">${headerLetters[i]}</div>`;
             }
             grid.innerHTML = '';
-            for (let row = 0; row < 13; row++) {
-                for (let col = 0; col < 8; col++) {
-                    const num = row * 8 + col + 1;
+            const ranges = [{min:1,max:20},{min:21,max:40},{min:41,max:60},{min:61,max:80},{min:81,max:100}];
+            for (let row = 0; row < 20; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const num = ranges[col].min + row;
                     const cell = document.createElement('div');
                     cell.id = 'grid-cell-' + num;
-                    cell.className = 'bingo-cell bg-bingo-dark/50 rounded-lg text-center py-1 text-[10px] font-medium text-white/70 cursor-pointer flex items-center justify-center aspect-square';
+                    cell.className = 'bingo-cell bg-bingo-dark/50 rounded-lg text-center py-1 text-[10px] font-medium text-white/70 flex items-center justify-center aspect-square';
                     cell.textContent = num;
-                    cell.onclick = () => onGridCellClick(num);
                     grid.appendChild(cell);
                 }
             }
-        }
-
-        function onGridCellClick(num) {
-            showToast('Number ' + num);
         }
 
         // ==================== CARTELA RENDER ====================
@@ -888,8 +927,10 @@
                 updateGameDisplay(data);
                 autoMarkNumbers(data);
                 if (data.status === 'completed' && data.winner === currentUser.id) {
+                    stopNumberCalling();
                     showWinCelebration(data);
                 } else if (data.status === 'completed') {
+                    stopNumberCalling();
                     showToast('Game over! Better luck next time.');
                     setTimeout(() => navigateTo('home'), 2000);
                 }
@@ -960,10 +1001,10 @@
         }
 
         function updateGridHighlights(called, marked, cartela) {
-            for (let num = 1; num <= 104; num++) {
+            for (let num = 1; num <= 100; num++) {
                 const cell = document.getElementById('grid-cell-' + num);
                 if (!cell) continue;
-                cell.className = 'bingo-cell rounded-lg text-center py-1 text-[10px] font-medium cursor-pointer flex items-center justify-center aspect-square ';
+                cell.className = 'bingo-cell rounded-lg text-center py-1 text-[10px] font-medium flex items-center justify-center aspect-square ';
                 if (called.includes(num)) {
                     if (marked.includes(num)) {
                         cell.className += 'bg-bingo-orange/30 text-bingo-orange border border-bingo-orange/50 number-called';
@@ -1032,13 +1073,29 @@
         // ==================== TIMER ====================
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
-            timerSeconds = 60;
+            timerSeconds = 180;
             const timerEl = document.getElementById('game-timer');
             timerEl.classList.remove('timer-pulse');
             timerInterval = setInterval(() => {
                 timerSeconds--;
                 if (timerSeconds <= 0) {
-                    timerSeconds = 60;
+                    stopTimer();
+                    stopNumberCalling();
+                    if (currentGameId && currentGameData && currentGameData.status === 'active') {
+                        db.collection('games').doc(currentGameId).update({
+                            status: 'completed',
+                            winner: null,
+                            prize: 0,
+                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(() => {});
+                        db.collection('users').doc(String(currentUser.id)).update({
+                            is_playing: false,
+                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(() => {});
+                    }
+                    showToast("Time's up! No winner this round.");
+                    setTimeout(() => navigateTo('home'), 2000);
+                    return;
                 }
                 timerEl.textContent = timerSeconds + 's';
                 if (timerSeconds <= 10) {
@@ -1113,6 +1170,7 @@
         // ==================== LEAVE GAME ====================
         async function leaveGame() {
             stopTimer();
+            stopNumberCalling();
             if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
             if (currentGameId && currentGameData && currentGameData.status !== 'completed') {
                 try {
