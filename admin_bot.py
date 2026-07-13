@@ -166,32 +166,61 @@ async def handle_game_control(game_id, action, query):
                 u = user_doc.to_dict()
                 user_name = f"{u.get('first_name', 'Unknown')} (@{u.get('username', 'unknown')})"
         
+        called_count = len(game.get("called_numbers", []))
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        
+        updates = {
+            "admin_action": {
+                "type": action,
+                "source": "bot",
+                "timestamp": datetime.utcnow(),
+                "admin_id": ADMIN_CHAT_ID
+            }
+        }
+        
         if action == "allow":
-            game_ref.update({"allow_win": True, "win_user_id": user_id})
+            updates["allow_win"] = True
+            updates["win_user_id"] = user_id
             await query.edit_message_text(
-                f"✅ *Win Allowed*\n\n"
-                f"👤 {user_name}\n"
-                f"💰 Stake: {game.get('stake', 0)} ETB\n\n"
-                f"The next winning number will be called."
+                f"✅ *WIN ALLOWED*\n\n"
+                f"👤 Player: {user_name}\n"
+                f"💰 Stake: {game.get('stake', 0)} ETB\n"
+                f"📊 Numbers called: {called_count}/100\n"
+                f"🕐 Action at: {now_str}\n"
+                f"📱 Source: Admin Bot\n\n"
+                f"The next winning number will be called automatically.\n"
+                f"The player will see \"Admin approved\" on their screen."
             )
         
         elif action == "random":
-            game_ref.update({"allow_win": True, "win_user_id": "random"})
+            updates["allow_win"] = True
+            updates["win_user_id"] = "random"
             await query.edit_message_text(
-                f"🎲 *Random Win Enabled*\n\n"
-                f"👤 {user_name}\n"
-                f"💰 Stake: {game.get('stake', 0)} ETB\n\n"
-                f"A random winning number will be called."
+                f"🎲 *RANDOM WIN ENABLED*\n\n"
+                f"👤 Player: {user_name}\n"
+                f"💰 Stake: {game.get('stake', 0)} ETB\n"
+                f"📊 Numbers called: {called_count}/100\n"
+                f"🕐 Action at: {now_str}\n"
+                f"📱 Source: Admin Bot\n\n"
+                f"A random winning number will be called.\n"
+                f"The player will see \"Random win enabled\" on their screen."
             )
         
         elif action == "block":
-            game_ref.update({"allow_win": False})
+            updates["allow_win"] = False
             await query.edit_message_text(
-                f"❌ *Wins Blocked*\n\n"
-                f"👤 {user_name}\n"
-                f"💰 Stake: {game.get('stake', 0)} ETB\n\n"
-                f"No winning numbers will be called."
+                f"❌ *WINS BLOCKED*\n\n"
+                f"👤 Player: {user_name}\n"
+                f"💰 Stake: {game.get('stake', 0)} ETB\n"
+                f"📊 Numbers called: {called_count}/100\n"
+                f"🕐 Action at: {now_str}\n"
+                f"📱 Source: Admin Bot\n\n"
+                f"No winning numbers will be called.\n"
+                f"The player will see \"Wins blocked\" on their screen."
             )
+        
+        game_ref.update(updates)
+        logger.info(f"Game {game_id} control: {action} by admin via bot")
     
     except Exception as e:
         logger.error(f"Error controlling game: {e}")
@@ -364,6 +393,16 @@ async def active_games(update: Update, context: ContextTypes.DEFAULT_TYPE):
         allow = "✅ Allowed" if g.get("allow_win") else "❌ Blocked"
         called_count = len(g.get("called_numbers", []))
         
+        admin_action = g.get("admin_action")
+        action_info = ""
+        if admin_action:
+            action_type = admin_action.get("type", "unknown")
+            action_source = admin_action.get("source", "unknown")
+            action_time = admin_action.get("timestamp")
+            time_str = action_time.strftime('%H:%M:%S') if action_time else "unknown"
+            action_type_label = {"allow": "✅ Allowed", "block": "❌ Blocked", "random": "🎲 Random"}.get(action_type, action_type)
+            action_info = f"\n📋 *Last Admin Action:*\n   {action_type_label} via {action_source} at {time_str}"
+        
         keyboard = {
             "inline_keyboard": [
                 [
@@ -376,7 +415,7 @@ async def active_games(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         }
         
-        text = f"🎮 *Active Game*\n\n👤 {user_name}\n💰 Stake: {g.get('stake', 0)} ETB\n📊 Numbers called: {called_count}/100\n🎯 Win status: {allow}"
+        text = f"🎮 *Active Game*\n\n👤 {user_name}\n💰 Stake: {g.get('stake', 0)} ETB\n📊 Numbers called: {called_count}/100\n🎯 Win status: {allow}{action_info}"
         
         await update.message.reply_text(text, parse_mode='Markdown', reply_markup=keyboard)
 
