@@ -42,7 +42,8 @@
         @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(255,140,0,0.5); } 50% { box-shadow: 0 0 20px rgba(255,140,0,0.8); } }
         @keyframes pulse-red { 0%, 100% { color: #EF4444; } 50% { color: #FCA5A5; } }
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
-        @keyframes bounce-in { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes bounce-in { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.3); } 100% { transform: scale(1); opacity: 1; } }
+        .animate-bounce-in { animation: bounce-in 0.5s ease-out; }
         @keyframes spin-crown { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(10deg) scale(1.1); } 100% { transform: rotate(0deg) scale(1); } }
         @keyframes glow-text { 0%, 100% { text-shadow: 0 0 10px rgba(255,140,0,0.5); } 50% { text-shadow: 0 0 30px rgba(255,140,0,0.8), 0 0 60px rgba(255,140,0,0.4); } }
         @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
@@ -224,7 +225,7 @@
         <!-- Called Numbers Display -->
         <div class="px-4 py-2">
             <div class="glass rounded-xl p-3">
-                <div class="text-xs text-white/50 uppercase mb-2">Last Called Numbers</div>
+                <div class="text-xs text-white/50 uppercase mb-2">Called Numbers</div>
                 <div id="called-numbers-display" class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: none;"></div>
             </div>
         </div>
@@ -459,11 +460,11 @@
                 <div class="space-y-3 text-sm text-white/70">
                     <p><span class="text-bingo-orange font-bold">1.</span> Choose your stake (10 or 20 ETB)</p>
                     <p><span class="text-bingo-green font-bold">2.</span> You receive a random 5×5 bingo cartela</p>
-                    <p><span class="text-bingo-blue font-bold">3.</span> Numbers from 1-104 are called each round</p>
-                    <p><span class="text-bingo-purple font-bold">4.</span> Numbers on your cartela are auto-marked</p>
-                    <p><span class="text-bingo-teal font-bold">5.</span> Complete a row, column, or diagonal to win</p>
+                    <p><span class="text-bingo-blue font-bold">3.</span> Numbers are called one at a time (e.g. B-7, I-22)</p>
+                    <p><span class="text-bingo-purple font-bold">4.</span> Find the number on your cartela and tap to mark it</p>
+                    <p><span class="text-bingo-teal font-bold">5.</span> Complete a row, column, or diagonal to win!</p>
                     <p><span class="text-bingo-orange font-bold">6.</span> Prize = Stake × 15.2 (e.g., 10 ETB → 152 ETB)</p>
-                    <p class="text-white/40 text-xs mt-3">* Each round lasts 60 seconds. Play responsibly.</p>
+                    <p class="text-white/40 text-xs mt-3">* Each round lasts 180 seconds. Play responsibly.</p>
                 </div>
             </div>
         </div>
@@ -554,6 +555,17 @@
                     </div>
                     <button onclick="submitRegistration()" class="w-full rounded-xl py-3 font-semibold text-white btn-hover" style="background: linear-gradient(135deg, #FF8C00, #FF6B00);">Start Playing</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== NUMBER ANNOUNCEMENT ==================== -->
+    <div id="number-announce" class="fixed inset-0 z-[180] hidden">
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="glass rounded-3xl p-8 text-center border-2 border-bingo-orange/50 animate-bounce-in">
+                <div id="announce-letter" class="text-6xl font-black mb-2"></div>
+                <div id="announce-number" class="text-7xl font-black text-bingo-orange glow-text mb-2"></div>
+                <div id="announce-countdown" class="text-2xl font-bold text-white/60"></div>
             </div>
         </div>
     </div>
@@ -883,6 +895,53 @@
 
         let numberCallInterval = null;
         let allNumbers = [];
+        let currentCallingNumber = null;
+        let announceCountdownInterval = null;
+
+        function getNumberLetter(num) {
+            if (num >= 1 && num <= 20) return 'B';
+            if (num >= 21 && num <= 40) return 'I';
+            if (num >= 41 && num <= 60) return 'N';
+            if (num >= 61 && num <= 80) return 'G';
+            if (num >= 81 && num <= 100) return 'O';
+            return '?';
+        }
+
+        function getLetterColor(letter) {
+            const colors = { B: '#10B981', I: '#3B82F6', N: '#8B5CF6', G: '#FF8C00', O: '#14B8A6' };
+            return colors[letter] || '#FF8C00';
+        }
+
+        function showNumberAnnouncement(num) {
+            const letter = getNumberLetter(num);
+            const color = getLetterColor(letter);
+            const el = document.getElementById('number-announce');
+            const letterEl = document.getElementById('announce-letter');
+            const numberEl = document.getElementById('announce-number');
+            const countdownEl = document.getElementById('announce-countdown');
+            letterEl.textContent = letter;
+            letterEl.style.color = color;
+            numberEl.textContent = num;
+            el.classList.remove('hidden');
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            let remaining = 5;
+            countdownEl.textContent = remaining + 's to mark';
+            if (announceCountdownInterval) clearInterval(announceCountdownInterval);
+            announceCountdownInterval = setInterval(() => {
+                remaining--;
+                countdownEl.textContent = remaining + 's to mark';
+                if (remaining <= 0) {
+                    clearInterval(announceCountdownInterval);
+                    el.classList.add('hidden');
+                }
+            }, 1000);
+        }
+
+        function hideAnnouncement() {
+            const el = document.getElementById('number-announce');
+            el.classList.add('hidden');
+            if (announceCountdownInterval) { clearInterval(announceCountdownInterval); announceCountdownInterval = null; }
+        }
 
         function wouldCompleteBingo(num, cartela, marked) {
             if (!cartela) return false;
@@ -992,8 +1051,11 @@
                         called.push(numToCall);
                         await db.collection('games').doc(gameId).update({
                             called_numbers: called,
+                            last_called: numToCall,
                             updated_at: firebase.firestore.FieldValue.serverTimestamp()
                         });
+                        showNumberAnnouncement(numToCall);
+                        updateCalledNumbersBar(called);
                     }
 
                     if (!gameData.admin_notified) {
@@ -1002,7 +1064,7 @@
                     }
 
                     if (numberCallIndex < allNumbers.length && gameData.status === 'active') {
-                        numberCallInterval = setTimeout(callNextNumber, 4000);
+                        numberCallInterval = setTimeout(callNextNumber, 6000);
                     }
                 } catch (e) {
                     console.error('Error calling number:', e);
@@ -1047,6 +1109,7 @@
 
         function stopNumberCalling() {
             if (numberCallInterval) { clearTimeout(numberCallInterval); numberCallInterval = null; }
+            hideAnnouncement();
         }
 
         // ==================== GAME BOARD SETUP ====================
@@ -1057,7 +1120,7 @@
             document.getElementById('game-timer').classList.remove('timer-pulse');
             document.getElementById('cartela-number').textContent = cartelaNumber;
             document.getElementById('called-numbers-display').innerHTML = '';
-            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Tap numbers on your cartela to mark them!</div>';
+            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Find each number on your cartela and tap to mark!</div>';
             renderGrid(cartela);
             renderCartela(cartela, [], []);
             startTimer();
@@ -1094,26 +1157,32 @@
             grid.innerHTML = '';
             const calledSet = new Set(called || []);
             const markedSet = new Set(marked || []);
+            const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
                     const num = cartela[col][row];
                     const cell = document.createElement('div');
                     const isCenter = (col === 2 && row === 2);
                     const isMarked = isCenter || markedSet.has(num);
-                    const isCalled = calledSet.has(num);
+                    const isLastCalled = num === lastCalled && !isMarked;
                     cell.className = 'bingo-cell rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
                     if (isCenter) {
                         cell.className += 'bg-bingo-orange/20 text-bingo-orange border border-bingo-orange/30';
                         cell.innerHTML = '⭐';
+                    } else if (isLastCalled) {
+                        const letter = getNumberLetter(num);
+                        cell.className += 'bg-bingo-green/40 text-white border-2 border-bingo-green cursor-pointer active:scale-90 number-called';
+                        cell.textContent = num;
+                        cell.style.animation = 'pulse-glow 0.8s ease-in-out infinite';
+                        cell.onclick = () => toggleMark(num);
                     } else if (isMarked) {
                         cell.className += 'number-marked text-white shadow-lg shadow-orange-500/20';
                         cell.textContent = num;
-                    } else if (isCalled) {
-                        cell.className += 'bg-bingo-green/20 text-bingo-green border border-bingo-green/30 cursor-pointer active:scale-90';
+                    } else if (calledSet.has(num)) {
+                        cell.className += 'bg-white/10 text-white/40 border border-white/5';
                         cell.textContent = num;
-                        cell.onclick = () => toggleMark(num);
                     } else {
-                        cell.className += 'bg-white/5 text-white/80 border border-white/10';
+                        cell.className += 'bg-white/5 text-white/30 border border-white/5';
                         cell.textContent = num;
                     }
                     grid.appendChild(cell);
@@ -1164,7 +1233,6 @@
             const called = data.called_numbers || [];
             const marked = data.marked_numbers || [];
             document.getElementById('game-derash').textContent = called.length;
-            updateCalledNumbersDisplay(called);
             const cartela = unflattenCartela(data.cartela);
             if (cartela) {
                 data._cartela2d = cartela;
@@ -1179,36 +1247,47 @@
             return data.marked_numbers || [];
         }
 
-        function updateCalledNumbersDisplay(called) {
+        function updateCalledNumbersBar(called) {
             const container = document.getElementById('called-numbers-display');
-            const lastNumbers = called.slice(-10);
             container.innerHTML = '';
-            lastNumbers.forEach((num, idx) => {
-                const isLast = idx === lastNumbers.length - 1;
+            const last10 = called.slice(-10);
+            last10.forEach((num, idx) => {
+                const isLast = idx === last10.length - 1;
+                const letter = getNumberLetter(num);
                 const el = document.createElement('div');
                 el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-xs font-bold ';
                 if (isLast) {
-                    el.className += 'bg-bingo-orange text-white number-called';
+                    el.className += 'text-white number-called';
+                    el.style.background = getLetterColor(letter);
+                    el.textContent = letter + '-' + num;
                 } else {
-                    el.className += 'bg-white/10 text-white/70';
+                    el.className += 'bg-white/10 text-white/50';
+                    el.textContent = letter + '-' + num;
                 }
-                el.textContent = num;
                 container.appendChild(el);
             });
             container.scrollLeft = container.scrollWidth;
         }
 
         function updateGridHighlights(called, marked, cartela) {
+            const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
             for (let num = 1; num <= 100; num++) {
                 const cell = document.getElementById('grid-cell-' + num);
                 if (!cell) continue;
                 cell.className = 'bingo-cell rounded-lg text-center py-1 text-[10px] font-medium flex items-center justify-center aspect-square ';
-                if (called.includes(num)) {
+                if (num === lastCalled) {
+                    const letter = getNumberLetter(num);
+                    cell.className += 'text-white border-2 number-called';
+                    cell.style.background = getLetterColor(letter);
+                    cell.style.borderColor = 'white';
+                } else if (called.includes(num)) {
                     if (marked.includes(num)) {
-                        cell.className += 'bg-bingo-orange/30 text-bingo-orange border border-bingo-orange/50 number-called';
+                        cell.className += 'bg-bingo-orange/30 text-bingo-orange border border-bingo-orange/50';
                     } else {
                         cell.className += 'bg-bingo-green/20 text-bingo-green border border-bingo-green/30';
                     }
+                    cell.style.background = '';
+                    cell.style.borderColor = '';
                 } else {
                     const isInCartela = isNumberInCartela(num, cartela);
                     if (isInCartela) {
@@ -1216,6 +1295,8 @@
                     } else {
                         cell.className += 'bg-bingo-dark/50 text-white/70';
                     }
+                    cell.style.background = '';
+                    cell.style.borderColor = '';
                 }
             }
         }
@@ -1373,6 +1454,7 @@
         async function leaveGame() {
             stopTimer();
             stopNumberCalling();
+            hideAnnouncement();
             if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
             if (currentGameId && currentGameData && currentGameData.status !== 'completed') {
                 try {
