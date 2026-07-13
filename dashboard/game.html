@@ -594,19 +594,17 @@
         }
 
         async function initUser() {
-            const tgUser = getTelegramUser();
+            let tgUser = getTelegramUser();
             if (!tgUser) {
-                document.getElementById('user-greeting').textContent = 'Open this game from the Telegram bot to play!';
-                console.log('No Telegram user data. tg:', !!tg, 'initDataUnsafe:', tg ? !!tg.initDataUnsafe : false);
-                return;
+                console.log('No Telegram user data. Running in browser mode.');
+                tgUser = { id: 999999999, first_name: 'Demo Player', username: 'demoplayer' };
+                document.getElementById('user-greeting').textContent = 'Demo Mode — open from Telegram bot for real play';
             }
             const uid = tgUser.id;
-            console.log('Initializing user:', uid, tgUser.first_name, tgUser.username);
             try {
                 const userDoc = await db.collection('users').doc(String(uid)).get();
                 if (userDoc.exists) {
                     currentUser = { id: uid, ...userDoc.data() };
-                    console.log('Existing user loaded:', currentUser.username);
                 } else {
                     const newUserData = {
                         user_id: uid,
@@ -623,14 +621,13 @@
                     };
                     await db.collection('users').doc(String(uid)).set(newUserData);
                     currentUser = { id: uid, ...newUserData };
-                    console.log('New user created:', currentUser.username);
                 }
                 updateAllDisplays();
                 listenToUserData();
                 startStatsListener();
             } catch (err) {
                 console.error('Error initializing user:', err);
-                document.getElementById('user-greeting').textContent = 'Connection error: ' + err.message;
+                document.getElementById('user-greeting').textContent = 'Error: ' + err.message;
             }
         }
 
