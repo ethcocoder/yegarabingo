@@ -1,0 +1,10 @@
+python-telegram-bot==20.7
+aiogram==3.4.0
+firebase-admin==6.2.0
+python-dotenv==1.0.0
+fastapi==0.104.1
+uvicorn==0.24.0
+redis==5.0.1
+pydantic==2.5.2
+httpx==0.25.2
+websockets==12.0

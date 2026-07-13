@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yegara Bingo - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzemnXChPIBwCSCBIT2TgfMVhYiHc_JrY",
+            authDomain: "bingo-bot-5c708.firebaseapp.com",
+            projectId: "bingo-bot-5c708",
+            storageBucket: "bingo-bot-5c708.firebasestorage.app",
+            messagingSenderId: "988357359269",
+            appId: "1:988357359269:web:eb8ce31819d6853c717f4c",
+            measurementId: "G-2P5YYZWKF1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'bingo-dark': '#0D1117',
+                        'bingo-card': '#1A1A2E',
+                        'bingo-orange': '#FF8C00',
+                        'bingo-green': '#10B981',
+                        'bingo-blue': '#3B82F6',
+                        'bingo-purple': '#8B5CF6',
+                        'bingo-teal': '#14B8A6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        body { background-color: #0D1117; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1A1A2E; }
+        ::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ffaa33; }
+
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(255,140,0,0.3); } 50% { box-shadow: 0 0 20px rgba(255,140,0,0.6); } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes live-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.5); } }
+        @keyframes count-up { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        @keyframes border-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .animate-live-dot { animation: live-dot 1.5s ease-in-out infinite; }
+        .animate-count { animation: count-up 0.6s ease-out forwards; }
+
+        .glass { background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); }
+        .glass-header { background: rgba(13, 17, 23, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .glass-input { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+
+        .gradient-border { position: relative; }
+        .gradient-border::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: linear-gradient(135deg, #FF8C00, #10B981, #3B82F6, #8B5CF6); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.3s ease; }
+        .gradient-border:hover::before { opacity: 1; }
+
+        .btn-gradient { background: linear-gradient(135deg, #FF8C00, #ff6600); transition: all 0.3s ease; }
+        .btn-gradient:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(255,140,0,0.4); }
+        .btn-gradient:active { transform: scale(0.98); }
+
+        .btn-green { background: linear-gradient(135deg, #10B981, #059669); }
+        .btn-green:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(16,185,129,0.4); }
+
+        .btn-blue { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+        .btn-blue:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(59,130,246,0.4); }
+
+        .btn-purple { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
+        .btn-purple:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(139,92,246,0.4); }
+
+        .btn-teal { background: linear-gradient(135deg, #14B8A6, #0D9488); }
+        .btn-teal:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(20,184,166,0.4); }
+
+        .btn-red { background: linear-gradient(135deg, #EF4444, #DC2626); }
+        .btn-red:hover { transform: scale(1.03); box-shadow: 0 8px 25px rgba(239,68,68,0.4); }
+
+        .stat-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .stat-card:hover { transform: translateY(-6px); }
+
+        .toggle-switch { position: relative; width: 48px; height: 24px; background: #374151; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
+        .toggle-switch.active { background: linear-gradient(135deg, #10B981, #059669); }
+        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: all 0.3s ease; }
+        .toggle-switch.active::after { left: 26px; }
+
+        .feed-item { transition: all 0.3s ease; }
+        .feed-item:hover { background: rgba(255,255,255,0.03); }
+
+        .table-row { transition: all 0.2s ease; }
+        .table-row:hover { background: rgba(255,140,0,0.05); }
+
+        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+        .modal-content { animation: slide-up 0.3s ease-out forwards; }
+
+        .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+
+        .nav-item { transition: all 0.2s ease; }
+        .nav-item:hover { background: rgba(255,140,0,0.1); }
+        .nav-item.active { background: rgba(255,140,0,0.15); border-right: 3px solid #FF8C00; }
+
+        .chart-bar { transition: height 1s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #FF8C00; box-shadow: 0 0 0 3px rgba(255,140,0,0.15); }
+    </style>
+</head>
+<body class="text-white min-h-screen">
+
+    <!-- Header -->
+    <header class="glass-header fixed top-0 left-0 right-0 z-50 px-6 py-3">
+        <div class="flex items-center justify-between max-w-[1920px] mx-auto">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-xl animate-float shadow-lg shadow-bingo-orange/20">🎯</div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-bingo-orange to-yellow-400 bg-clip-text text-transparent">Yegara Bingo</h1>
+                    <p class="text-[10px] text-gray-500 font-medium tracking-wider uppercase">Admin Dashboard</p>
+                </div>
+            </div>
+
+            <div class="hidden md:flex items-center gap-2 glass rounded-xl px-4 py-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" placeholder="Search players, games..." class="bg-transparent border-none text-sm text-gray-300 placeholder-gray-600 w-64 focus:ring-0">
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <button class="relative p-2 rounded-xl glass hover:bg-white/5 transition-all">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                        <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-bingo-orange rounded-full text-[9px] font-bold flex items-center justify-center animate-pulse">3</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 cursor-pointer hover:bg-white/5 transition-all">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-purple to-bingo-blue flex items-center justify-center text-sm font-bold">A</div>
+                    <div class="hidden sm:block">
+                        <p class="text-xs font-semibold">Admin</p>
+                        <p class="text-[10px] text-gray-500">Super Admin</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-8 px-4 md:px-6 lg:px-8 max-w-[1920px] mx-auto">
+
+        <!-- Page Title Row -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 animate-slide-up">
+            <div>
+                <h2 class="text-2xl md:text-3xl font-bold text-white">Dashboard Overview</h2>
+                <p class="text-gray-500 text-sm mt-1">Welcome back, Admin. Here's what's happening today.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="flex items-center gap-2 text-xs text-bingo-green font-medium glass px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
+                    System Online
+                </span>
+                <button onclick="openModal('createGameModal')" class="btn-gradient px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-bingo-orange/10">
+                    <span class="text-lg">+</span> New Game
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Total Players -->
+            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.1s;">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-orange/20 to-bingo-orange/5 flex items-center justify-center">
+                        <span class="text-2xl">👥</span>
+                    </div>
+                    <span class="text-bingo-green text-xs font-semibold bg-bingo-green/10 px-2 py-1 rounded-lg">+12.5%</span>
+                </div>
+                <p class="text-3xl font-bold animate-count" id="totalPlayers">2,847</p>
+                <p class="text-gray-500 text-sm mt-1">Total Players</p>
+                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-bingo-orange to-yellow-500 rounded-full" style="width: 78%"></div>
+                </div>
+            </div>
+
+            <!-- Active Games -->
+            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.2s;">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center">
+                        <span class="text-2xl">🎮</span>
+                    </div>
+                    <span class="text-bingo-green text-xs font-semibold bg-bingo-green/10 px-2 py-1 rounded-lg">Live</span>
+                </div>
+                <p class="text-3xl font-bold animate-count">18</p>
+                <p class="text-gray-500 text-sm mt-1">Active Games</p>
+                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-bingo-green to-emerald-400 rounded-full" style="width: 45%"></div>
+                </div>
+            </div>
+
+            <!-- Revenue -->
+            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.3s;">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-blue/20 to-bingo-blue/5 flex items-center justify-center">
+                        <span class="text-2xl">💰</span>
+                    </div>
+                    <span class="text-bingo-green text-xs font-semibold bg-bingo-green/10 px-2 py-1 rounded-lg">+8.2%</span>
+                </div>
+                <p class="text-3xl font-bold animate-count">$12,450</p>
+                <p class="text-gray-500 text-sm mt-1">Total Revenue</p>
+                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-bingo-blue to-cyan-400 rounded-full" style="width: 62%"></div>
+                </div>
+            </div>
+
+            <!-- Win Rate -->
+            <div class="stat-card gradient-border glass rounded-2xl p-5 cursor-pointer" style="animation-delay: 0.4s;">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-bingo-purple/20 to-bingo-purple/5 flex items-center justify-center">
+                        <span class="text-2xl">🏆</span>
+                    </div>
+                    <span class="text-bingo-orange text-xs font-semibold bg-bingo-orange/10 px-2 py-1 rounded-lg">Hot</span>
+                </div>
+                <p class="text-3xl font-bold animate-count">34.7%</p>
+                <p class="text-gray-500 text-sm mt-1">Prediction Accuracy</p>
+                <div class="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-bingo-purple to-pink-400 rounded-full" style="width: 34.7%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel + Live Feed Row -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+
+            <!-- Game Control Panel -->
+            <div class="xl:col-span-2 glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.3s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-bingo-orange/10 flex items-center justify-center text-sm">🎛️</span>
+                        Game Control Panel
+                    </h3>
+                    <span class="text-xs text-gray-500 glass px-3 py-1 rounded-full">Last updated: Just now</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Quick Start -->
+                    <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <span class="text-xl">▶️</span>
+                        </div>
+                        <h4 class="font-semibold text-sm mb-1">Quick Start</h4>
+                        <p class="text-gray-500 text-xs mb-3">Start a new game instantly</p>
+                        <button onclick="openModal('createGameModal')" class="w-full btn-green py-2 rounded-lg text-xs font-semibold transition-all">Start Game</button>
+                    </div>
+
+                    <!-- Pause All -->
+                    <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-orange/20 to-bingo-orange/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <span class="text-xl">⏸️</span>
+                        </div>
+                        <h4 class="font-semibold text-sm mb-1">Pause Games</h4>
+                        <p class="text-gray-500 text-xs mb-3">Pause all active games</p>
+                        <button class="w-full btn-gradient py-2 rounded-lg text-xs font-semibold transition-all">Pause All</button>
+                    </div>
+
+                    <!-- Stop All -->
+                    <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all group">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500/20 to-red-500/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <span class="text-xl">⏹️</span>
+                        </div>
+                        <h4 class="font-semibold text-sm mb-1">Stop All</h4>
+                        <p class="text-gray-500 text-xs mb-3">Emergency stop all games</p>
+                        <button class="w-full btn-red py-2 rounded-lg text-xs font-semibold transition-all">Stop All</button>
+                    </div>
+                </div>
+
+                <!-- Active Games Row -->
+                <div class="mt-6">
+                    <h4 class="text-sm font-semibold text-gray-400 mb-3">Active Games</h4>
+                    <div class="space-y-2" id="activeGamesList">
+                        <div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">
+                            <div class="flex items-center gap-3">
+                                <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
+                                <div>
+                                    <p class="text-sm font-medium">Game #1042 - Room Alpha</p>
+                                    <p class="text-xs text-gray-500">156 players &middot; Round 4/10</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs glass px-2 py-1 rounded-lg text-bingo-green">Playing</span>
+                                <button onclick="openModal('selectWinnerModal')" class="btn-blue px-3 py-1.5 rounded-lg text-xs font-semibold">Select Winner</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">
+                            <div class="flex items-center gap-3">
+                                <span class="w-2 h-2 bg-bingo-orange rounded-full animate-live-dot"></span>
+                                <div>
+                                    <p class="text-sm font-medium">Game #1041 - Room Beta</p>
+                                    <p class="text-xs text-gray-500">89 players &middot; Round 7/10</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs glass px-2 py-1 rounded-lg text-bingo-orange">Waiting</span>
+                                <button onclick="openModal('selectWinnerModal')" class="btn-blue px-3 py-1.5 rounded-lg text-xs font-semibold">Select Winner</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">
+                            <div class="flex items-center gap-3">
+                                <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
+                                <div>
+                                    <p class="text-sm font-medium">Game #1040 - Room Gamma</p>
+                                    <p class="text-xs text-gray-500">234 players &middot; Round 2/10</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs glass px-2 py-1 rounded-lg text-bingo-green">Playing</span>
+                                <button onclick="openModal('selectWinnerModal')" class="btn-blue px-3 py-1.5 rounded-lg text-xs font-semibold">Select Winner</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Activity Feed -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.4s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-bingo-blue/10 flex items-center justify-center text-sm">📡</span>
+                        Live Activity
+                    </h3>
+                    <span class="flex items-center gap-1.5 text-xs text-bingo-green">
+                        <span class="w-2 h-2 bg-bingo-green rounded-full animate-live-dot"></span>
+                        Live
+                    </span>
+                </div>
+
+                <div class="space-y-1 max-h-[420px] overflow-y-auto pr-1" id="activityFeed">
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-green">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-green">Player_284</span> won Game #1039</p>
+                            <span class="text-[10px] text-gray-600">2s ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-blue">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-blue">New Player</span> joined Room Alpha</p>
+                            <span class="text-[10px] text-gray-600">15s ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-orange">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-orange">System</span> started Round 4</p>
+                            <span class="text-[10px] text-gray-600">32s ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-purple">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-purple">Bot</span> called number B-12</p>
+                            <span class="text-[10px] text-gray-600">45s ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-teal">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-teal">Player_102</span> purchased card</p>
+                            <span class="text-[10px] text-gray-600">1m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-green">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-green">Player_556</span> won Game #1038</p>
+                            <span class="text-[10px] text-gray-600">1m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-blue">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-blue">New Player</span> joined Room Gamma</p>
+                            <span class="text-[10px] text-gray-600">2m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-red-400">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-red-400">Alert</span> Player_892 disconnected</p>
+                            <span class="text-[10px] text-gray-600">2m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-orange">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-orange">System</span> prediction algorithm updated</p>
+                            <span class="text-[10px] text-gray-600">3m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-purple">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-purple">Bot</span> called number G-07</p>
+                            <span class="text-[10px] text-gray-600">3m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-teal">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-teal">Player_321</span> purchased 3 cards</p>
+                            <span class="text-[10px] text-gray-600">4m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-green">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-green">Player_777</span> won Game #1037</p>
+                            <span class="text-[10px] text-gray-600">5m ago</span>
+                        </div>
+                    </div>
+                    <div class="feed-item rounded-lg px-3 py-2.5 border-l-2 border-bingo-blue">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm"><span class="font-semibold text-bingo-blue">Backup</span> completed successfully</p>
+                            <span class="text-[10px] text-gray-600">6m ago</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Algorithm + Quick Actions Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+            <!-- Prediction Algorithm Control -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.5s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-bingo-purple/10 flex items-center justify-center text-sm">🧠</span>
+                        Prediction AI
+                    </h3>
+                    <span class="text-xs glass px-3 py-1 rounded-full text-bingo-purple">v2.4.1</span>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium">Enable Prediction</p>
+                            <p class="text-xs text-gray-500">AI-powered winner prediction</p>
+                        </div>
+                        <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium">Auto-Select Winner</p>
+                            <p class="text-xs text-gray-500">Automatically pick winners</p>
+                        </div>
+                        <div class="toggle-switch" onclick="this.classList.toggle('active')"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium">Pattern Analysis</p>
+                            <p class="text-xs text-gray-500">Analyze winning patterns</p>
+                        </div>
+                        <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium">Anti-Fraud Detection</p>
+                            <p class="text-xs text-gray-500">Detect suspicious activity</p>
+                        </div>
+                        <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-white/5">
+                        <label class="text-xs text-gray-400 block mb-2">Prediction Confidence Threshold</label>
+                        <div class="flex items-center gap-3">
+                            <input type="range" min="0" max="100" value="75" class="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-bingo-purple" id="confidenceSlider" oninput="document.getElementById('confidenceValue').textContent = this.value + '%'">
+                            <span id="confidenceValue" class="text-sm font-semibold text-bingo-purple w-10 text-right">75%</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-white/5">
+                        <label class="text-xs text-gray-400 block mb-2">Algorithm Mode</label>
+                        <select class="w-full glass-input rounded-lg px-3 py-2.5 text-sm text-white bg-bingo-dark border border-white/10">
+                            <option value="balanced" selected>Balanced Mode</option>
+                            <option value="aggressive">Aggressive Prediction</option>
+                            <option value="conservative">Conservative Mode</option>
+                            <option value="random">Random Selection</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.6s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-bingo-teal/10 flex items-center justify-center text-sm">⚡</span>
+                        Quick Actions
+                    </h3>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="openModal('createGameModal')" class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
+                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">🎮</span>
+                        <div>
+                            <p class="text-sm font-semibold">Create New Game</p>
+                            <p class="text-xs text-gray-500">Set up a new bingo room</p>
+                        </div>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
+                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-blue/20 to-bingo-blue/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">📊</span>
+                        <div>
+                            <p class="text-sm font-semibold">Generate Report</p>
+                            <p class="text-xs text-gray-500">Daily/Weekly/Monthly stats</p>
+                        </div>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
+                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-purple/20 to-bingo-purple/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">📢</span>
+                        <div>
+                            <p class="text-sm font-semibold">Send Broadcast</p>
+                            <p class="text-xs text-gray-500">Message all players</p>
+                        </div>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
+                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-bingo-orange/20 to-bingo-orange/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">🔄</span>
+                        <div>
+                            <p class="text-sm font-semibold">Reset All Games</p>
+                            <p class="text-xs text-gray-500">Clear all active sessions</p>
+                        </div>
+                    </button>
+
+                    <button class="w-full flex items-center gap-3 glass rounded-xl px-4 py-3 hover:bg-white/[0.05] transition-all group text-left">
+                        <span class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500/20 to-red-500/5 flex items-center justify-center group-hover:scale-110 transition-transform text-lg">🚨</span>
+                        <div>
+                            <p class="text-sm font-semibold">Emergency Reset</p>
+                            <p class="text-xs text-gray-500">Nuclear option - use carefully</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.7s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-bingo-orange/10 flex items-center justify-center text-sm">💻</span>
+                        System Status
+                    </h3>
+                    <button class="text-xs text-bingo-orange hover:underline">Refresh</button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-sm text-gray-400">CPU Usage</span>
+                            <span class="text-sm font-semibold text-bingo-green">23%</span>
+                        </div>
+                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-bingo-green to-emerald-400 rounded-full transition-all duration-1000" style="width: 23%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-sm text-gray-400">Memory</span>
+                            <span class="text-sm font-semibold text-bingo-blue">67%</span>
+                        </div>
+                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-bingo-blue to-cyan-400 rounded-full transition-all duration-1000" style="width: 67%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-sm text-gray-400">Disk Space</span>
+                            <span class="text-sm font-semibold text-bingo-orange">45%</span>
+                        </div>
+                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-bingo-orange to-yellow-400 rounded-full transition-all duration-1000" style="width: 45%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-sm text-gray-400">Network I/O</span>
+                            <span class="text-sm font-semibold text-bingo-purple">12 MB/s</span>
+                        </div>
+                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-bingo-purple to-pink-400 rounded-full transition-all duration-1000" style="width: 32%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-white/5">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="glass rounded-lg p-3 text-center">
+                                <p class="text-lg font-bold text-bingo-green">99.9%</p>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Uptime</p>
+                            </div>
+                            <div class="glass rounded-lg p-3 text-center">
+                                <p class="text-lg font-bold text-bingo-blue">14ms</p>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Latency</p>
+                            </div>
+                            <div class="glass rounded-lg p-3 text-center">
+                                <p class="text-lg font-bold text-bingo-orange">1,247</p>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Connections</p>
+                            </div>
+                            <div class="glass rounded-lg p-3 text-center">
+                                <p class="text-lg font-bold text-bingo-purple">v3.2.1</p>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Version</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts / Reports Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Players Over Time -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.6s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold">📈 Players Over Time</h3>
+                    <select class="text-xs glass px-2 py-1 rounded-lg bg-transparent border-none text-gray-400">
+                        <option>Last 7 Days</option>
+                        <option>Last 30 Days</option>
+                        <option>Last 90 Days</option>
+                    </select>
+                </div>
+                <div class="flex items-end justify-between h-40 gap-1.5" id="chart1">
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 45%"></div>
+                        <span class="text-[9px] text-gray-600">Mon</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 62%"></div>
+                        <span class="text-[9px] text-gray-600">Tue</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 55%"></div>
+                        <span class="text-[9px] text-gray-600">Wed</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 78%"></div>
+                        <span class="text-[9px] text-gray-600">Thu</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 90%"></div>
+                        <span class="text-[9px] text-gray-600">Fri</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-orange to-bingo-orange/50 rounded-t chart-bar animate-pulse-glow" style="height: 100%"></div>
+                        <span class="text-[9px] text-bingo-orange font-semibold">Sat</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 72%"></div>
+                        <span class="text-[9px] text-gray-600">Sun</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Chart -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.7s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold">💰 Revenue Breakdown</h3>
+                    <select class="text-xs glass px-2 py-1 rounded-lg bg-transparent border-none text-gray-400">
+                        <option>This Month</option>
+                        <option>Last Month</option>
+                    </select>
+                </div>
+                <div class="flex items-end justify-between h-40 gap-1.5">
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-green to-bingo-green/50 rounded-t chart-bar" style="height: 35%"></div>
+                        <span class="text-[9px] text-gray-600">Cards</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-orange to-bingo-orange/50 rounded-t chart-bar" style="height: 70%"></div>
+                        <span class="text-[9px] text-gray-600">Entry</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-purple to-bingo-purple/50 rounded-t chart-bar" style="height: 50%"></div>
+                        <span class="text-[9px] text-gray-600">Prizes</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-teal to-bingo-teal/50 rounded-t chart-bar" style="height: 85%"></div>
+                        <span class="text-[9px] text-gray-600">Tips</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-bingo-blue to-bingo-blue/50 rounded-t chart-bar" style="height: 60%"></div>
+                        <span class="text-[9px] text-gray-600">Ads</span>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-gradient-to-t from-red-400 to-red-400/50 rounded-t chart-bar" style="height: 25%"></div>
+                        <span class="text-[9px] text-gray-600">Fees</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Win Distribution -->
+            <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.8s;">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold">🎯 Win Distribution</h3>
+                    <span class="text-xs text-gray-500">Last 24h</span>
+                </div>
+                <div class="flex items-center justify-center">
+                    <div class="relative w-36 h-36">
+                        <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#10B981" stroke-width="12" stroke-dasharray="75.4 175.8" stroke-linecap="round" class="transition-all duration-1000"/>
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#FF8C00" stroke-width="12" stroke-dasharray="50.3 200.9" stroke-dashoffset="-75.4" stroke-linecap="round" class="transition-all duration-1000"/>
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#3B82F6" stroke-width="12" stroke-dasharray="37.7 213.5" stroke-dashoffset="-125.7" stroke-linecap="round" class="transition-all duration-1000"/>
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#8B5CF6" stroke-width="12" stroke-dasharray="87.9 163.4" stroke-dashoffset="-163.4" stroke-linecap="round" class="transition-all duration-1000"/>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <p class="text-xl font-bold">342</p>
+                            <p class="text-[10px] text-gray-500">Winners</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-4">
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-green"></span>
+                        <span class="text-gray-400">Full House (30%)</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-orange"></span>
+                        <span class="text-gray-400">Line (20%)</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-blue"></span>
+                        <span class="text-gray-400">Four Corners (15%)</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="w-2.5 h-2.5 rounded-full bg-bingo-purple"></span>
+                        <span class="text-gray-400">Pattern (35%)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Players Management Table -->
+        <div class="glass rounded-2xl p-6 mb-8 animate-slide-up" style="animation-delay: 0.8s;">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-bingo-teal/10 flex items-center justify-center text-sm">👥</span>
+                    Player Management
+                </h3>
+                <div class="flex items-center gap-2">
+                    <div class="glass rounded-lg px-3 py-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" placeholder="Search players..." class="bg-transparent border-none text-sm text-gray-300 placeholder-gray-600 w-48 focus:ring-0">
+                    </div>
+                    <select class="glass rounded-lg px-3 py-2 text-sm text-gray-400 bg-transparent border-none">
+                        <option>All Status</option>
+                        <option>Active</option>
+                        <option>Inactive</option>
+                        <option>Banned</option>
+                    </select>
+                    <button class="btn-gradient px-4 py-2 rounded-lg text-xs font-semibold">Export CSV</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-white/5">
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Player</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Telegram ID</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Games Played</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Wins</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Win Rate</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Status</th>
+                            <th class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider pb-3 px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="table-row border-b border-white/[0.03]">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-sm font-bold">A</div>
+                                    <div>
+                                        <p class="text-sm font-semibold">Ahmed Hassan</p>
+                                        <p class="text-[10px] text-gray-500">@ahmed_h</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-400">1284739201</td>
+                            <td class="px-4 py-3 text-sm font-medium">156</td>
+                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">42</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-bingo-green rounded-full" style="width: 26.9%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400">26.9%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
+                                    Active
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-1">
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="table-row border-b border-white/[0.03]">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-blue to-cyan-500 flex items-center justify-center text-sm font-bold">S</div>
+                                    <div>
+                                        <p class="text-sm font-semibold">Sarah Kim</p>
+                                        <p class="text-[10px] text-gray-500">@sarah_kim</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-400">9847120384</td>
+                            <td class="px-4 py-3 text-sm font-medium">203</td>
+                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">78</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-bingo-orange rounded-full" style="width: 38.4%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400">38.4%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
+                                    Active
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-1">
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="table-row border-b border-white/[0.03]">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-purple to-pink-500 flex items-center justify-center text-sm font-bold">M</div>
+                                    <div>
+                                        <p class="text-sm font-semibold">Mohammed Ali</p>
+                                        <p class="text-[10px] text-gray-500">@mo_ali</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-400">5720384912</td>
+                            <td class="px-4 py-3 text-sm font-medium">89</td>
+                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">12</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-bingo-blue rounded-full" style="width: 13.5%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400">13.5%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                                    Inactive
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-1">
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="table-row border-b border-white/[0.03]">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-teal to-emerald-500 flex items-center justify-center text-sm font-bold">L</div>
+                                    <div>
+                                        <p class="text-sm font-semibold">Lisa Chen</p>
+                                        <p class="text-[10px] text-gray-500">@lisa_chen</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-400">3019284756</td>
+                            <td class="px-4 py-3 text-sm font-medium">312</td>
+                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">124</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-bingo-purple rounded-full" style="width: 39.7%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400">39.7%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
+                                    Active
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-1">
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="table-row border-b border-white/[0.03]">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-sm font-bold">J</div>
+                                    <div>
+                                        <p class="text-sm font-semibold">John Doe</p>
+                                        <p class="text-[10px] text-gray-500">@john_doe</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-400">8472019384</td>
+                            <td class="px-4 py-3 text-sm font-medium">45</td>
+                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">3</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-red-400 rounded-full" style="width: 6.7%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400">6.7%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-yellow-500/10 text-yellow-400 px-2.5 py-1 rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></span>
+                                    Suspended
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-1">
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-bingo-orange to-red-500 flex items-center justify-center text-sm font-bold">R</div>
+                                    <div>
+                                        <p class="text-sm font-semibold">Rosa Martinez</p>
+                                        <p class="text-[10px] text-gray-500">@rosa_m</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-400">2948102748</td>
+                            <td class="px-4 py-3 text-sm font-medium">178</td>
+                            <td class="px-4 py-3 text-sm font-medium text-bingo-green">56</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-bingo-teal rounded-full" style="width: 31.5%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400">31.5%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold bg-bingo-green/10 text-bingo-green px-2.5 py-1 rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-bingo-green rounded-full"></span>
+                                    Active
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-1">
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="View Profile"><span class="text-sm">👁️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-white/5 transition-all" title="Edit"><span class="text-sm">✏️</span></button>
+                                    <button class="p-1.5 rounded-lg hover:bg-red-500/10 transition-all" title="Ban"><span class="text-sm">🚫</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-6 pt-4 border-t border-white/5">
+                <p class="text-xs text-gray-500">Showing 1-6 of 2,847 players</p>
+                <div class="flex items-center gap-1">
+                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">&laquo;</button>
+                    <button class="px-3 py-1.5 rounded-lg bg-bingo-orange text-xs font-semibold text-white">1</button>
+                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">2</button>
+                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">3</button>
+                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">...</button>
+                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">475</button>
+                    <button class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white transition-all">&raquo;</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Games Section -->
+        <div class="glass rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.9s;">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-bingo-orange/10 flex items-center justify-center text-sm">🏅</span>
+                    Recent Games
+                </h3>
+                <button class="text-xs text-bingo-orange hover:underline">View All</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-bingo-orange">#1042</span>
+                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-green">Live</span>
+                    </div>
+                    <p class="text-sm font-semibold mb-1">Room Alpha</p>
+                    <p class="text-xs text-gray-500 mb-3">156 players &middot; Prize: $500</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex -space-x-2">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-orange to-yellow-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">A</div>
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-blue to-cyan-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">B</div>
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-purple to-pink-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">C</div>
+                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+3</div>
+                        </div>
+                        <span class="text-[10px] text-gray-500">2m ago</span>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-bingo-orange">#1041</span>
+                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-orange">Waiting</span>
+                    </div>
+                    <p class="text-sm font-semibold mb-1">Room Beta</p>
+                    <p class="text-xs text-gray-500 mb-3">89 players &middot; Prize: $250</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex -space-x-2">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-green to-emerald-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">S</div>
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-teal to-teal-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">M</div>
+                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+1</div>
+                        </div>
+                        <span class="text-[10px] text-gray-500">8m ago</span>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-bingo-orange">#1040</span>
+                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-green">Completed</span>
+                    </div>
+                    <p class="text-sm font-semibold mb-1">Room Gamma</p>
+                    <p class="text-xs text-gray-500 mb-3">234 players &middot; Prize: $1,000</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex -space-x-2">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-orange to-red-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">R</div>
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-purple to-violet-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">L</div>
+                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+5</div>
+                        </div>
+                        <span class="text-[10px] text-gray-500">15m ago</span>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all gradient-border cursor-pointer">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-bingo-orange">#1039</span>
+                        <span class="text-[10px] glass px-2 py-0.5 rounded-full text-bingo-green">Completed</span>
+                    </div>
+                    <p class="text-sm font-semibold mb-1">Room Delta</p>
+                    <p class="text-xs text-gray-500 mb-3">67 players &middot; Prize: $150</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex -space-x-2">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-bingo-blue to-blue-500 border-2 border-bingo-card flex items-center justify-center text-[8px] font-bold">J</div>
+                            <div class="w-6 h-6 rounded-full bg-white/10 border-2 border-bingo-card flex items-center justify-center text-[8px] text-gray-400">+0</div>
+                        </div>
+                        <span class="text-[10px] text-gray-500">22m ago</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 py-6 px-6">
+        <div class="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-md bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-xs">🎯</div>
+                <span class="text-xs text-gray-500">Yegara Bingo Admin Dashboard &copy; 2026</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#" class="text-xs text-gray-500 hover:text-bingo-orange transition-all">Documentation</a>
+                <a href="#" class="text-xs text-gray-500 hover:text-bingo-orange transition-all">Support</a>
+                <a href="#" class="text-xs text-gray-500 hover:text-bingo-orange transition-all">Settings</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Create Game Modal -->
+    <div id="createGameModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0" onclick="closeModal('createGameModal')"></div>
+        <div class="modal-content glass rounded-2xl w-full max-w-lg relative z-10 p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bingo-green/20 to-bingo-green/5 flex items-center justify-center">
+                        <span class="text-xl">🎮</span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold">Create New Game</h3>
+                        <p class="text-xs text-gray-500">Set up a new bingo game room</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('createGameModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Game Name</label>
+                    <input type="text" placeholder="e.g., Room Omega" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1.5">Max Players</label>
+                        <input type="number" placeholder="100" value="100" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1.5">Entry Fee ($)</label>
+                        <input type="number" placeholder="5.00" value="5.00" step="0.01" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1.5">Prize Pool ($)</label>
+                        <input type="number" placeholder="500.00" value="500.00" step="0.01" class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1.5">Rounds</label>
+                        <select class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white bg-bingo-dark border border-white/10">
+                            <option value="5">5 Rounds</option>
+                            <option value="10" selected>10 Rounds</option>
+                            <option value="15">15 Rounds</option>
+                            <option value="20">20 Rounds</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Win Pattern</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
+                            <input type="radio" name="pattern" value="fullhouse" class="accent-bingo-orange" checked>
+                            <span class="text-sm">🏠 Full House</span>
+                        </label>
+                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
+                            <input type="radio" name="pattern" value="line" class="accent-bingo-orange">
+                            <span class="text-sm">➖ Line</span>
+                        </label>
+                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
+                            <input type="radio" name="pattern" value="corners" class="accent-bingo-orange">
+                            <span class="text-sm">📐 Four Corners</span>
+                        </label>
+                        <label class="flex items-center gap-2 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-orange has-[:checked]:bg-bingo-orange/5">
+                            <input type="radio" name="pattern" value="custom" class="accent-bingo-orange">
+                            <span class="text-sm">🎨 Custom Pattern</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1.5">Game Speed</label>
+                    <div class="flex items-center gap-3">
+                        <input type="range" min="1" max="5" value="3" class="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-bingo-orange" id="gameSpeed" oninput="document.getElementById('speedLabel').textContent = ['Very Slow','Slow','Normal','Fast','Very Fast'][this.value-1]">
+                        <span id="speedLabel" class="text-xs text-bingo-orange font-semibold w-16 text-right">Normal</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    <div>
+                        <p class="text-sm font-medium">Enable AI Prediction</p>
+                        <p class="text-xs text-gray-500">Use AI to analyze game patterns</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    <div>
+                        <p class="text-sm font-medium">Auto-Start When Full</p>
+                        <p class="text-xs text-gray-500">Start game when max players reached</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pt-4">
+                    <button type="button" onclick="closeModal('createGameModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 btn-green py-3 rounded-xl text-sm font-semibold shadow-lg shadow-bingo-green/10">Create Game</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Select Winner Modal -->
+    <div id="selectWinnerModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0" onclick="closeModal('selectWinnerModal')"></div>
+        <div class="modal-content glass rounded-2xl w-full max-w-lg relative z-10 p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-bingo-purple/20 to-bingo-purple/5 flex items-center justify-center">
+                        <span class="text-xl">🏆</span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold">Select Winner</h3>
+                        <p class="text-xs text-gray-500">Game #1042 - Room Alpha</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('selectWinnerModal')" class="p-2 rounded-lg hover:bg-white/5 transition-all text-gray-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="glass rounded-xl p-4 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-400">Game Details</span>
+                    <span class="text-xs text-bingo-green flex items-center gap-1"><span class="w-1.5 h-1.5 bg-bingo-green rounded-full animate-live-dot"></span> Live</span>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="text-center">
+                        <p class="text-lg font-bold">156</p>
+                        <p class="text-[10px] text-gray-500">Players</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-lg font-bold">4/10</p>
+                        <p class="text-[10px] text-gray-500">Round</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-lg font-bold text-bingo-orange">$500</p>
+                        <p class="text-[10px] text-gray-500">Prize</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-xs text-gray-400 block mb-2">Select Winner Method</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button class="glass rounded-xl px-4 py-3 text-left hover:bg-white/[0.03] transition-all border-2 border-bingo-orange/50 bg-bingo-orange/5">
+                        <span class="text-lg block mb-1">🤖</span>
+                        <span class="text-sm font-semibold block">AI Prediction</span>
+                        <span class="text-[10px] text-gray-500">Let AI decide</span>
+                    </button>
+                    <button class="glass rounded-xl px-4 py-3 text-left hover:bg-white/[0.03] transition-all border-2 border-transparent">
+                        <span class="text-lg block mb-1">🎲</span>
+                        <span class="text-sm font-semibold block">Random Pick</span>
+                        <span class="text-[10px] text-gray-500">Random winner</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-xs text-gray-400 block mb-1.5">Or Select Manually</label>
+                <div class="relative">
+                    <input type="text" placeholder="Search player by name or ID..." class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 bg-bingo-dark border border-white/10">
+                    <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+            </div>
+
+            <div class="mb-4 max-h-40 overflow-y-auto">
+                <label class="text-xs text-gray-400 block mb-2">Candidate Winners</label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-purple has-[:checked]:bg-bingo-purple/5 border-2 border-transparent">
+                        <input type="radio" name="winner" class="accent-bingo-purple">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-orange to-yellow-500 flex items-center justify-center text-xs font-bold">A</div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold">Ahmed Hassan</p>
+                            <p class="text-[10px] text-gray-500">Full House completed &middot; 45s</p>
+                        </div>
+                        <span class="text-xs text-bingo-green font-semibold">98.2%</span>
+                    </label>
+                    <label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-purple has-[:checked]:bg-bingo-purple/5 border-2 border-transparent">
+                        <input type="radio" name="winner" class="accent-bingo-purple">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-blue to-cyan-500 flex items-center justify-center text-xs font-bold">S</div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold">Sarah Kim</p>
+                            <p class="text-[10px] text-gray-500">Full House completed &middot; 52s</p>
+                        </div>
+                        <span class="text-xs text-bingo-green font-semibold">95.7%</span>
+                    </label>
+                    <label class="flex items-center gap-3 glass rounded-xl px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-all has-[:checked]:border-bingo-purple has-[:checked]:bg-bingo-purple/5 border-2 border-transparent">
+                        <input type="radio" name="winner" class="accent-bingo-purple">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-bingo-teal to-emerald-500 flex items-center justify-center text-xs font-bold">L</div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold">Lisa Chen</p>
+                            <p class="text-[10px] text-gray-500">Full House completed &middot; 1m 2s</p>
+                        </div>
+                        <span class="text-xs text-bingo-orange font-semibold">87.3%</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+                <button type="button" onclick="closeModal('selectWinnerModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
+                <button type="button" onclick="closeModal('selectWinnerModal')" class="flex-1 btn-purple py-3 rounded-xl text-sm font-semibold shadow-lg shadow-bingo-purple/10">Confirm Winner</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase live data
+        async function loadDashboard() {
+            try {
+                const usersSnap = await db.collection('users').get();
+                const gamesSnap = await db.collection('games').get();
+                
+                let totalBalance = 0, activeGames = 0, winnersToday = 0;
+                const today = new Date(); today.setHours(0,0,0,0);
+                
+                usersSnap.forEach(doc => {
+                    const d = doc.data();
+                    totalBalance += d.balance || 0;
+                });
+                
+                gamesSnap.forEach(doc => {
+                    const d = doc.data();
+                    if (d.status === 'waiting' || d.status === 'active') activeGames++;
+                    if (d.winner && d.created_at && d.created_at.toDate() >= today) winnersToday++;
+                });
+                
+                animateNumber(document.getElementById('totalUsers'), usersSnap.size, 1000);
+                animateNumber(document.getElementById('activeGames'), activeGames, 1000);
+                animateNumber(document.getElementById('winnersToday'), winnersToday, 1000);
+                document.getElementById('totalBalance').textContent = totalBalance.toFixed(2);
+            } catch (e) {
+                console.error('Dashboard load error:', e);
+            }
+        }
+
+        async function loadPlayers() {
+            try {
+                const snap = await db.collection('users').orderBy('wins', 'desc').limit(50).get();
+                const tbody = document.getElementById('playersTable');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-white/[0.02] transition-colors';
+                    tr.innerHTML = '<td class="px-6 py-4 font-mono text-xs text-gray-400">#' + (u.user_id || doc.id) + '</td>' +
+                        '<td class="px-6 py-4 font-medium">' + (u.first_name || 'Unknown') + '</td>' +
+                        '<td class="px-6 py-4 text-bingo-green font-semibold">' + (u.balance || 0).toFixed(2) + ' ETB</td>' +
+                        '<td class="px-6 py-4">' + (u.total_games || 0) + '</td>' +
+                        '<td class="px-6 py-4 text-bingo-orange font-semibold">' + (u.wins || 0) + '</td>' +
+                        '<td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-semibold ' + (u.is_playing ? 'bg-bingo-green/20 text-bingo-green' : 'bg-red-500/20 text-red-400') + '">' + (u.is_playing ? 'Playing' : 'Idle') + '</span></td>' +
+                        '<td class="px-6 py-4"><button class="btn-orange px-4 py-1.5 rounded-lg text-xs font-semibold" onclick="selectPlayer(' + u.user_id + ')">Select</button></td>';
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Players load error:', e);
+            }
+        }
+
+        async function loadRecentGames() {
+            try {
+                const snap = await db.collection('games').orderBy('created_at', 'desc').limit(10).get();
+                const feed = document.getElementById('activityFeed');
+                if (!feed) return;
+                feed.innerHTML = '';
+                
+                snap.forEach(doc => {
+                    const g = doc.data();
+                    const item = document.createElement('div');
+                    let border = 'border-bingo-blue', text = '';
+                    if (g.winner) {
+                        border = 'border-bingo-green';
+                        text = '<span class="font-semibold text-bingo-green">Player_' + g.user_id + '</span> won ' + (g.prize || 0) + ' ETB';
+                    } else if (g.status === 'active') {
+                        border = 'border-bingo-orange';
+                        text = '<span class="font-semibold text-bingo-orange">Game #' + doc.id.slice(0,6) + '</span> active — Stake: ' + g.stake + ' ETB';
+                    } else {
+                        border = 'border-bingo-purple';
+                        text = '<span class="font-semibold text-bingo-purple">Game #' + doc.id.slice(0,6) + '</span> waiting for players';
+                    }
+                    item.className = 'feed-item rounded-lg px-3 py-2.5 border-l-2 ' + border + ' opacity-0 transition-opacity duration-500';
+                    item.innerHTML = '<div class="flex items-center justify-between"><p class="text-sm">' + text + '</p><span class="text-[10px] text-gray-600">' + (g.created_at ? new Date(g.created_at.seconds * 1000).toLocaleTimeString() : '') + '</span></div>';
+                    feed.appendChild(item);
+                    requestAnimationFrame(function() { item.style.opacity = '1'; });
+                });
+            } catch (e) {
+                console.error('Games load error:', e);
+            }
+        }
+
+        // Listen for real-time updates
+        db.collection('users').onSnapshot(() => { loadDashboard(); loadPlayers(); });
+        db.collection('games').onSnapshot(() => { loadDashboard(); loadRecentGames(); });
+
+        // Initial load
+        loadDashboard();
+        loadPlayers();
+        loadRecentGames();
+
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.fixed.inset-0.z-\\[100\\]').forEach(function(modal) {
+                    if (!modal.classList.contains('hidden')) {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                    }
+                });
+                document.body.style.overflow = '';
+            }
+        });
+
+        // Animate stats on load
+        function animateNumber(el, target, duration) {
+            let start = 0;
+            let current = 0;
+            const increment = target / (duration / 16);
+            const timer = setInterval(function() {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                if (typeof target === 'number' && target > 999) {
+                    el.textContent = Math.floor(current).toLocaleString();
+                } else {
+                    el.textContent = Math.floor(current);
+                }
+            }, 16);
+        }
+
+        // Simulate live feed updates
+        const feedEvents = [
+            { text: '<span class="font-semibold text-bingo-green">Player_' + Math.floor(Math.random()*900+100) + '</span> won a round', border: 'border-bingo-green', color: 'text-bingo-green' },
+            { text: '<span class="font-semibold text-bingo-blue">New Player</span> joined Room Alpha', border: 'border-bingo-blue', color: 'text-bingo-blue' },
+            { text: '<span class="font-semibold text-bingo-purple">Bot</span> called number ' + String.fromCharCode(65+Math.floor(Math.random()*7)) + '-' + Math.floor(Math.random()*75+1).toString().padStart(2,'0'), border: 'border-bingo-purple', color: 'text-bingo-purple' },
+            { text: '<span class="font-semibold text-bingo-teal">Player_' + Math.floor(Math.random()*900+100) + '</span> purchased a card', border: 'border-bingo-teal', color: 'text-bingo-teal' },
+            { text: '<span class="font-semibold text-bingo-orange">System</span> started new round', border: 'border-bingo-orange', color: 'text-bingo-orange' },
+        ];
+
+        setInterval(function() {
+            const feed = document.getElementById('activityFeed');
+            if (!feed) return;
+            const event = feedEvents[Math.floor(Math.random() * feedEvents.length)];
+            const item = document.createElement('div');
+            item.className = 'feed-item rounded-lg px-3 py-2.5 border-l-2 ' + event.border + ' opacity-0 transition-opacity duration-500';
+            item.innerHTML = '<div class="flex items-center justify-between"><p class="text-sm">' + event.text + '</p><span class="text-[10px] text-gray-600">Just now</span></div>';
+            feed.insertBefore(item, feed.firstChild);
+            requestAnimationFrame(function() { item.style.opacity = '1'; });
+            if (feed.children.length > 20) {
+                feed.removeChild(feed.lastChild);
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yegara Bingo - Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzemnXChPIBwCSCBIT2TgfMVhYiHc_JrY",
+            authDomain: "bingo-bot-5c708.firebaseapp.com",
+            projectId: "bingo-bot-5c708",
+            storageBucket: "bingo-bot-5c708.firebasestorage.app",
+            messagingSenderId: "988357359269",
+            appId: "1:988357359269:web:eb8ce31819d6853c717f4c",
+            measurementId: "G-2P5YYZWKF1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'bingo-dark': '#0D1117',
+                        'bingo-card': '#1A1A2E',
+                        'bingo-orange': '#FF8C00',
+                        'bingo-green': '#10B981',
+                        'bingo-blue': '#3B82F6',
+                        'bingo-purple': '#8B5CF6',
+                        'bingo-teal': '#14B8A6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #0D1117 0%, #1A1A2E 100%); min-height: 100vh; }
+        
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(255,140,0,0.3); } 50% { box-shadow: 0 0 20px rgba(255,140,0,0.6); } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        
+        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
+        
+        .glass { background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+        .glass-light { background: rgba(255,255,255,0.05); backdrop-filter: blur(8px); }
+        
+        .gradient-border { position: relative; }
+        .gradient-border::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: linear-gradient(135deg, #FF8C00, #10B981, #3B82F6, #8B5CF6); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.3s; }
+        .gradient-border:hover::before { opacity: 1; }
+        
+        .btn-gradient-green { background: linear-gradient(135deg, #10B981, #14B8A6); }
+        .btn-gradient-blue { background: linear-gradient(135deg, #3B82F6, #8B5CF6); }
+        .btn-gradient-orange { background: linear-gradient(135deg, #FF8C00, #FFA500); }
+        
+        .bingo-cell { transition: all 0.2s ease; }
+        .bingo-cell:hover { transform: scale(1.05); }
+        .bingo-cell.selected { background: #FF8C00; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
+        
+        .card-b { background: #10B981; }
+        .card-i { background: #3B82F6; }
+        .card-n { background: #8B5CF6; }
+        .card-g { background: #FF8C00; }
+        .card-o { background: #14B8A6; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1A1A2E; }
+        ::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 3px; }
+        
+        .mobile-frame { max-width: 420px; margin: 0 auto; }
+    </style>
+</head>
+<body class="text-white">
+    <!-- WELCOME SCREEN -->
+    <div id="welcomeScreen" class="mobile-frame min-h-screen p-4">
+        <!-- Header -->
+        <div class="glass rounded-2xl p-4 mb-6 flex items-center justify-between animate-slide-up">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-r from-bingo-orange to-yellow-500 rounded-xl flex items-center justify-center font-bold text-lg">B</div>
+                <span class="text-lg font-bold">Yegara Bingo</span>
+            </div>
+            <button class="glass-light px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/10 transition flex items-center gap-2">
+                <span>?</span> Rules
+            </button>
+        </div>
+
+        <!-- Hero -->
+        <div class="text-center mb-8 animate-slide-up" style="animation-delay: 0.1s">
+            <h1 class="text-3xl font-bold mb-2">Welcome to <span class="text-bingo-orange">Yegara Bingo</span></h1>
+            <p class="text-gray-400">Choose your stake and start winning!</p>
+        </div>
+
+        <!-- Stake Selection -->
+        <div class="glass rounded-2xl p-6 mb-6 animate-slide-up" style="animation-delay: 0.2s">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span class="text-bingo-orange">🎯</span> Choose Your Stake
+            </h2>
+            <div class="space-y-3">
+                <button onclick="startGame(10)" class="w-full btn-gradient-green text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] hover:shadow-lg hover:shadow-bingo-green/30 transition-all duration-300">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                    Play 10 ETB
+                </button>
+                <button onclick="startGame(20)" class="w-full btn-gradient-blue text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] hover:shadow-lg hover:shadow-bingo-blue/30 transition-all duration-300">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                    Play 20 ETB
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="glass rounded-2xl p-6 mb-6 animate-slide-up" style="animation-delay: 0.3s">
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <div class="text-2xl font-bold text-bingo-orange animate-bounce-subtle" id="statPlayers">24,557</div>
+                    <div class="text-xs text-gray-400 mt-1">Active Players</div>
+                </div>
+                <div class="border-x border-white/10">
+                    <div class="text-2xl font-bold text-bingo-green" id="statGames">2,195</div>
+                    <div class="text-xs text-gray-400 mt-1">Games Played</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-bingo-purple" id="statWinners">477</div>
+                    <div class="text-xs text-gray-400 mt-1">Winners Daily</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] glass rounded-t-2xl px-4 py-3">
+            <div class="flex justify-around">
+                <button class="flex flex-col items-center gap-1 text-bingo-orange">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z"/></svg>
+                    <span class="text-[10px] font-medium">Game</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span class="text-[10px] font-medium">History</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                    <span class="text-[10px] font-medium">Wallet</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <span class="text-[10px] font-medium">Profile</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME BOARD SCREEN -->
+    <div id="gameScreen" class="mobile-frame min-h-screen p-4 hidden">
+        <!-- Header -->
+        <div class="glass rounded-2xl p-3 mb-3 flex items-center justify-between animate-slide-up">
+            <button onclick="goHome()" class="glass-light p-2 rounded-xl hover:bg-white/10 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div class="flex items-center gap-2">
+                <span class="font-bold">Yegara Bingo</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <button class="glass-light p-2 rounded-xl hover:bg-white/10 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+            </button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2 mb-3 animate-slide-up" style="animation-delay: 0.1s">
+            <button onclick="goHome()" class="flex-1 glass-light py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Back
+            </button>
+            <button onclick="refreshGame()" class="flex-1 glass-light py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+            </button>
+        </div>
+
+        <!-- Info Bar -->
+        <div class="glass rounded-xl p-3 mb-3 animate-slide-up" style="animation-delay: 0.15s">
+            <div class="grid grid-cols-5 gap-2 text-center text-[10px]">
+                <div>
+                    <div class="text-gray-400">MAIN WALLET</div>
+                    <div class="font-bold text-sm" id="mainWallet">0.00</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">PLAY WALLET</div>
+                    <div class="font-bold text-sm text-bingo-green" id="playWallet">20.00</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">STAKE</div>
+                    <div class="font-bold text-sm text-bingo-orange" id="stakeDisplay">10</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">DERASH</div>
+                    <div class="font-bold text-sm text-bingo-purple" id="derashDisplay">120</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">TIMER</div>
+                    <div class="font-bold text-sm text-red-500 animate-pulse-glow" id="timerDisplay">60s</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bingo Grid -->
+        <div class="glass rounded-2xl p-3 mb-3 animate-slide-up" style="animation-delay: 0.2s">
+            <!-- Column Headers -->
+            <div class="grid grid-cols-8 gap-1 mb-1">
+                <div class="text-center py-1"><span class="font-bold text-bingo-green text-xs">B</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-blue text-xs">I</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-purple text-xs">N</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-orange text-xs">G</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-teal text-xs">O</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-green text-xs">B</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-blue text-xs">I</span></div>
+                <div class="text-center py-1"><span class="font-bold text-bingo-purple text-xs">N</span></div>
+            </div>
+            <!-- Grid Numbers -->
+            <div class="grid grid-cols-8 gap-1" id="bingoGrid">
+                <!-- Numbers will be generated by JS -->
+            </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] glass rounded-t-2xl px-4 py-3">
+            <div class="flex justify-around">
+                <button class="flex flex-col items-center gap-1 text-bingo-orange">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z"/></svg>
+                    <span class="text-[10px] font-medium">Game</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span class="text-[10px] font-medium">History</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                    <span class="text-[10px] font-medium">Wallet</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <span class="text-[10px] font-medium">Profile</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WIN CELEBRATION SCREEN -->
+    <div id="winScreen" class="mobile-frame min-h-screen p-4 hidden flex flex-col items-center justify-center">
+        <div class="glass rounded-3xl p-8 w-full text-center animate-slide-up">
+            <!-- Crown -->
+            <div class="text-7xl mb-4 animate-float">👑</div>
+            
+            <!-- Title -->
+            <h1 class="text-4xl font-black text-bingo-orange mb-4 animate-pulse-glow">BINGO!</h1>
+            
+            <!-- Winner Card -->
+            <div class="glass rounded-2xl p-6 mb-6 gradient-border">
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <span class="text-2xl">😊</span>
+                    <span class="text-xl font-bold" id="winnerName">kid_ddy</span>
+                    <span class="text-xl font-bold">WON!</span>
+                    <span class="text-2xl">😊</span>
+                </div>
+                
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <span class="text-lg">🏆</span>
+                    <span class="text-gray-300">Winning Cartela:</span>
+                    <span class="font-bold text-bingo-orange" id="cartelaNumber">213</span>
+                </div>
+                
+                <div class="text-2xl font-bold text-bingo-green mb-6">
+                    Prize Award: <span id="prizeAmount">152.00 ETB</span>
+                </div>
+                
+                <!-- 5x5 Bingo Card -->
+                <div class="bg-bingo-dark rounded-xl p-4">
+                    <!-- B I N G O Headers -->
+                    <div class="grid grid-cols-5 gap-1 mb-2">
+                        <div class="card-b text-center py-1 rounded-lg font-bold text-sm">B</div>
+                        <div class="card-i text-center py-1 rounded-lg font-bold text-sm">I</div>
+                        <div class="card-n text-center py-1 rounded-lg font-bold text-sm">N</div>
+                        <div class="card-g text-center py-1 rounded-lg font-bold text-sm">G</div>
+                        <div class="card-o text-center py-1 rounded-lg font-bold text-sm">O</div>
+                    </div>
+                    <!-- Card Numbers -->
+                    <div class="grid grid-cols-5 gap-1" id="winCard">
+                        <!-- Will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Countdown -->
+            <div class="text-gray-400 text-sm" id="countdown">
+                ⚫ Returning to home in <span id="countdownTimer" class="text-bingo-orange font-bold">6</span> s
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate Bingo Grid
+        function generateGrid() {
+            const grid = document.getElementById('bingoGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 104; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'bingo-cell bg-bingo-dark/80 rounded-lg p-2 text-center text-xs font-medium cursor-pointer hover:bg-white/10 transition-all';
+                cell.textContent = i;
+                cell.onclick = function() { this.classList.toggle('selected'); };
+                grid.appendChild(cell);
+            }
+        }
+
+        // Generate Win Card
+        function generateWinCard() {
+            const card = document.getElementById('winCard');
+            card.innerHTML = '';
+            const numbers = [
+                [11, 16, 43, 46, 66],
+                [12, 24, 39, 53, 69],
+                [2, 23, '⭐', 51, 72],
+                [4, 27, 34, 48, 61],
+                [5, 22, 33, 59, 68]
+            ];
+            const matched = [[11, 16], [12], [46], [34, 48], [68]];
+            
+            numbers.forEach((row, ri) => {
+                row.forEach((num, ci) => {
+                    const cell = document.createElement('div');
+                    const isMatched = matched[ri] && matched[ri].includes(num);
+                    cell.className = `rounded-lg p-2 text-center text-sm font-bold ${num === '⭐' ? 'bg-bingo-green' : isMatched ? 'bg-bingo-green' : 'bg-white'}`;
+                    cell.style.color = num === '⭐' ? 'white' : isMatched ? 'white' : '#1A1A2E';
+                    cell.textContent = num;
+                    card.appendChild(cell);
+                });
+            });
+        }
+
+        function startGame(stake) {
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('stakeDisplay').textContent = stake;
+            generateGrid();
+        }
+
+        function goHome() {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('winScreen').classList.add('hidden');
+            document.getElementById('welcomeScreen').classList.remove('hidden');
+        }
+
+        function showWin() {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('winScreen').classList.remove('hidden');
+            document.getElementById('winScreen').style.display = 'flex';
+            generateWinCard();
+            startCountdown();
+        }
+
+        function startCountdown() {
+            let count = 6;
+            const timer = setInterval(() => {
+                count--;
+                document.getElementById('countdownTimer').textContent = count;
+                if (count <= 0) {
+                    clearInterval(timer);
+                    goHome();
+                }
+            }, 1000);
+        }
+
+        // Timer simulation
+        let gameTimer = 60;
+        setInterval(() => {
+            if (!document.getElementById('gameScreen').classList.contains('hidden')) {
+                gameTimer--;
+                if (gameTimer <= 0) gameTimer = 60;
+                document.getElementById('timerDisplay').textContent = gameTimer + 's';
+            }
+        }, 1000);
+
+        // Initialize
+        generateGrid();
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: yegara-bingo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: bingo-bot-5c708
+      - key: FIREBASE_STORAGE_BUCKET
+        value: bingo-bot-5c708.firebasestorage.app
+      - key: FIREBASE_MESSAGING_SENDER_ID
+        value: "988357359269"
+      - key: FIREBASE_APP_ID
+        value: "1:988357359269:web:eb8ce31819d6853c717f4c"
+      - key: FIREBASE_MEASUREMENT_ID
+        value: G-2P5YYZWKF1
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /api/health
+    autoDeploy: true
