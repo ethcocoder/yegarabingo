@@ -1235,9 +1235,6 @@
             document.getElementById('game-derash').textContent = called.length;
             const cartela = unflattenCartela(data.cartela);
             
-            // Show admin action status
-            updateAdminActionStatus(data);
-            
             if (cartela) {
                 data._cartela2d = cartela;
                 renderCartela(cartela, marked, called);
@@ -1245,16 +1242,6 @@
                 updateCartelaLines(cartela, marked);
                 checkBingo(cartela, marked, data);
             }
-        }
-
-        let lastAdminActionId = null;
-        function updateAdminActionStatus(data) {
-            const aa = data.admin_action;
-            if (!aa || !aa.type) return;
-            const actionKey = aa.type + '_' + (aa.timestamp ? aa.timestamp.seconds || aa.timestamp : '');
-            if (actionKey === lastAdminActionId) return;
-            lastAdminActionId = actionKey;
-            // Player doesn't see admin actions — they just play
         }
 
         function getMarkedNumbers(data) {
@@ -1437,8 +1424,6 @@
             if (hasBingo && data.status === 'active' && data.winner === null) {
                 if (data.allow_win === true) {
                     endGame(data.id, data.user_id, data);
-                } else {
-                    document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-bingo-orange">BINGO! Waiting for admin approval...</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">You have a winning line! Admin is reviewing.</div>';
                 }
             }
         }
