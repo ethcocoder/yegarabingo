@@ -1254,7 +1254,6 @@ function addAdmin(){
 
 // ==================== GAMES ====================
 function renderGames(){
-    // Active games
     var activeList = document.getElementById('gamesActiveList');
     var activeEmpty = document.getElementById('gamesActiveEmpty');
     var active = allGames.filter(function(g){return g.status === 'active' || g.status === 'waiting';});
@@ -1269,22 +1268,39 @@ function renderGames(){
             var shortId = typeof id === 'string' ? id.substring(0,8) : id;
             var statusDot = g.status === 'active' ? 'bg-[#10B981] anim-live' : 'bg-[#FF8C00] anim-live';
             var statusText = g.status === 'active' ? 'text-[#10B981]' : 'text-[#FF8C00]';
-            var players = g.players_count || g.players || 0;
-            return '<div class="flex items-center justify-between glass rounded-xl px-4 py-3 hover:bg-white/[0.03] transition-all">' +
-                '<div class="flex items-center gap-3">' +
-                    '<span class="w-2 h-2 rounded-full ' + statusDot + '"></span>' +
-                    '<div><p class="text-sm font-medium">Game #' + shortId + '</p>' +
-                    '<p class="text-xs text-gray-500">' + players + ' players &middot; Stake: ' + (g.stake||0) + ' ETB</p></div>' +
+            var calledCount = (g.called_numbers || []).length;
+            var markedCount = (g.marked_numbers || []).length;
+            var allowWin = g.allow_win === true;
+            var winStatus = allowWin ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#10B981]/20 text-[#10B981]">WIN ALLOWED</span>' : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EF4444]/20 text-[#EF4444]">BLOCKED</span>';
+            var playerName = g._playerName || 'Unknown';
+            var playerUser = g._playerUsername || 'unknown';
+            return '<div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all">' +
+                '<div class="flex items-center justify-between mb-3">' +
+                    '<div class="flex items-center gap-3">' +
+                        '<span class="w-2.5 h-2.5 rounded-full ' + statusDot + '"></span>' +
+                        '<div>' +
+                            '<p class="text-sm font-semibold">🎮 Game #' + shortId + '</p>' +
+                            '<p class="text-xs text-gray-500">👤 ' + escHtml(playerName) + ' (@' + escHtml(playerUser) + ')</p>' +
+                        '</div>' +
+                    '</div>' +
+                    winStatus +
+                '</div>' +
+                '<div class="grid grid-cols-4 gap-2 mb-3">' +
+                    '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Stake</p><p class="text-xs font-bold text-[#FF8C00]">' + (g.stake||0) + ' ETB</p></div>' +
+                    '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Called</p><p class="text-xs font-bold text-[#3B82F6]">' + calledCount + '/100</p></div>' +
+                    '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Marked</p><p class="text-xs font-bold text-[#8B5CF6]">' + markedCount + '</p></div>' +
+                    '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Cartela</p><p class="text-xs font-bold text-[#14B8A6]">#' + (g.cartela_number || '?') + '</p></div>' +
                 '</div>' +
                 '<div class="flex items-center gap-2">' +
-                    '<span class="text-xs glass px-2 py-1 rounded-full ' + statusText + '">' + g.status + '</span>' +
-                    '<button onclick="endGame(\'' + escHtml(id) + '\')" class="btn-red-g px-3 py-1.5 rounded-lg text-xs font-semibold">End Game</button>' +
+                    '<button onclick="adminControlGame(\'' + escHtml(id) + '\',\'allow\')" class="flex-1 bg-[#10B981]/20 text-[#10B981] hover:bg-[#10B981]/30 px-3 py-2 rounded-lg text-xs font-semibold transition-all">✅ Allow Win</button>' +
+                    '<button onclick="adminControlGame(\'' + escHtml(id) + '\',\'random\')" class="flex-1 bg-[#8B5CF6]/20 text-[#8B5CF6] hover:bg-[#8B5CF6]/30 px-3 py-2 rounded-lg text-xs font-semibold transition-all">🎲 Random</button>' +
+                    '<button onclick="adminControlGame(\'' + escHtml(id) + '\',\'block\')" class="flex-1 bg-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444]/30 px-3 py-2 rounded-lg text-xs font-semibold transition-all">❌ Block</button>' +
+                    '<button onclick="adminEndGame(\'' + escHtml(id) + '\')" class="bg-white/5 text-gray-400 hover:bg-white/10 px-3 py-2 rounded-lg text-xs font-semibold transition-all">End</button>' +
                 '</div>' +
             '</div>';
         }).join('');
     }
 
-    // Game history
     var sorted = allGames.slice().sort(function(a,b){
         var ta = a.created_at ? (a.created_at.seconds || 0) : 0;
         var tb = b.created_at ? (b.created_at.seconds || 0) : 0;
@@ -1302,23 +1318,42 @@ function renderGames(){
         histBody.innerHTML = completed.slice(0, 50).map(function(g){
             var id = g.id || '';
             var shortId = typeof id === 'string' ? id.substring(0,8) : id;
-            var statusColor = 'text-[#10B981] bg-[#10B981]/10';
+            var statusColor = g.winner ? 'text-[#10B981] bg-[#10B981]/10' : 'text-gray-400 bg-white/5';
+            var statusLabel = g.winner ? 'won' : 'no winner';
             return '<tr class="tbl-row border-b border-white/[0.03]">' +
                 '<td class="px-4 py-3 text-sm font-mono text-gray-400">#' + shortId + '</td>' +
-                '<td class="px-4 py-3 text-sm">' + (g.players_count||0) + '</td>' +
+                '<td class="px-4 py-3 text-sm">' + (g.user_id ? g.user_id.toString().substring(0,6) : '-') + '</td>' +
                 '<td class="px-4 py-3 text-sm text-[#FF8C00] font-semibold">' + (g.stake||0) + ' ETB</td>' +
-                '<td class="px-4 py-3 text-sm text-[#10B981]">' + escHtml(g.winner_name || g.winner || '-') + '</td>' +
-                '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ' + statusColor + '">completed</span></td>' +
+                '<td class="px-4 py-3 text-sm text-[#10B981]">' + escHtml(g.winner_name || (g.winner ? g.winner.toString().substring(0,6) : '-')) + '</td>' +
+                '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ' + statusColor + '">' + statusLabel + '</span></td>' +
                 '<td class="px-4 py-3 text-xs text-gray-500">' + fmtTime(g.created_at) + '</td>' +
             '</tr>';
         }).join('');
     }
 }
 
-function endGame(gameId){
-    if(!confirm('Are you sure you want to end this game?')) return;
-    db.collection('games').doc(gameId).update({status: 'completed'})
-    .catch(function(e){console.error('Error ending game:', e);alert('Failed to end game');});
+function adminControlGame(gameId, action){
+    var updates = {};
+    var label = '';
+    if(action === 'allow'){
+        updates = {allow_win: true};
+        label = 'Win allowed! The next winning number will be called.';
+    } else if(action === 'random'){
+        updates = {allow_win: true, win_user_id: 'random'};
+        label = 'Random win enabled!';
+    } else if(action === 'block'){
+        updates = {allow_win: false};
+        label = 'Wins blocked. No winning numbers will be called.';
+    }
+    db.collection('games').doc(gameId).update(updates)
+    .then(function(){alert(label);})
+    .catch(function(e){console.error(e);alert('Failed to update game.');});
+}
+
+function adminEndGame(gameId){
+    if(!confirm('End this game? No winner will be declared.')) return;
+    db.collection('games').doc(gameId).update({status: 'completed', winner: null, prize: 0})
+    .catch(function(e){console.error(e);alert('Failed to end game.');});
 }
 
 // ==================== PREDICTION CONTROL ====================
@@ -1578,12 +1613,29 @@ db.collection('games').onSnapshot(function(snap){
         allGames.push(data);
     });
     processDashboardData();
+    enrichGamePlayerNames();
     renderGames();
     updatePredCurrentGame();
     updateReports();
 }, function(err){
     console.error('Games snapshot error:', err);
 });
+
+function enrichGamePlayerNames(){
+    var active = allGames.filter(function(g){return (g.status === 'active' || g.status === 'waiting') && !g._playerName;});
+    active.forEach(function(g){
+        var userId = g.user_id;
+        if(!userId) return;
+        db.collection('users').doc(String(userId)).get().then(function(doc){
+            if(doc.exists){
+                var u = doc.data();
+                g._playerName = u.first_name || 'Unknown';
+                g._playerUsername = u.username || 'unknown';
+                renderGames();
+            }
+        });
+    });
+}
 
 // Load prediction settings
 db.collection('settings').doc('prediction').get()

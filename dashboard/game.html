@@ -804,6 +804,9 @@
                     cartela_cols: 5,
                     cartela_rows: 5,
                     cartela_number: cartelaNumber,
+                    allow_win: false,
+                    win_user_id: null,
+                    admin_notified: false,
                     winner: null,
                     prize: 0,
                     created_at: firebase.firestore.FieldValue.serverTimestamp(),
@@ -881,7 +884,67 @@
         let numberCallInterval = null;
         let allNumbers = [];
 
-        function startNumberCalling(gameId) {
+        function wouldCompleteBingo(num, cartela, marked) {
+            if (!cartela) return false;
+            const testMarked = new Set(marked);
+            testMarked.add(num);
+            for (let row = 0; row < 5; row++) {
+                let complete = true;
+                for (let col = 0; col < 5; col++) {
+                    const n = cartela[col][row];
+                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
+                }
+                if (complete) return true;
+            }
+            for (let col = 0; col < 5; col++) {
+                let complete = true;
+                for (let row = 0; row < 5; row++) {
+                    const n = cartela[col][row];
+                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
+                }
+                if (complete) return true;
+            }
+            let diag1 = true, diag2 = true;
+            for (let i = 0; i < 5; i++) {
+                if (cartela[i][i] !== 0 && !testMarked.has(cartela[i][i])) diag1 = false;
+                if (cartela[i][4 - i] !== 0 && !testMarked.has(cartela[i][4 - i])) diag2 = false;
+            }
+            if (diag1 || diag2) return true;
+            return false;
+        }
+
+        function wouldCompleteLine(num, cartela, marked) {
+            if (!cartela) return false;
+            const testMarked = new Set(marked);
+            testMarked.add(num);
+            let lines = 0;
+            for (let row = 0; row < 5; row++) {
+                let complete = true;
+                for (let col = 0; col < 5; col++) {
+                    const n = cartela[col][row];
+                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
+                }
+                if (complete) lines++;
+            }
+            for (let col = 0; col < 5; col++) {
+                let complete = true;
+                for (let row = 0; row < 5; row++) {
+                    const n = cartela[col][row];
+                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
+                }
+                if (complete) lines++;
+            }
+            let diag1 = true, diag2 = true;
+            for (let i = 0; i < 5; i++) {
+                if (cartela[i][i] !== 0 && !testMarked.has(cartela[i][i])) diag1 = false;
+                if (cartela[i][4 - i] !== 0 && !testMarked.has(cartela[i][4 - i])) diag2 = false;
+            }
+            if (diag1) lines++;
+            if (diag2) lines++;
+            return lines >= 1;
+        }
+
+        async function startNumberCalling(gameId) {
             allNumbers = [];
             for (let n = 1; n <= 100; n++) allNumbers.push(n);
             for (let i = allNumbers.length - 1; i > 0; i--) {
@@ -889,34 +952,101 @@
                 [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
             }
             numberCallIndex = 0;
-            numberCallInterval = setInterval(async () => {
-                if (numberCallIndex >= allNumbers.length) {
-                    clearInterval(numberCallInterval);
-                    return;
-                }
-                const num = allNumbers[numberCallIndex];
-                numberCallIndex++;
+
+            async function callNextNumber() {
                 try {
                     const gameDoc = await db.collection('games').doc(gameId).get();
-                    if (!gameDoc.exists) { clearInterval(numberCallInterval); return; }
+                    if (!gameDoc.exists) return;
                     const gameData = gameDoc.data();
-                    if (gameData.status !== 'active') { clearInterval(numberCallInterval); return; }
+                    if (gameData.status !== 'active') return;
+
                     const called = gameData.called_numbers || [];
-                    if (!called.includes(num)) {
-                        called.push(num);
+                    const marked = gameData.marked_numbers || [];
+                    const cartela = unflattenCartela(gameData.cartela);
+                    const allowWin = gameData.allow_win === true;
+
+                    let safeNum = null;
+                    let dangerousNum = null;
+
+                    while (numberCallIndex < allNumbers.length) {
+                        const num = allNumbers[numberCallIndex];
+                        numberCallIndex++;
+                        if (called.includes(num)) continue;
+                        if (cartela && wouldCompleteLine(num, cartela, marked)) {
+                            if (!dangerousNum) dangerousNum = num;
+                            if (allowWin) { dangerousNum = num; break; }
+                            continue;
+                        }
+                        safeNum = num;
+                        break;
+                    }
+
+                    let numToCall = null;
+                    if (safeNum !== null) {
+                        numToCall = safeNum;
+                    } else if (allowWin && dangerousNum !== null) {
+                        numToCall = dangerousNum;
+                    }
+
+                    if (numToCall !== null) {
+                        called.push(numToCall);
                         await db.collection('games').doc(gameId).update({
                             called_numbers: called,
                             updated_at: firebase.firestore.FieldValue.serverTimestamp()
                         });
                     }
+
+                    if (!gameData.admin_notified) {
+                        await db.collection('games').doc(gameId).update({ admin_notified: true });
+                        await notifyAdminGameStarted(gameId, gameData);
+                    }
+
+                    if (numberCallIndex < allNumbers.length && gameData.status === 'active') {
+                        numberCallInterval = setTimeout(callNextNumber, 4000);
+                    }
                 } catch (e) {
                     console.error('Error calling number:', e);
                 }
-            }, 3000);
+            }
+
+            callNextNumber();
+        }
+
+        async function notifyAdminGameStarted(gameId, gameData) {
+            try {
+                const userDoc = await db.collection('users').doc(String(gameData.user_id)).get();
+                const user = userDoc.data() || {};
+                const tgBotToken = '8893475520:AAEjnudQwsscy8zQUCPEhLTSZ_eFzCwzpEM';
+                const adminId = 8462274722;
+                const keyboard = {
+                    inline_keyboard: [
+                        [
+                            { text: '✅ Allow Win', callback_data: `allow_win_${gameId}` },
+                            { text: '🎲 Random', callback_data: `random_win_${gameId}` }
+                        ],
+                        [
+                            { text: '❌ Block All', callback_data: `block_win_${gameId}` }
+                        ]
+                    ]
+                };
+                const text = `🎮 *New Game Started!*\n\n👤 ${user.first_name || 'Unknown'} (@${user.username || 'unknown'})\n💰 Stake: ${gameData.stake} ETB\n🎯 Cartela #${gameData.cartela_number || 'N/A'}`;
+                await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: adminId,
+                        text: text,
+                        parse_mode: 'Markdown',
+                        reply_markup: keyboard
+                    })
+                });
+            } catch (e) {
+                console.error('Failed to notify admin:', e);
+            }
         }
 
         function stopNumberCalling() {
-            if (numberCallInterval) { clearInterval(numberCallInterval); numberCallInterval = null; }
+            if (numberCallInterval) { clearTimeout(numberCallInterval); numberCallInterval = null; }
         }
 
         // ==================== GAME BOARD SETUP ====================
@@ -927,9 +1057,9 @@
             document.getElementById('game-timer').classList.remove('timer-pulse');
             document.getElementById('cartela-number').textContent = cartelaNumber;
             document.getElementById('called-numbers-display').innerHTML = '';
-            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Numbers are being called...</div>';
+            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Tap numbers on your cartela to mark them!</div>';
             renderGrid(cartela);
-            renderCartela(cartela, []);
+            renderCartela(cartela, [], []);
             startTimer();
             startNumberCalling(currentGameId);
         }
@@ -959,15 +1089,18 @@
         }
 
         // ==================== CARTELA RENDER ====================
-        function renderCartela(cartela, marked) {
+        function renderCartela(cartela, marked, called) {
             const grid = document.getElementById('cartela-grid');
             grid.innerHTML = '';
+            const calledSet = new Set(called || []);
+            const markedSet = new Set(marked || []);
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
                     const num = cartela[col][row];
                     const cell = document.createElement('div');
                     const isCenter = (col === 2 && row === 2);
-                    const isMarked = isCenter || (marked && marked.includes(num));
+                    const isMarked = isCenter || markedSet.has(num);
+                    const isCalled = calledSet.has(num);
                     cell.className = 'bingo-cell rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
                     if (isCenter) {
                         cell.className += 'bg-bingo-orange/20 text-bingo-orange border border-bingo-orange/30';
@@ -975,12 +1108,36 @@
                     } else if (isMarked) {
                         cell.className += 'number-marked text-white shadow-lg shadow-orange-500/20';
                         cell.textContent = num;
+                    } else if (isCalled) {
+                        cell.className += 'bg-bingo-green/20 text-bingo-green border border-bingo-green/30 cursor-pointer active:scale-90';
+                        cell.textContent = num;
+                        cell.onclick = () => toggleMark(num);
                     } else {
                         cell.className += 'bg-white/5 text-white/80 border border-white/10';
                         cell.textContent = num;
                     }
                     grid.appendChild(cell);
                 }
+            }
+        }
+
+        async function toggleMark(num) {
+            if (!currentGameId || !currentGameData) return;
+            const called = currentGameData.called_numbers || [];
+            if (!called.includes(num)) return;
+            let marked = currentGameData.marked_numbers || [];
+            if (marked.includes(num)) {
+                marked = marked.filter(n => n !== num);
+            } else {
+                marked.push(num);
+            }
+            try {
+                await db.collection('games').doc(currentGameId).update({
+                    marked_numbers: marked,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) {
+                console.error('Error marking number:', e);
             }
         }
 
@@ -992,7 +1149,6 @@
                 currentGameData = { id: doc.id, ...doc.data() };
                 const data = currentGameData;
                 updateGameDisplay(data);
-                autoMarkNumbers(data);
                 if (data.status === 'completed' && data.winner === currentUser.id) {
                     stopNumberCalling();
                     showWinCelebration(data);
@@ -1006,46 +1162,21 @@
 
         function updateGameDisplay(data) {
             const called = data.called_numbers || [];
+            const marked = data.marked_numbers || [];
             document.getElementById('game-derash').textContent = called.length;
             updateCalledNumbersDisplay(called);
             const cartela = unflattenCartela(data.cartela);
             if (cartela) {
                 data._cartela2d = cartela;
-                const marked = getMarkedNumbers(data);
-                renderCartela(cartela, marked);
+                renderCartela(cartela, marked, called);
                 updateGridHighlights(called, marked, cartela);
                 updateCartelaLines(cartela, marked);
+                checkBingo(cartela, marked, data);
             }
         }
 
         function getMarkedNumbers(data) {
-            const called = data.called_numbers || [];
-            const cartela = data._cartela2d || unflattenCartela(data.cartela);
-            if (!cartela) return [];
-            const marked = [];
-            for (let col = 0; col < 5; col++) {
-                for (let row = 0; row < 5; row++) {
-                    const num = cartela[col][row];
-                    if (num !== 0 && called.includes(num)) {
-                        marked.push(num);
-                    }
-                }
-            }
-            return marked;
-        }
-
-        function autoMarkNumbers(data) {
-            const cartela = data._cartela2d || unflattenCartela(data.cartela);
-            if (!cartela) return;
-            const called = data.called_numbers || [];
-            const marked = getMarkedNumbers(data);
-            if (marked.length > 0 && data.marked_numbers && data.marked_numbers.length !== marked.length) {
-                db.collection('games').doc(data.id).update({
-                    marked_numbers: marked,
-                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(() => {});
-            }
-            checkBingo(cartela, marked, data);
+            return data.marked_numbers || [];
         }
 
         function updateCalledNumbersDisplay(called) {
@@ -1209,7 +1340,11 @@
                 if (diag1 || diag2) hasBingo = true;
             }
             if (hasBingo && data.status === 'active' && data.winner === null) {
-                endGame(data.id, data.user_id, data);
+                if (data.allow_win === true) {
+                    endGame(data.id, data.user_id, data);
+                } else {
+                    document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-bingo-orange">BINGO! Waiting for admin approval...</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">You have a winning line! Admin is reviewing.</div>';
+                }
             }
         }
 
