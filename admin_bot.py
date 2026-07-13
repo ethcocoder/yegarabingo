@@ -107,12 +107,12 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     
     if update.effective_user.id != ADMIN_CHAT_ID:
-        await query.edit_message_text("⛔ Unauthorized.")
+        await query.answer("⛔ Unauthorized.", show_alert=True)
         return
     
+    await query.answer()
     data = query.data
     
     if data.startswith("approve_") and not data.startswith("approve_withdraw_"):
@@ -133,29 +133,29 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data.startswith("allow_win_"):
         game_id = data.replace("allow_win_", "")
-        await handle_game_control(game_id, "allow", query)
+        await handle_game_control(game_id, "allow", query, context)
     
     elif data.startswith("random_win_"):
         game_id = data.replace("random_win_", "")
-        await handle_game_control(game_id, "random", query)
+        await handle_game_control(game_id, "random", query, context)
     
     elif data.startswith("block_win_"):
         game_id = data.replace("block_win_", "")
-        await handle_game_control(game_id, "block", query)
+        await handle_game_control(game_id, "block", query, context)
 
 
-async def handle_game_control(game_id, action, query):
+async def handle_game_control(game_id, action, query, context):
     try:
         game_ref = db.collection("games").document(game_id)
         game_doc = game_ref.get()
         
         if not game_doc.exists:
-            await query.edit_message_text("❌ Game not found.")
+            await query.answer("❌ Game not found", show_alert=True)
             return
         
         game = game_doc.to_dict()
         if game.get("status") != "active":
-            await query.edit_message_text("⚠️ Game is no longer active.")
+            await query.answer("⚠️ Game is no longer active", show_alert=True)
             return
         
         user_name = "Unknown"
@@ -181,50 +181,74 @@ async def handle_game_control(game_id, action, query):
         if action == "allow":
             updates["allow_win"] = True
             updates["win_user_id"] = user_id
-            await query.edit_message_text(
-                f"✅ *WIN ALLOWED*\n\n"
+            confirm_text = (
+                f"✅ *WIN ALLOWED — SUCCESS*\n\n"
                 f"👤 Player: {user_name}\n"
                 f"💰 Stake: {game.get('stake', 0)} ETB\n"
                 f"📊 Numbers called: {called_count}/100\n"
-                f"🕐 Action at: {now_str}\n"
-                f"📱 Source: Admin Bot\n\n"
-                f"The next winning number will be called automatically.\n"
-                f"The player will see \"Admin approved\" on their screen."
+                f"🕐 {now_str}\n\n"
+                f"The player will now receive winning numbers.\n"
+                f"When they complete a line → they WIN!"
             )
+            toast_text = "✅ Win approved!"
         
         elif action == "random":
             updates["allow_win"] = True
             updates["win_user_id"] = "random"
-            await query.edit_message_text(
-                f"🎲 *RANDOM WIN ENABLED*\n\n"
+            confirm_text = (
+                f"🎲 *RANDOM WIN — SUCCESS*\n\n"
                 f"👤 Player: {user_name}\n"
                 f"💰 Stake: {game.get('stake', 0)} ETB\n"
                 f"📊 Numbers called: {called_count}/100\n"
-                f"🕐 Action at: {now_str}\n"
-                f"📱 Source: Admin Bot\n\n"
+                f"🕐 {now_str}\n\n"
                 f"A random winning number will be called.\n"
-                f"The player will see \"Random win enabled\" on their screen."
+                f"Good luck to the player!"
             )
+            toast_text = "🎲 Random win enabled!"
         
         elif action == "block":
             updates["allow_win"] = False
-            await query.edit_message_text(
-                f"❌ *WINS BLOCKED*\n\n"
+            confirm_text = (
+                f"❌ *WINS BLOCKED — SUCCESS*\n\n"
                 f"👤 Player: {user_name}\n"
                 f"💰 Stake: {game.get('stake', 0)} ETB\n"
                 f"📊 Numbers called: {called_count}/100\n"
-                f"🕐 Action at: {now_str}\n"
-                f"📱 Source: Admin Bot\n\n"
+                f"🕐 {now_str}\n\n"
                 f"No winning numbers will be called.\n"
-                f"The player will see \"Wins blocked\" on their screen."
+                f"The game will end with no winner."
             )
+            toast_text = "❌ Wins blocked!"
         
         game_ref.update(updates)
+        
+        # Edit original message to show it was acted on
+        try:
+            await query.edit_message_text(
+                f"{'✅' if action == 'allow' else '🎲' if action == 'random' else '❌'} "
+                f"*{action.upper()}* — Done at {now_str}\n"
+                f"👤 {user_name}\n"
+                f"💰 {game.get('stake', 0)} ETB"
+                f"\n\n📊 _Bot and Dashboard are now synced._",
+                parse_mode='Markdown'
+            )
+        except Exception:
+            pass
+        
+        # Send separate confirmation message
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=confirm_text,
+                parse_mode='Markdown'
+            )
+        except Exception:
+            pass
+        
         logger.info(f"Game {game_id} control: {action} by admin via bot")
     
     except Exception as e:
         logger.error(f"Error controlling game: {e}")
-        await query.edit_message_text(f"❌ Error: {str(e)}")
+        await query.answer(f"❌ Error: {str(e)[:100]}", show_alert=True)
 
 async def process_deposit(deposit_id, status, query):
     try:

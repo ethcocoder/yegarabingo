@@ -1120,7 +1120,7 @@
             document.getElementById('game-timer').classList.remove('timer-pulse');
             document.getElementById('cartela-number').textContent = cartelaNumber;
             document.getElementById('called-numbers-display').innerHTML = '';
-            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Find each number on your cartela and tap to mark!</div><div id="admin-permission" class="text-xs mt-1 font-semibold"></div>';
+            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Find each number on your cartela and tap to mark!</div>';
             renderGrid(cartela);
             renderCartela(cartela, [], []);
             startTimer();
@@ -1250,26 +1250,11 @@
         let lastAdminActionId = null;
         function updateAdminActionStatus(data) {
             const aa = data.admin_action;
-            const permEl = document.getElementById('admin-permission');
-            if (!aa || !aa.type) {
-                if (permEl) permEl.innerHTML = '';
-                return;
-            }
+            if (!aa || !aa.type) return;
             const actionKey = aa.type + '_' + (aa.timestamp ? aa.timestamp.seconds || aa.timestamp : '');
             if (actionKey === lastAdminActionId) return;
             lastAdminActionId = actionKey;
-            let msg = '';
-            if (aa.type === 'allow') {
-                msg = '✅ Admin approved your win! Play aggressively!';
-                if (permEl) { permEl.textContent = '✅ Win Approved by Admin'; permEl.className = 'text-xs mt-1 font-semibold text-bingo-green'; }
-            } else if (aa.type === 'random') {
-                msg = '🎲 Random win enabled! You might win!';
-                if (permEl) { permEl.textContent = '🎲 Random Win Enabled'; permEl.className = 'text-xs mt-1 font-semibold text-bingo-purple'; }
-            } else if (aa.type === 'block') {
-                msg = '❌ Admin blocked winning. Keep playing.';
-                if (permEl) { permEl.textContent = '❌ Win Blocked by Admin'; permEl.className = 'text-xs mt-1 font-semibold text-red-400'; }
-            }
-            if (msg) showToast(msg);
+            // Player doesn't see admin actions — they just play
         }
 
         function getMarkedNumbers(data) {
