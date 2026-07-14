@@ -622,6 +622,7 @@
         let currentUser = null;
         let currentStake = 0;
         let pendingCartelaOptions = null;
+        let pendingCartelaDocIds = null;
         let currentGameId = null;
         let currentGameData = null;
         let gameUnsubscribe = null;
@@ -822,34 +823,60 @@
             showCartelaSelection(stake);
         }
 
-        function showCartelaSelection(stake) {
+        async function showCartelaSelection(stake) {
             const container = document.getElementById('cartela-options');
-            container.innerHTML = '';
-            const options = [generateCartela(), generateCartela(), generateCartela()];
-            pendingCartelaOptions = options;
-            options.forEach((cartela, idx) => {
-                const card = document.createElement('div');
-                card.className = 'glass rounded-2xl p-4 border border-white/10 cursor-pointer btn-hover';
-                card.onclick = () => confirmCartelaSelection(idx);
-                let gridHtml = '<div class="grid grid-cols-5 gap-1 max-w-[250px] mx-auto">';
-                const headers = ['B', 'I', 'N', 'G', 'O'];
-                const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal'];
-                for (let i = 0; i < 5; i++) {
-                    gridHtml += '<div class="' + headerColors[i] + ' text-center py-1 font-bold text-[10px]">' + headers[i] + '</div>';
+            container.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2 float-anim">🃏</div><p class="text-white/50 text-sm">Loading cartelas...</p></div>';
+            document.getElementById('cartela-select-screen').classList.remove('hidden');
+            try {
+                const snap = await db.collection('cartela_pool').where('status', '==', 'available').limit(3).get();
+                if (snap.empty) {
+                    container.innerHTML = '<div class="text-center py-8"><p class="text-white/50 text-sm">No cartelas available. Admin needs to generate some.</p><button onclick="cancelCartelaSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
+                    return;
                 }
-                for (let row = 0; row < 5; row++) {
-                    for (let col = 0; col < 5; col++) {
-                        const num = cartela[col][row];
-                        if (col === 2 && row === 2) {
-                            gridHtml += '<div class="bg-bingo-orange/20 text-bingo-orange text-center py-1.5 text-[10px] font-bold rounded">⭐</div>';
-                        } else {
-                            gridHtml += '<div class="bg-white/5 text-white/80 text-center py-1.5 text-[10px] font-bold rounded border border-white/10">' + num + '</div>';
+                const options = [];
+                const docIds = [];
+                const cartelaNumbers = [];
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const flat = d.cartela || [];
+                    const cartela = unflattenCartela(flat);
+                    options.push(cartela);
+                    docIds.push(doc.id);
+                    cartelaNumbers.push(d.number || Math.floor(Math.random() * 9000) + 1000);
+                });
+                pendingCartelaOptions = options;
+                pendingCartelaDocIds = docIds;
+                pendingCartelaOptions._cartelaNumbers = cartelaNumbers;
+                container.innerHTML = '';
+                options.forEach((cartela, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'glass rounded-2xl p-4 border border-white/10 cursor-pointer btn-hover';
+                    card.onclick = () => confirmCartelaSelection(idx);
+                    let gridHtml = '<div class="grid grid-cols-5 gap-1 max-w-[250px] mx-auto">';
+                    const headers = ['B', 'I', 'N', 'G', 'O'];
+                    const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal'];
+                    for (let i = 0; i < 5; i++) {
+                        gridHtml += '<div class="' + headerColors[i] + ' text-center py-1 font-bold text-[10px]">' + headers[i] + '</div>';
+                    }
+                    for (let row = 0; row < 5; row++) {
+                        for (let col = 0; col < 5; col++) {
+                            const num = cartela[col][row];
+                            if (col === 2 && row === 2) {
+                                gridHtml += '<div class="bg-bingo-orange/20 text-bingo-orange text-center py-1.5 text-[10px] font-bold rounded">⭐</div>';
+                            } else {
+                                gridHtml += '<div class="bg-white/5 text-white/80 text-center py-1.5 text-[10px] font-bold rounded border border-white/10">' + num + '</div>';
+                            }
                         }
                     }
-                }
-                gridHtml += '</div>';
-                card.innerHTML = '<div class="text-center mb-2"><span class="text-xs font-bold text-bingo-orange">Cartela #' + (idx + 1) + '</span></div>' + gridHtml + '<div class="text-center mt-3"><button class="bg-bingo-orange/20 text-bingo-orange px-4 py-2 rounded-xl text-xs font-bold">Select This Cartela</button></div>';
-                container.appendChild(card);
+                    gridHtml += '</div>';
+                    card.innerHTML = '<div class="text-center mb-2"><span class="text-xs font-bold text-bingo-orange">Cartela #' + (idx + 1) + '</span></div>' + gridHtml + '<div class="text-center mt-3"><button class="bg-bingo-orange/20 text-bingo-orange px-4 py-2 rounded-xl text-xs font-bold">Select This Cartela</button></div>';
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error('Error loading cartelas:', err);
+                container.innerHTML = '<div class="text-center py-8"><p class="text-red-400 text-sm">Error loading cartelas. Try again.</p><button onclick="cancelCartelaSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
+            }
+        }
             });
             document.getElementById('cartela-select-screen').classList.remove('hidden');
         }
@@ -861,11 +888,13 @@
 
         async function confirmCartelaSelection(idx) {
             const cartela = pendingCartelaOptions[idx];
+            const cartelaPoolDocId = pendingCartelaDocIds ? pendingCartelaDocIds[idx] : null;
+            const cartelaNumber = pendingCartelaOptions._cartelaNumbers ? pendingCartelaOptions._cartelaNumbers[idx] : Math.floor(Math.random() * 9000) + 1000;
             document.getElementById('cartela-select-screen').classList.add('hidden');
             pendingCartelaOptions = null;
+            pendingCartelaDocIds = null;
             showLoading('Starting game...');
             try {
-                const cartelaNumber = Math.floor(Math.random() * 9000) + 1000;
                 const flatCartela = cartela.flat();
                 const gameData = {
                     user_id: currentUser.id,
@@ -892,6 +921,14 @@
                     is_playing: true,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                if (cartelaPoolDocId) {
+                    await db.collection('cartela_pool').doc(cartelaPoolDocId).update({
+                        status: 'assigned',
+                        assigned_to: currentUser.id,
+                        game_id: currentGameId,
+                        assigned_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
                 await db.collection('cartelas').add({
                     game_id: currentGameId,
                     user_id: currentUser.id,
@@ -1500,6 +1537,7 @@
                     is_playing: false,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                markCartelaUsed(gameId);
             } catch (err) {
                 console.error('Error ending game:', err);
             }
@@ -1520,9 +1558,19 @@
                         updated_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
+                markCartelaUsed(gameId);
             } catch (err) {
                 console.error('Error ending game (no win):', err);
             }
+        }
+
+        async function markCartelaUsed(gameId) {
+            try {
+                const snap = await db.collection('cartela_pool').where('game_id', '==', gameId).get();
+                snap.forEach(doc => {
+                    doc.ref.update({ status: 'used' });
+                });
+            } catch (e) { /* ignore */ }
         }
 
         // ==================== LEAVE GAME ====================
