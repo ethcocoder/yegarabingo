@@ -713,18 +713,25 @@
 
         // ==================== AUTH / USER ====================
         function getTelegramUser() {
-            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
                 return tg.initDataUnsafe.user;
+            }
+            if (tg && tg.initData && tg.initData.length > 10) {
+                try {
+                    const params = new URLSearchParams(tg.initData);
+                    const userStr = params.get('user');
+                    if (userStr) return JSON.parse(userStr);
+                } catch(e) {}
             }
             return null;
         }
 
         function isInsideTelegram() {
-            return !!(tg && typeof tg.initData === 'string' && tg.initData.length > 0);
+            return !!(window.Telegram && window.Telegram.WebApp);
         }
 
         async function initUser() {
-            if (!tg) {
+            if (!isInsideTelegram()) {
                 document.getElementById('user-greeting').textContent = '';
                 document.querySelector('#screen-home .glass.rounded-2xl.p-5').innerHTML = 
                     '<div class="text-3xl mb-2">&#128244;</div>' +
@@ -739,25 +746,20 @@
 
             let tgUser = getTelegramUser();
             if (!tgUser || !tgUser.id) {
-                tg.ready();
-                await new Promise(r => setTimeout(r, 500));
-                tgUser = getTelegramUser();
-            }
-            if (!tgUser || !tgUser.id) {
-                let retries = 0;
-                while (!tgUser && retries < 10) {
-                    await new Promise(r => setTimeout(r, 300));
+                try { tg.ready(); } catch(e) {}
+                for (let i = 0; i < 15; i++) {
+                    await new Promise(r => setTimeout(r, 200));
                     tgUser = getTelegramUser();
-                    retries++;
+                    if (tgUser && tgUser.id) break;
                 }
             }
             if (!tgUser || !tgUser.id) {
-                document.getElementById('user-greeting').textContent = 'Loading user data...';
-                await new Promise(r => setTimeout(r, 2000));
+                document.getElementById('user-greeting').textContent = 'Loading...';
+                await new Promise(r => setTimeout(r, 1500));
                 tgUser = getTelegramUser();
             }
             if (!tgUser || !tgUser.id) {
-                document.getElementById('user-greeting').textContent = 'Error: Could not load Telegram user. Try reopening from bot.';
+                document.getElementById('user-greeting').textContent = 'Error: Could not load user. Reopen from bot.';
                 return;
             }
             const uid = tgUser.id;
