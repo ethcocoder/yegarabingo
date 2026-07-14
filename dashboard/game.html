@@ -712,6 +712,13 @@
         }
 
         // ==================== AUTH / USER ====================
+        function isInsideTelegram() {
+            if (window.location.hash && window.location.hash.indexOf('tgWebAppData=') !== -1) return true;
+            if (tg && tg.initData && tg.initData.length > 10) return true;
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) return true;
+            return false;
+        }
+
         function getTelegramUser() {
             if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
                 return tg.initDataUnsafe.user;
@@ -723,15 +730,21 @@
                     if (userStr) return JSON.parse(userStr);
                 } catch(e) {}
             }
+            if (window.location.hash && window.location.hash.indexOf('tgWebAppData=') !== -1) {
+                try {
+                    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                    const rawData = hashParams.get('tgWebAppData');
+                    if (rawData) {
+                        const parsed = JSON.parse(decodeURIComponent(rawData));
+                        if (parsed.user) return parsed.user;
+                    }
+                } catch(e) {}
+            }
             return null;
         }
 
-        function isInsideTelegram() {
-            return !!(window.Telegram && window.Telegram.WebApp);
-        }
-
         async function initUser() {
-            if (!isInsideTelegram()) {
+            if (!tg) {
                 document.getElementById('user-greeting').textContent = '';
                 document.querySelector('#screen-home .glass.rounded-2xl.p-5').innerHTML = 
                     '<div class="text-3xl mb-2">&#128244;</div>' +
@@ -747,19 +760,19 @@
             let tgUser = getTelegramUser();
             if (!tgUser || !tgUser.id) {
                 try { tg.ready(); } catch(e) {}
-                for (let i = 0; i < 15; i++) {
-                    await new Promise(r => setTimeout(r, 200));
+                for (let i = 0; i < 20; i++) {
+                    await new Promise(r => setTimeout(r, 250));
                     tgUser = getTelegramUser();
                     if (tgUser && tgUser.id) break;
                 }
             }
             if (!tgUser || !tgUser.id) {
-                document.getElementById('user-greeting').textContent = 'Loading...';
-                await new Promise(r => setTimeout(r, 1500));
+                document.getElementById('user-greeting').textContent = 'Loading user...';
+                await new Promise(r => setTimeout(r, 2000));
                 tgUser = getTelegramUser();
             }
             if (!tgUser || !tgUser.id) {
-                document.getElementById('user-greeting').textContent = 'Error: Could not load user. Reopen from bot.';
+                document.getElementById('user-greeting').innerHTML = 'Error loading user. <a href="javascript:location.reload()" style="color:#FF8C00;text-decoration:underline;">Tap to retry</a>';
                 return;
             }
             const uid = tgUser.id;
