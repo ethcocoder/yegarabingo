@@ -720,11 +720,11 @@
         }
 
         function isInsideTelegram() {
-            return !!(tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id);
+            return !!(tg && typeof tg.initData === 'string' && tg.initData.length > 0);
         }
 
         async function initUser() {
-            if (!isInsideTelegram()) {
+            if (!tg) {
                 document.getElementById('user-greeting').textContent = '';
                 document.querySelector('#screen-home .glass.rounded-2xl.p-5').innerHTML = 
                     '<div class="text-3xl mb-2">&#128244;</div>' +
@@ -736,7 +736,30 @@
                 document.getElementById('stat-winners').textContent = '0';
                 return;
             }
-            const tgUser = getTelegramUser();
+
+            let tgUser = getTelegramUser();
+            if (!tgUser || !tgUser.id) {
+                tg.ready();
+                await new Promise(r => setTimeout(r, 500));
+                tgUser = getTelegramUser();
+            }
+            if (!tgUser || !tgUser.id) {
+                let retries = 0;
+                while (!tgUser && retries < 10) {
+                    await new Promise(r => setTimeout(r, 300));
+                    tgUser = getTelegramUser();
+                    retries++;
+                }
+            }
+            if (!tgUser || !tgUser.id) {
+                document.getElementById('user-greeting').textContent = 'Loading user data...';
+                await new Promise(r => setTimeout(r, 2000));
+                tgUser = getTelegramUser();
+            }
+            if (!tgUser || !tgUser.id) {
+                document.getElementById('user-greeting').textContent = 'Error: Could not load Telegram user. Try reopening from bot.';
+                return;
+            }
             const uid = tgUser.id;
             try {
                 const userDoc = await db.collection('users').doc(String(uid)).get();
