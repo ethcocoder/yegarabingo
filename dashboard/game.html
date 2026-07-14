@@ -248,14 +248,16 @@
                     <div class="text-xs text-white/50 uppercase">Your Cartela #<span id="cartela-number">0</span></div>
                     <div id="cartela-lines" class="text-xs text-bingo-green font-semibold"></div>
                 </div>
-                <div class="text-center">
-                    <div class="grid grid-cols-5 gap-1 max-w-[280px] mx-auto" id="cartela-headers">
+                    <div class="text-center">
+                    <div class="grid grid-cols-5 gap-1.5 max-w-[300px] mx-auto mb-1">
                         <div class="bingo-grid-header text-bingo-green text-center py-1">B</div>
                         <div class="bingo-grid-header text-bingo-blue text-center py-1">I</div>
                         <div class="bingo-grid-header text-bingo-purple text-center py-1">N</div>
                         <div class="bingo-grid-header text-bingo-orange text-center py-1">G</div>
                         <div class="bingo-grid-header text-bingo-teal text-center py-1">O</div>
                     </div>
+                    <div class="grid grid-cols-5 gap-1.5 max-w-[300px] mx-auto" id="cartela-grid"></div>
+                </div>
                     <div class="grid grid-cols-5 gap-1 max-w-[280px] mx-auto" id="cartela-grid"></div>
                 </div>
             </div>
@@ -559,6 +561,21 @@
         </div>
     </div>
 
+    <!-- ==================== CARTELA SELECTION ==================== -->
+    <div id="cartela-select-screen" class="fixed inset-0 z-[150] hidden">
+        <div class="absolute inset-0 bg-bingo-dark"></div>
+        <div class="absolute inset-0 pt-14 pb-4 overflow-y-auto">
+            <div class="px-4 py-2 flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-white">Choose Your Cartela</h2>
+                <button onclick="cancelCartelaSelect()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <p class="text-sm text-white/50 mb-4 px-1">Pick a cartela to play with. Each has different numbers!</p>
+            <div id="cartela-options" class="space-y-4 px-2"></div>
+        </div>
+    </div>
+
     <!-- ==================== NUMBER ANNOUNCEMENT ==================== -->
     <div id="number-announce" class="fixed inset-0 z-[180] hidden">
         <div class="absolute inset-0 flex items-center justify-center">
@@ -604,6 +621,7 @@
         // ==================== STATE ====================
         let currentUser = null;
         let currentStake = 0;
+        let pendingCartelaOptions = null;
         let currentGameId = null;
         let currentGameData = null;
         let gameUnsubscribe = null;
@@ -801,14 +819,57 @@
                 return;
             }
             currentStake = stake;
+            showCartelaSelection(stake);
+        }
+
+        function showCartelaSelection(stake) {
+            const container = document.getElementById('cartela-options');
+            container.innerHTML = '';
+            const options = [generateCartela(), generateCartela(), generateCartela()];
+            pendingCartelaOptions = options;
+            options.forEach((cartela, idx) => {
+                const card = document.createElement('div');
+                card.className = 'glass rounded-2xl p-4 border border-white/10 cursor-pointer btn-hover';
+                card.onclick = () => confirmCartelaSelection(idx);
+                let gridHtml = '<div class="grid grid-cols-5 gap-1 max-w-[250px] mx-auto">';
+                const headers = ['B', 'I', 'N', 'G', 'O'];
+                const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal'];
+                for (let i = 0; i < 5; i++) {
+                    gridHtml += '<div class="' + headerColors[i] + ' text-center py-1 font-bold text-[10px]">' + headers[i] + '</div>';
+                }
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        const num = cartela[col][row];
+                        if (col === 2 && row === 2) {
+                            gridHtml += '<div class="bg-bingo-orange/20 text-bingo-orange text-center py-1.5 text-[10px] font-bold rounded">⭐</div>';
+                        } else {
+                            gridHtml += '<div class="bg-white/5 text-white/80 text-center py-1.5 text-[10px] font-bold rounded border border-white/10">' + num + '</div>';
+                        }
+                    }
+                }
+                gridHtml += '</div>';
+                card.innerHTML = '<div class="text-center mb-2"><span class="text-xs font-bold text-bingo-orange">Cartela #' + (idx + 1) + '</span></div>' + gridHtml + '<div class="text-center mt-3"><button class="bg-bingo-orange/20 text-bingo-orange px-4 py-2 rounded-xl text-xs font-bold">Select This Cartela</button></div>';
+                container.appendChild(card);
+            });
+            document.getElementById('cartela-select-screen').classList.remove('hidden');
+        }
+
+        function cancelCartelaSelect() {
+            document.getElementById('cartela-select-screen').classList.add('hidden');
+            pendingCartelaOptions = null;
+        }
+
+        async function confirmCartelaSelection(idx) {
+            const cartela = pendingCartelaOptions[idx];
+            document.getElementById('cartela-select-screen').classList.add('hidden');
+            pendingCartelaOptions = null;
             showLoading('Starting game...');
             try {
-                const cartela = generateCartela();
                 const cartelaNumber = Math.floor(Math.random() * 9000) + 1000;
                 const flatCartela = cartela.flat();
                 const gameData = {
                     user_id: currentUser.id,
-                    stake: stake,
+                    stake: currentStake,
                     status: 'active',
                     called_numbers: [],
                     marked_numbers: [],
@@ -827,7 +888,7 @@
                 const gameRef = await db.collection('games').add(gameData);
                 currentGameId = gameRef.id;
                 await db.collection('users').doc(String(currentUser.id)).update({
-                    play_wallet: firebase.firestore.FieldValue.increment(-stake),
+                    play_wallet: firebase.firestore.FieldValue.increment(-currentStake),
                     is_playing: true,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -842,7 +903,7 @@
                 });
                 hideLoading();
                 navigateTo('game');
-                setupGameBoard(stake, cartela, cartelaNumber);
+                setupGameBoard(currentStake, cartela, cartelaNumber);
                 listenToGame(currentGameId);
             } catch (err) {
                 console.error('Error starting game:', err);
@@ -1165,7 +1226,7 @@
                     const isCenter = (col === 2 && row === 2);
                     const isMarked = isCenter || markedSet.has(num);
                     const isLastCalled = num === lastCalled && !isMarked;
-                    cell.className = 'bingo-cell rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
+                    cell.className = 'bingo-cell rounded-xl text-center py-3 text-sm font-bold flex items-center justify-center aspect-square ';
                     if (isCenter) {
                         cell.className += 'bg-bingo-orange/20 text-bingo-orange border border-bingo-orange/30';
                         cell.innerHTML = '⭐';
@@ -1218,12 +1279,16 @@
                 currentGameData = { id: doc.id, ...doc.data() };
                 const data = currentGameData;
                 updateGameDisplay(data);
-                if (data.status === 'completed' && data.winner === currentUser.id) {
+                if (data.status === 'completed' && Number(data.winner) === Number(currentUser.id)) {
                     stopNumberCalling();
                     showWinCelebration(data);
                 } else if (data.status === 'completed') {
                     stopNumberCalling();
-                    showToast('Game over! Better luck next time.');
+                    if (data.winner) {
+                        showToast('Game over! Better luck next time.');
+                    } else {
+                        showToast('Time\'s up! No winner this round.');
+                    }
                     setTimeout(() => navigateTo('home'), 2000);
                 }
             });
@@ -1361,18 +1426,9 @@
                 if (timerSeconds <= 0) {
                     stopTimer();
                     stopNumberCalling();
-                    if (currentGameId && currentGameData && currentGameData.status === 'active') {
-                        db.collection('games').doc(currentGameId).update({
-                            status: 'completed',
-                            winner: null,
-                            prize: 0,
-                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                        }).catch(() => {});
-                        db.collection('users').doc(String(currentUser.id)).update({
-                            is_playing: false,
-                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                        }).catch(() => {});
-                    }
+                if (currentGameId && currentGameData && currentGameData.status === 'active') {
+                    endGameNoWin(currentGameId, currentUser.id);
+                }
                     showToast("Time's up! No winner this round.");
                     setTimeout(() => navigateTo('home'), 2000);
                     return;
@@ -1433,7 +1489,7 @@
                 const prize = Math.round(data.stake * 15.2 * 100) / 100;
                 await db.collection('games').doc(gameId).update({
                     status: 'completed',
-                    winner: userId,
+                    winner: Number(userId),
                     prize: prize,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -1449,6 +1505,26 @@
             }
         }
 
+        async function endGameNoWin(gameId, userId) {
+            try {
+                await db.collection('games').doc(gameId).update({
+                    status: 'completed',
+                    winner: null,
+                    prize: 0,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                if (userId) {
+                    await db.collection('users').doc(String(userId)).update({
+                        total_games: firebase.firestore.FieldValue.increment(1),
+                        is_playing: false,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (err) {
+                console.error('Error ending game (no win):', err);
+            }
+        }
+
         // ==================== LEAVE GAME ====================
         async function leaveGame() {
             stopTimer();
@@ -1456,20 +1532,7 @@
             hideAnnouncement();
             if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
             if (currentGameId && currentGameData && currentGameData.status !== 'completed') {
-                try {
-                    await db.collection('games').doc(currentGameId).update({
-                        status: 'completed',
-                        winner: null,
-                        prize: 0,
-                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    await db.collection('users').doc(String(currentUser.id)).update({
-                        is_playing: false,
-                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                } catch (err) {
-                    console.error('Error leaving game:', err);
-                }
+                endGameNoWin(currentGameId, currentUser.id);
             }
             currentGameId = null;
             currentGameData = null;
@@ -1615,7 +1678,7 @@
             let statusText = data.status || 'unknown';
             let statusIcon = '⏳';
             if (data.status === 'completed') {
-                if (data.winner === currentUser.id) {
+                if (Number(data.winner) === Number(currentUser.id)) {
                     statusColor = 'text-bingo-green';
                     statusText = 'Won';
                     statusIcon = '🏆';
@@ -1625,7 +1688,7 @@
                     statusIcon = '❌';
                 } else {
                     statusColor = 'text-white/50';
-                    statusText = 'Cancelled';
+                    statusText = 'No Winner';
                     statusIcon = '⏸️';
                 }
             } else if (data.status === 'active') {
