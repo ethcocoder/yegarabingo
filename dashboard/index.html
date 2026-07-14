@@ -428,7 +428,7 @@
                 <p class="text-gray-500 text-sm mt-1">Pre-generated cartelas for players to choose</p>
             </div>
             <button onclick="generateCartelaPool()" class="btn-grad px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2">
-                + Generate 10 Cartelas
+                + Generate Cartelas
             </button>
         </div>
 
@@ -1427,7 +1427,7 @@ function adminEndGame(gameId){
 
 // ==================== CARTELA POOL ====================
 function generateOneCartela() {
-    var ranges = [{min:1,max:20},{min:21,max:40},{min:41,max:60},{min:61,max:80},{min:81,max:100}];
+    var ranges = [{min:1,max:15},{min:16,max:30},{min:31,max:45},{min:46,max:60},{min:61,max:75}];
     var cartela = [];
     for (var col = 0; col < 5; col++) {
         var colNums = [];
@@ -1444,29 +1444,38 @@ function generateOneCartela() {
 }
 
 function generateCartelaPool() {
-    var batch = db.batch();
-    var count = 0;
-    for (var i = 0; i < 10; i++) {
-        var cartela = generateOneCartela();
-        var flat = [];
-        for (var c = 0; c < 5; c++) {
-            for (var r = 0; r < 5; r++) flat.push(cartela[c][r]);
+    var batchSize = parseInt(prompt('How many cartelas to generate?', '400'));
+    if (!batchSize || batchSize <= 0) return;
+    if (batchSize > 500) { alert('Max 500 at a time.'); return; }
+
+    // Find next available number
+    db.collection('cartela_pool').orderBy('number', 'desc').limit(1).get().then(function(snap) {
+        var nextNum = 1;
+        if (!snap.empty) {
+            nextNum = (snap.docs[0].data().number || 0) + 1;
         }
-        var ref = db.collection('cartela_pool').doc();
-        batch.set(ref, {
-            cartela: flat,
-            status: 'available',
-            number: Math.floor(Math.random() * 9000) + 1000,
-            generated_at: firebase.firestore.FieldValue.serverTimestamp()
+        var batch = db.batch();
+        for (var i = 0; i < batchSize; i++) {
+            var cartela = generateOneCartela();
+            var flat = [];
+            for (var c = 0; c < 5; c++) {
+                for (var r = 0; r < 5; r++) flat.push(cartela[c][r]);
+            }
+            var ref = db.collection('cartela_pool').doc();
+            batch.set(ref, {
+                cartela: flat,
+                status: 'available',
+                number: nextNum + i,
+                generated_at: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        batch.commit().then(function() {
+            alert('Generated ' + batchSize + ' cartelas! (Numbers ' + nextNum + '-' + (nextNum + batchSize - 1) + ')');
+            loadCartelaPool();
+        }).catch(function(e) {
+            console.error(e);
+            alert('Error generating cartelas.');
         });
-        count++;
-    }
-    batch.commit().then(function() {
-        alert('Generated ' + count + ' cartelas!');
-        loadCartelaPool();
-    }).catch(function(e) {
-        console.error(e);
-        alert('Error generating cartelas.');
     });
 }
 

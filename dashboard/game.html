@@ -28,7 +28,7 @@
     <style>
         * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0D1117; color: white; overflow-x: hidden; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
         .screen { display: none; min-height: 100vh; padding-bottom: 80px; }
@@ -51,7 +51,7 @@
         .glow-text { animation: glow-text 1.5s ease-in-out infinite; }
         .float-anim { animation: float 2s ease-in-out infinite; }
         .confetti { position: fixed; width: 10px; height: 10px; animation: confetti-fall 3s linear forwards; z-index: 1000; pointer-events: none; }
-        .bingo-cell { transition: all 0.3s ease; }
+        .bingo-cell { transition: all 0.2s ease; }
         .bingo-cell:active { transform: scale(0.9); }
         .number-called { animation: pulse-glow 1s ease-in-out infinite; }
         .number-marked { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; }
@@ -70,7 +70,17 @@
         .telegram-header button { -webkit-app-region: no-drag; }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .loading-shimmer { background: linear-gradient(90deg, #1A1A2E 25%, #2A2A3E 50%, #1A1A2E 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        .bingo-grid-header { font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
+        .card-select-grid::-webkit-scrollbar { width: 4px; }
+        .card-select-grid::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 2px; }
+        .card-num { transition: all 0.15s ease; cursor: pointer; }
+        .card-num:active { transform: scale(0.9); }
+        .card-num.taken { background: #FF8C00 !important; color: white !important; pointer-events: none; }
+        .card-num.selected { background: #10B981 !important; color: white !important; box-shadow: 0 0 15px rgba(16,185,129,0.5); }
+        .master-cell { transition: all 0.3s ease; font-size: 9px; }
+        .auto-toggle { position: relative; width: 44px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s; }
+        .auto-toggle.on { background: #10B981; }
+        .auto-toggle::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.3s; }
+        .auto-toggle.on::after { transform: translateX(20px); }
     </style>
 </head>
 <body class="bg-bingo-dark">
@@ -88,7 +98,6 @@
 
     <!-- ==================== SCREEN 1: HOME ==================== -->
     <div id="screen-home" class="screen active pt-14">
-        <!-- Header -->
         <div class="px-4 py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl gradient-orange flex items-center justify-center text-white font-black text-xl">B</div>
@@ -101,35 +110,29 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </button>
         </div>
-
-        <!-- Welcome Banner -->
         <div class="px-4 mb-6">
             <div class="glass rounded-2xl p-5 text-center">
-                <div class="text-3xl mb-2">🎯</div>
+                <div class="text-3xl mb-2">&#127919;</div>
                 <h2 class="text-lg font-bold text-white mb-1">Welcome to <span class="text-bingo-orange">Yegara Bingo</span></h2>
                 <p class="text-sm text-white/60">Pick your stake and start playing!</p>
                 <div id="user-greeting" class="text-xs text-bingo-teal mt-2 font-medium"></div>
             </div>
         </div>
-
-        <!-- Stake Selection -->
         <div class="px-4 mb-6">
             <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Choose Your Stake</h3>
             <div class="grid grid-cols-2 gap-3">
                 <button onclick="selectStake(10)" class="gradient-green rounded-2xl p-5 btn-hover text-center shadow-lg shadow-green-500/20">
-                    <div class="text-3xl mb-2">💰</div>
+                    <div class="text-3xl mb-2">&#128176;</div>
                     <div class="text-xl font-bold text-white">10 ETB</div>
                     <div class="text-xs text-white/80 mt-1">Prize: <span class="font-bold">152 ETB</span></div>
                 </button>
                 <button onclick="selectStake(20)" class="gradient-blue rounded-2xl p-5 btn-hover text-center shadow-lg shadow-purple-500/20">
-                    <div class="text-3xl mb-2">💎</div>
+                    <div class="text-3xl mb-2">&#128142;</div>
                     <div class="text-xl font-bold text-white">20 ETB</div>
                     <div class="text-xs text-white/80 mt-1">Prize: <span class="font-bold">304 ETB</span></div>
                 </button>
             </div>
         </div>
-
-        <!-- Live Stats -->
         <div class="px-4 mb-6">
             <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Live Stats</h3>
             <div class="grid grid-cols-3 gap-3">
@@ -147,8 +150,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Quick Balance Preview -->
         <div class="px-4 mb-6">
             <div class="glass rounded-2xl p-4">
                 <div class="flex items-center justify-between mb-2">
@@ -161,17 +162,15 @@
                 </div>
             </div>
         </div>
-
-        <!-- Rules Summary -->
         <div class="px-4 mb-6">
             <div class="glass rounded-2xl p-4">
                 <h3 class="text-sm font-semibold text-white/70 mb-3">How to Play</h3>
                 <div class="space-y-2 text-xs text-white/60">
                     <div class="flex items-start gap-2"><span class="text-bingo-green font-bold">1.</span> Select your stake amount</div>
-                    <div class="flex items-start gap-2"><span class="text-bingo-blue font-bold">2.</span> Numbers are drawn automatically every round</div>
-                    <div class="flex items-start gap-2"><span class="text-bingo-purple font-bold">3.</span> Match numbers on your cartela (card)</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-blue font-bold">2.</span> Pick a card from the grid (24s timer)</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-purple font-bold">3.</span> Mark matching numbers on your cartela</div>
                     <div class="flex items-start gap-2"><span class="text-bingo-orange font-bold">4.</span> Get a full row, column or diagonal to win!</div>
-                    <div class="flex items-start gap-2"><span class="text-bingo-teal font-bold">5.</span> Prize is <span class="font-bold text-white">stake × 15.2</span></div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-teal font-bold">5.</span> Prize is <span class="font-bold text-white">stake x 15.2</span></div>
                 </div>
             </div>
         </div>
@@ -179,87 +178,89 @@
 
     <!-- ==================== SCREEN 2: GAME BOARD ==================== -->
     <div id="screen-game" class="screen pt-14">
-        <!-- Top Bar -->
-        <div class="px-4 py-3 flex items-center justify-between border-b border-white/5">
-            <button onclick="navigateTo('home'); leaveGame();" class="w-9 h-9 rounded-full glass flex items-center justify-center text-white/70">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        <div class="px-3 py-2 flex items-center justify-between border-b border-white/5">
+            <button onclick="navigateTo('home'); leaveGame();" class="w-8 h-8 rounded-full glass flex items-center justify-center text-white/70">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
             <h2 class="text-sm font-semibold text-white">Yegara Bingo</h2>
-            <button onclick="refreshGame()" class="w-9 h-9 rounded-full glass flex items-center justify-center text-white/70">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            <button onclick="refreshGame()" class="w-8 h-8 rounded-full glass flex items-center justify-center text-white/70">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             </button>
         </div>
 
-        <!-- Info Bar (horizontal scroll) -->
-        <div class="info-bar flex gap-2 px-4 py-3 overflow-x-auto" style="scrollbar-width: none;">
-            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[120px]">
-                <div class="text-[10px] text-white/50 uppercase">Main Wallet</div>
-                <div id="game-balance" class="text-sm font-bold text-bingo-green">0 ETB</div>
+        <!-- Game Info Bar -->
+        <div class="info-bar flex gap-1.5 px-3 py-2 overflow-x-auto" style="scrollbar-width: none;">
+            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
+                <div class="text-[9px] text-white/40 uppercase">Game</div>
+                <div id="game-id-display" class="text-[11px] font-bold text-bingo-orange">#---</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[120px]">
-                <div class="text-[10px] text-white/50 uppercase">Play Wallet</div>
-                <div id="game-play-wallet" class="text-sm font-bold text-bingo-orange">0 ETB</div>
+            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
+                <div class="text-[9px] text-white/40 uppercase">Players</div>
+                <div id="game-players" class="text-[11px] font-bold text-bingo-green">1</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
-                <div class="text-[10px] text-white/50 uppercase">Stake</div>
-                <div id="game-stake" class="text-sm font-bold text-bingo-blue">0 ETB</div>
+            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
+                <div class="text-[9px] text-white/40 uppercase">Bet</div>
+                <div id="game-stake" class="text-[11px] font-bold text-bingo-blue">0</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
-                <div class="text-[10px] text-white/50 uppercase">Derash</div>
-                <div id="game-derash" class="text-sm font-bold text-bingo-teal">0</div>
+            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
+                <div class="text-[9px] text-white/40 uppercase">Derash</div>
+                <div id="game-derash" class="text-[11px] font-bold text-bingo-teal">0</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-xl px-3 py-2 min-w-[80px]">
-                <div class="text-[10px] text-white/50 uppercase">Timer</div>
-                <div id="game-timer" class="text-sm font-bold text-white">180s</div>
-            </div>
-        </div>
-
-        <!-- Game Status -->
-        <div class="px-4 py-2">
-            <div id="game-status" class="glass rounded-xl p-3 text-center">
-                <div class="text-sm font-semibold text-white">Waiting for game to start...</div>
-                <div id="game-status-sub" class="text-xs text-white/50 mt-1">Numbers will be called automatically</div>
+            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
+                <div class="text-[9px] text-white/40 uppercase">Called</div>
+                <div id="game-called-count" class="text-[11px] font-bold text-white">0</div>
             </div>
         </div>
 
-        <!-- Called Numbers Display -->
-        <div class="px-4 py-2">
-            <div class="glass rounded-xl p-3">
-                <div class="text-xs text-white/50 uppercase mb-2">Called Numbers</div>
-                <div id="called-numbers-display" class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: none;"></div>
-            </div>
+        <!-- Called Numbers Bar -->
+        <div class="px-3 py-1.5">
+            <div class="flex gap-1.5 overflow-x-auto pb-1" id="called-numbers-display" style="scrollbar-width: none;"></div>
         </div>
 
-        <!-- Bingo Grid (5 columns × 20 rows) -->
-        <div class="px-4 py-2">
-            <div class="glass rounded-2xl p-3">
-                <div class="text-xs text-white/50 uppercase mb-2">Number Grid</div>
-                <!-- Column Headers -->
-                <div id="grid-headers" class="grid grid-cols-5 gap-1 mb-1"></div>
-                <!-- Grid Numbers -->
-                <div id="bingo-grid" class="grid grid-cols-5 gap-1"></div>
-            </div>
-        </div>
-
-        <!-- Player's Cartela -->
-        <div class="px-4 py-2 mb-4">
-            <div class="glass rounded-2xl p-3">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="text-xs text-white/50 uppercase">Your Cartela #<span id="cartela-number">0</span></div>
-                    <div id="cartela-lines" class="text-xs text-bingo-green font-semibold"></div>
+        <!-- Game Board: Master Grid (left) + Cartela (right) -->
+        <div class="px-3 py-1 flex gap-2" id="game-board-container">
+            <!-- Master Grid (Left) - 15 rows x 5 cols -->
+            <div class="flex-1 glass rounded-xl p-1.5 min-w-0">
+                <div class="text-[9px] text-white/40 uppercase mb-1 text-center">Master Grid</div>
+                <div class="grid grid-cols-5 gap-px" id="master-grid-headers">
+                    <div class="text-center text-[9px] font-bold text-bingo-green py-0.5">B</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-blue py-0.5">I</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-purple py-0.5">N</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-orange py-0.5">G</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-teal py-0.5">O</div>
                 </div>
-                    <div class="text-center">
-                    <div class="grid grid-cols-5 gap-1.5 max-w-[300px] mx-auto mb-1">
-                        <div class="bingo-grid-header text-bingo-green text-center py-1">B</div>
-                        <div class="bingo-grid-header text-bingo-blue text-center py-1">I</div>
-                        <div class="bingo-grid-header text-bingo-purple text-center py-1">N</div>
-                        <div class="bingo-grid-header text-bingo-orange text-center py-1">G</div>
-                        <div class="bingo-grid-header text-bingo-teal text-center py-1">O</div>
-                    </div>
-                    <div class="grid grid-cols-5 gap-1.5 max-w-[300px] mx-auto" id="cartela-grid"></div>
+                <div class="grid grid-cols-5 gap-px" id="master-grid"></div>
+            </div>
+            <!-- Player Cartela (Right) - 5x5 -->
+            <div class="flex-1 glass rounded-xl p-1.5 min-w-0">
+                <div class="text-[9px] text-white/40 uppercase mb-1 text-center">Cartela #<span id="cartela-number">0</span></div>
+                <div id="cartela-lines" class="text-[9px] text-bingo-green font-semibold text-center mb-0.5"></div>
+                <div class="grid grid-cols-5 gap-px" id="cartela-grid-headers">
+                    <div class="text-center text-[9px] font-bold text-bingo-green py-0.5">B</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-blue py-0.5">I</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-purple py-0.5">N</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-orange py-0.5">G</div>
+                    <div class="text-center text-[9px] font-bold text-bingo-teal py-0.5">O</div>
                 </div>
-                    <div class="grid grid-cols-5 gap-1 max-w-[280px] mx-auto" id="cartela-grid"></div>
+                <div class="grid grid-cols-5 gap-px" id="cartela-grid"></div>
+            </div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="px-3 py-2 mt-auto">
+            <div class="glass rounded-xl p-2 flex items-center justify-between">
+                <button onclick="navigateTo('home'); leaveGame();" class="bg-red-500/20 text-red-400 px-3 py-2 rounded-lg text-[11px] font-semibold btn-hover flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Leave
+                </button>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-white/50">Auto</span>
+                    <div id="auto-toggle" class="auto-toggle" onclick="toggleAutoMark()"></div>
                 </div>
+                <button onclick="refreshGame()" class="bg-white/10 text-white/70 px-3 py-2 rounded-lg text-[11px] font-semibold btn-hover flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Refresh
+                </button>
             </div>
         </div>
     </div>
@@ -269,9 +270,8 @@
         <div class="px-4 py-4">
             <h2 class="text-xl font-bold text-white mb-4">Game History</h2>
             <div id="history-list" class="space-y-3">
-                <!-- Empty state -->
                 <div id="history-empty" class="text-center py-12">
-                    <div class="text-5xl mb-4">📜</div>
+                    <div class="text-5xl mb-4">&#128214;</div>
                     <p class="text-white/50">No games yet</p>
                     <p class="text-white/30 text-sm mt-1">Your game history will appear here</p>
                 </div>
@@ -288,36 +288,28 @@
     <div id="screen-wallet" class="screen pt-14">
         <div class="px-4 py-4">
             <h2 class="text-xl font-bold text-white mb-4">Wallet</h2>
-
-            <!-- Balance Cards -->
             <div class="glass rounded-2xl p-5 text-center mb-4">
                 <div class="text-xs text-white/50 uppercase mb-1">Main Balance</div>
                 <div id="wallet-balance" class="text-4xl font-black text-bingo-green">0 ETB</div>
             </div>
-
             <div class="glass rounded-2xl p-4 text-center mb-4">
                 <div class="text-xs text-white/50 uppercase mb-1">Play Wallet</div>
                 <div id="wallet-play" class="text-2xl font-bold text-bingo-orange">0 ETB</div>
             </div>
-
-            <!-- Actions -->
             <div class="grid grid-cols-2 gap-3 mb-6">
                 <button onclick="openDepositBot()" class="gradient-green rounded-xl p-4 text-center btn-hover">
-                    <div class="text-lg mb-1">💳</div>
+                    <div class="text-lg mb-1">&#128179;</div>
                     <div class="text-sm font-semibold text-white">Deposit</div>
                 </button>
                 <button onclick="requestWithdrawal()" class="rounded-xl p-4 text-center btn-hover" style="background: linear-gradient(135deg, #EF4444, #F97316);">
-                    <div class="text-lg mb-1">💸</div>
+                    <div class="text-lg mb-1">&#128184;</div>
                     <div class="text-sm font-semibold text-white">Withdraw</div>
                 </button>
             </div>
-
             <button onclick="showTransferModal()" class="w-full glass rounded-xl p-4 btn-hover flex items-center justify-center gap-2 mb-6 border border-bingo-teal/30">
                 <svg class="w-5 h-5 text-bingo-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
                 <span class="text-sm font-semibold text-bingo-teal">Transfer Between Wallets</span>
             </button>
-
-            <!-- Transaction History -->
             <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Recent Transactions</h3>
             <div id="transaction-list" class="space-y-2">
                 <div class="glass rounded-xl p-4 text-center">
@@ -331,15 +323,11 @@
     <div id="screen-profile" class="screen pt-14">
         <div class="px-4 py-4">
             <h2 class="text-xl font-bold text-white mb-6">Profile</h2>
-
-            <!-- Avatar -->
             <div class="text-center mb-6">
                 <div id="profile-avatar" class="w-20 h-20 rounded-full gradient-orange mx-auto flex items-center justify-center text-3xl font-black text-white mb-3">?</div>
                 <div id="profile-name" class="text-xl font-bold text-white">Loading...</div>
                 <div id="profile-id" class="text-sm text-white/50">@username</div>
             </div>
-
-            <!-- Stats Grid -->
             <div class="grid grid-cols-3 gap-3 mb-6">
                 <div class="glass rounded-xl p-3 text-center stat-card">
                     <div id="profile-games" class="text-xl font-bold text-bingo-blue">0</div>
@@ -354,16 +342,12 @@
                     <div class="text-[10px] text-white/50 mt-1">Win Rate</div>
                 </div>
             </div>
-
-            <!-- Total Earnings -->
             <div class="glass rounded-2xl p-4 mb-6">
                 <div class="text-center">
                     <div class="text-xs text-white/50 uppercase mb-1">Total Earnings</div>
                     <div id="profile-earnings" class="text-3xl font-black text-bingo-green">0 ETB</div>
                 </div>
             </div>
-
-            <!-- Settings -->
             <div class="space-y-3 mb-6">
                 <button onclick="Telegram.WebApp.showPopup({title:'Settings',message:'Account settings coming soon!'})" class="w-full glass rounded-xl p-4 btn-hover flex items-center gap-3">
                     <svg class="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -376,8 +360,6 @@
                     <svg class="w-4 h-4 text-white/30 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                 </button>
             </div>
-
-            <!-- Logout -->
             <button onclick="logout()" class="w-full rounded-xl bg-red-500/10 border border-red-500/30 p-4 btn-hover text-center">
                 <span class="text-sm font-semibold text-red-400">Log Out</span>
             </button>
@@ -411,16 +393,9 @@
         <div class="modal-overlay absolute inset-0"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
             <div class="glass rounded-3xl p-6 w-full max-w-[380px] text-center relative overflow-hidden border border-bingo-orange/30">
-                <!-- Confetti Container -->
                 <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
-
-                <!-- Crown -->
-                <div class="text-6xl crown-anim mb-3">👑</div>
-
-                <!-- BINGO Title -->
+                <div class="text-6xl crown-anim mb-3">&#128081;</div>
                 <h1 class="text-4xl font-black text-bingo-orange glow-text mb-4">BINGO!</h1>
-
-                <!-- Winner Info -->
                 <div class="glass rounded-xl p-4 mb-4">
                     <div id="winner-name" class="text-lg font-bold text-white">Player</div>
                     <div class="text-xs text-white/50">Won with Cartela #<span id="winner-cartela">0</span></div>
@@ -429,20 +404,16 @@
                         <div id="winner-prize" class="text-2xl font-black text-bingo-green">0 ETB</div>
                     </div>
                 </div>
-
-                <!-- Winning Card Display -->
                 <div class="glass rounded-xl p-3 mb-4">
                     <div class="grid grid-cols-5 gap-1 max-w-[240px] mx-auto mb-1">
-                        <div class="bingo-grid-header text-bingo-green text-center py-1">B</div>
-                        <div class="bingo-grid-header text-bingo-blue text-center py-1">I</div>
-                        <div class="bingo-grid-header text-bingo-purple text-center py-1">N</div>
-                        <div class="bingo-grid-header text-bingo-orange text-center py-1">G</div>
-                        <div class="bingo-grid-header text-bingo-teal text-center py-1">O</div>
+                        <div class="text-[9px] font-bold text-bingo-green text-center py-1">B</div>
+                        <div class="text-[9px] font-bold text-bingo-blue text-center py-1">I</div>
+                        <div class="text-[9px] font-bold text-bingo-purple text-center py-1">N</div>
+                        <div class="text-[9px] font-bold text-bingo-orange text-center py-1">G</div>
+                        <div class="text-[9px] font-bold text-bingo-teal text-center py-1">O</div>
                     </div>
                     <div id="win-cartela-grid" class="grid grid-cols-5 gap-1 max-w-[240px] mx-auto"></div>
                 </div>
-
-                <!-- Countdown -->
                 <div class="text-sm text-white/50">Returning to home in <span id="win-countdown" class="font-bold text-bingo-orange">8</span>s</div>
             </div>
         </div>
@@ -461,11 +432,11 @@
                 </div>
                 <div class="space-y-3 text-sm text-white/70">
                     <p><span class="text-bingo-orange font-bold">1.</span> Choose your stake (10 or 20 ETB)</p>
-                    <p><span class="text-bingo-green font-bold">2.</span> You receive a random 5×5 bingo cartela</p>
+                    <p><span class="text-bingo-green font-bold">2.</span> Pick a card from the grid (400 cards, 24s timer)</p>
                     <p><span class="text-bingo-blue font-bold">3.</span> Numbers are called one at a time (e.g. B-7, I-22)</p>
                     <p><span class="text-bingo-purple font-bold">4.</span> Find the number on your cartela and tap to mark it</p>
                     <p><span class="text-bingo-teal font-bold">5.</span> Complete a row, column, or diagonal to win!</p>
-                    <p><span class="text-bingo-orange font-bold">6.</span> Prize = Stake × 15.2 (e.g., 10 ETB → 152 ETB)</p>
+                    <p><span class="text-bingo-orange font-bold">6.</span> Prize = Stake x 15.2 (e.g., 10 ETB = 152 ETB)</p>
                     <p class="text-white/40 text-xs mt-3">* Each round lasts 180 seconds. Play responsibly.</p>
                 </div>
             </div>
@@ -490,10 +461,10 @@
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="transferFunds('toPlay')" class="gradient-green rounded-xl p-3 text-center btn-hover">
-                            <div class="text-xs text-white/80">Main → Play</div>
+                            <div class="text-xs text-white/80">Main to Play</div>
                         </button>
                         <button onclick="transferFunds('toMain')" class="gradient-blue rounded-xl p-3 text-center btn-hover">
-                            <div class="text-xs text-white/80">Play → Main</div>
+                            <div class="text-xs text-white/80">Play to Main</div>
                         </button>
                     </div>
                 </div>
@@ -507,7 +478,7 @@
         <div class="absolute inset-x-4 top-[25%] max-w-[380px] mx-auto">
             <div class="glass rounded-2xl p-5 border border-white/10">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-white">💸 Withdraw Funds</h3>
+                    <h3 class="text-lg font-bold text-white">Withdraw Funds</h3>
                     <button onclick="hideScreen('withdrawModal')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
@@ -543,7 +514,7 @@
         <div class="modal-overlay absolute inset-0"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
             <div class="glass rounded-3xl p-6 w-full max-w-[380px] text-center border border-bingo-orange/30">
-                <div class="text-4xl mb-3">👋</div>
+                <div class="text-4xl mb-3">&#128075;</div>
                 <h2 class="text-xl font-bold text-white mb-1">Welcome to Yegara Bingo!</h2>
                 <p class="text-sm text-white/50 mb-5">Complete your profile to start playing</p>
                 <div class="space-y-3 text-left">
@@ -561,18 +532,44 @@
         </div>
     </div>
 
-    <!-- ==================== CARTELA SELECTION ==================== -->
-    <div id="cartela-select-screen" class="fixed inset-0 z-[150] hidden">
+    <!-- ==================== CARD SELECTION OVERLAY (400 cards, 24s timer) ==================== -->
+    <div id="card-select-screen" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-bingo-dark"></div>
-        <div class="absolute inset-0 pt-14 pb-4 overflow-y-auto">
-            <div class="px-4 py-2 flex items-center justify-between mb-4">
-                <h2 class="text-lg font-bold text-white">Choose Your Cartela</h2>
-                <button onclick="cancelCartelaSelect()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+        <div class="absolute inset-0 flex flex-col max-w-[420px] mx-auto">
+            <!-- Top Bar: Wallets + Stake -->
+            <div class="px-4 pt-14 pb-2 flex items-center justify-between border-b border-white/5">
+                <div>
+                    <div class="text-[10px] text-white/40 uppercase">Main Wallet</div>
+                    <div id="cs-main-wallet" class="text-sm font-bold text-bingo-green">0 ETB</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] text-white/40 uppercase">Stake</div>
+                    <div id="cs-stake" class="text-sm font-bold text-bingo-blue">0 ETB</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-white/40 uppercase">Play Wallet</div>
+                    <div id="cs-play-wallet" class="text-sm font-bold text-bingo-orange">0 ETB</div>
+                </div>
             </div>
-            <p class="text-sm text-white/50 mb-4 px-1">Pick a cartela to play with. Each has different numbers!</p>
-            <div id="cartela-options" class="space-y-4 px-2"></div>
+            <!-- Timer + Derash -->
+            <div class="px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="text-sm font-bold text-white/60">DERASH:</div>
+                    <div id="cs-derash" class="text-sm font-bold text-bingo-green">400</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="text-sm font-bold text-white/60">TIMER:</div>
+                    <div id="cs-timer" class="text-lg font-black text-bingo-orange timer-pulse">24</div>
+                    <div class="text-xs text-white/40">s</div>
+                </div>
+            </div>
+            <!-- Card Grid (scrollable) -->
+            <div class="flex-1 overflow-y-auto px-3 pb-2 card-select-grid" id="card-select-grid"></div>
+            <!-- Bottom Buttons -->
+            <div class="px-4 py-2 flex gap-3 border-t border-white/5 bg-bingo-dark">
+                <button onclick="cancelCardSelect()" class="flex-1 bg-white/10 text-white py-3 rounded-xl font-semibold text-sm btn-hover">Back</button>
+                <button onclick="refreshCardSelect()" class="flex-1 bg-white/10 text-bingo-teal py-3 rounded-xl font-semibold text-sm btn-hover">Refresh</button>
+            </div>
         </div>
     </div>
 
@@ -591,14 +588,14 @@
     <div id="loading-overlay" class="fixed inset-0 z-[200] hidden">
         <div class="modal-overlay absolute inset-0 flex items-center justify-center">
             <div class="glass rounded-2xl p-8 text-center">
-                <div class="text-4xl mb-3 float-anim">🎯</div>
+                <div class="text-4xl mb-3 float-anim">&#127919;</div>
                 <div id="loading-text" class="text-sm text-white/70">Loading...</div>
             </div>
         </div>
     </div>
 
     <!-- ==================== TOAST ==================== -->
-    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[150] hidden">
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[250] hidden">
         <div class="glass rounded-xl px-5 py-3 border border-white/10">
             <div id="toast-text" class="text-sm text-white font-medium"></div>
         </div>
@@ -621,18 +618,65 @@
         // ==================== STATE ====================
         let currentUser = null;
         let currentStake = 0;
-        let pendingCartelaOptions = null;
-        let pendingCartelaDocIds = null;
         let currentGameId = null;
         let currentGameData = null;
         let gameUnsubscribe = null;
         let timerInterval = null;
-        let timerSeconds = 60;
+        let timerSeconds = 180;
         let userUnsubscribe = null;
         let statsUnsubscribe = null;
         let winCountdownInterval = null;
         let currentScreen = 'home';
         let numberCallIndex = 0;
+        let numberCallInterval = null;
+        let allNumbers = [];
+        let currentCallingNumber = null;
+        let announceCountdownInterval = null;
+        let cardSelectTimerInterval = null;
+        let cardSelectSeconds = 24;
+        let autoMarkEnabled = false;
+        let selectedCardIndex = -1;
+
+        // ==================== AUDIO CONTEXT FOR SOUND ====================
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+        function playNumberSound() {
+            try {
+                const ctx = getAudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.4);
+            } catch(e) {}
+        }
+        function playMarkSound() {
+            try {
+                const ctx = getAudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.15);
+            } catch(e) {}
+        }
 
         // ==================== TELEGRAM INIT ====================
         const tg = window.Telegram?.WebApp;
@@ -643,6 +687,30 @@
             tg.setBackgroundColor('#0D1117');
         }
 
+        // ==================== BINGO CONSTANTS ====================
+        const BINGO_LETTERS = { B: 1, I: 16, N: 31, G: 46, O: 61 };
+        const BINGO_RANGES = [
+            { min: 1, max: 15, letter: 'B', color: '#10B981' },
+            { min: 16, max: 30, letter: 'I', color: '#3B82F6' },
+            { min: 31, max: 45, letter: 'N', color: '#8B5CF6' },
+            { min: 46, max: 60, letter: 'G', color: '#FF8C00' },
+            { min: 61, max: 75, letter: 'O', color: '#14B8A6' }
+        ];
+
+        function getNumberLetter(num) {
+            for (const r of BINGO_RANGES) {
+                if (num >= r.min && num <= r.max) return r.letter;
+            }
+            return '?';
+        }
+
+        function getLetterColor(letter) {
+            for (const r of BINGO_RANGES) {
+                if (r.letter === letter) return r.color;
+            }
+            return '#FF8C00';
+        }
+
         // ==================== AUTH / USER ====================
         function getTelegramUser() {
             if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -651,13 +719,24 @@
             return null;
         }
 
+        function isInsideTelegram() {
+            return !!(tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id);
+        }
+
         async function initUser() {
-            let tgUser = getTelegramUser();
-            if (!tgUser) {
-                console.log('No Telegram user data. Running in browser mode.');
-                tgUser = { id: 999999999, first_name: 'Demo Player', username: 'demoplayer' };
-                document.getElementById('user-greeting').textContent = 'Demo Mode — open from Telegram bot for real play';
+            if (!isInsideTelegram()) {
+                document.getElementById('user-greeting').textContent = '';
+                document.querySelector('#screen-home .glass.rounded-2xl.p-5').innerHTML = 
+                    '<div class="text-3xl mb-2">&#128244;</div>' +
+                    '<h2 class="text-lg font-bold text-white mb-2">Open from Telegram</h2>' +
+                    '<p class="text-sm text-white/60 mb-4">Please open this game from the Telegram bot.</p>' +
+                    '<a href="https://t.me/yegarabingobot" target="_blank" class="inline-block gradient-orange text-white px-6 py-3 rounded-xl font-semibold text-sm">Open Bot</a>';
+                document.getElementById('stat-players').textContent = '0';
+                document.getElementById('stat-games').textContent = '0';
+                document.getElementById('stat-winners').textContent = '0';
+                return;
             }
+            const tgUser = getTelegramUser();
             const uid = tgUser.id;
             try {
                 const userDoc = await db.collection('users').doc(String(uid)).get();
@@ -703,19 +782,11 @@
         async function submitRegistration() {
             const name = document.getElementById('regName').value.trim();
             const phone = document.getElementById('regPhone').value.trim();
-            if (!name) {
-                showToast('Please enter your name');
-                return;
-            }
-            if (!phone || !phone.startsWith('+251')) {
-                showToast('Enter valid phone number (+251...)');
-                return;
-            }
+            if (!name) { showToast('Please enter your name'); return; }
+            if (!phone || !phone.startsWith('+251')) { showToast('Enter valid phone number (+251...)'); return; }
             try {
                 await db.collection('users').doc(String(currentUser.id)).update({
-                    first_name: name,
-                    phone: phone,
-                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    first_name: name, phone: phone, updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 currentUser.first_name = name;
                 currentUser.phone = phone;
@@ -772,8 +843,6 @@
             const pw = currentUser.play_wallet || 0;
             document.getElementById('home-balance').textContent = bal + ' ETB';
             document.getElementById('home-play-wallet').textContent = pw + ' ETB';
-            document.getElementById('game-balance').textContent = bal + ' ETB';
-            document.getElementById('game-play-wallet').textContent = pw + ' ETB';
             document.getElementById('wallet-balance').textContent = bal + ' ETB';
             document.getElementById('wallet-play').textContent = pw + ' ETB';
             document.getElementById('user-greeting').textContent = 'Hello, ' + (currentUser.first_name || 'Player') + '!';
@@ -806,96 +875,118 @@
             const navBtn = document.querySelector('.nav-item[data-screen="' + screen + '"]');
             if (navBtn) navBtn.classList.add('active');
             currentScreen = screen;
+            document.getElementById('bottom-nav').style.display = (screen === 'game') ? 'none' : '';
             if (screen === 'history') loadHistory();
         }
 
         // ==================== STAKE SELECTION ====================
         async function selectStake(stake) {
-            if (!currentUser) {
-                showToast('Loading user data...');
-                return;
-            }
-            if (currentUser.play_wallet < stake) {
-                showToast('Insufficient play wallet! Transfer funds first.');
-                return;
-            }
+            if (!currentUser) { showToast('Loading user data...'); return; }
+            if (currentUser.play_wallet < stake) { showToast('Insufficient play wallet! Transfer funds first.'); return; }
             currentStake = stake;
-            showCartelaSelection(stake);
+            showCardSelection(stake);
         }
 
-        async function showCartelaSelection(stake) {
-            const container = document.getElementById('cartela-options');
-            container.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2 float-anim">🃏</div><p class="text-white/50 text-sm">Loading cartelas...</p></div>';
-            document.getElementById('cartela-select-screen').classList.remove('hidden');
+        // ==================== CARD SELECTION (400 cards, 24s timer) ====================
+        async function showCardSelection(stake) {
+            selectedCardIndex = -1;
+            document.getElementById('cs-stake').textContent = stake + ' ETB';
+            document.getElementById('cs-main-wallet').textContent = (currentUser.balance || 0) + ' ETB';
+            document.getElementById('cs-play-wallet').textContent = (currentUser.play_wallet || 0) + ' ETB';
+            document.getElementById('card-select-screen').classList.remove('hidden');
+
+            const grid = document.getElementById('card-select-grid');
+            grid.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2 float-anim">&#127183;</div><p class="text-white/50 text-sm">Loading 400 cards...</p></div>';
+
             try {
-                const snap = await db.collection('cartela_pool').where('status', '==', 'available').limit(3).get();
-                if (snap.empty) {
-                    container.innerHTML = '<div class="text-center py-8"><p class="text-white/50 text-sm">No cartelas available. Admin needs to generate some.</p><button onclick="cancelCartelaSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
-                    return;
-                }
-                const options = [];
-                const docIds = [];
-                const cartelaNumbers = [];
-                snap.forEach(doc => {
+                const snap = await db.collection('cartela_pool').where('status', '==', 'available').get();
+                const takenSnap = await db.collection('cartela_pool').where('status', 'in', ['assigned', 'used']).get();
+
+                const takenNumbers = new Set();
+                takenSnap.forEach(doc => {
                     const d = doc.data();
-                    const flat = d.cartela || [];
-                    const cartela = unflattenCartela(flat);
-                    options.push(cartela);
-                    docIds.push(doc.id);
-                    cartelaNumbers.push(d.number || Math.floor(Math.random() * 9000) + 1000);
+                    if (d.number) takenNumbers.add(d.number);
                 });
-                pendingCartelaOptions = options;
-                pendingCartelaDocIds = docIds;
-                pendingCartelaOptions._cartelaNumbers = cartelaNumbers;
-                container.innerHTML = '';
-                options.forEach((cartela, idx) => {
-                    const card = document.createElement('div');
-                    card.className = 'glass rounded-2xl p-4 border border-white/10 cursor-pointer btn-hover';
-                    card.onclick = () => confirmCartelaSelection(idx);
-                    let gridHtml = '<div class="grid grid-cols-5 gap-1 max-w-[250px] mx-auto">';
-                    const headers = ['B', 'I', 'N', 'G', 'O'];
-                    const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal'];
-                    for (let i = 0; i < 5; i++) {
-                        gridHtml += '<div class="' + headerColors[i] + ' text-center py-1 font-bold text-[10px]">' + headers[i] + '</div>';
+
+                const totalCards = 400;
+                let availableCount = 0;
+
+                grid.innerHTML = '';
+                for (let i = 1; i <= totalCards; i++) {
+                    const cell = document.createElement('div');
+                    const isTaken = takenNumbers.has(i);
+                    if (!isTaken) availableCount++;
+                    cell.className = 'card-num rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
+                    if (isTaken) {
+                        cell.className += 'taken bg-bingo-orange text-white';
+                    } else {
+                        cell.className += 'bg-white/10 text-white/80 border border-white/10';
                     }
-                    for (let row = 0; row < 5; row++) {
-                        for (let col = 0; col < 5; col++) {
-                            const num = cartela[col][row];
-                            if (col === 2 && row === 2) {
-                                gridHtml += '<div class="bg-bingo-orange/20 text-bingo-orange text-center py-1.5 text-[10px] font-bold rounded">⭐</div>';
-                            } else {
-                                gridHtml += '<div class="bg-white/5 text-white/80 text-center py-1.5 text-[10px] font-bold rounded border border-white/10">' + num + '</div>';
-                            }
-                        }
+                    cell.textContent = i;
+                    cell.dataset.num = i;
+                    if (!isTaken) {
+                        cell.onclick = () => selectCard(i, cell);
                     }
-                    gridHtml += '</div>';
-                    card.innerHTML = '<div class="text-center mb-2"><span class="text-xs font-bold text-bingo-orange">Cartela #' + (idx + 1) + '</span></div>' + gridHtml + '<div class="text-center mt-3"><button class="bg-bingo-orange/20 text-bingo-orange px-4 py-2 rounded-xl text-xs font-bold">Select This Cartela</button></div>';
-                    container.appendChild(card);
-                });
+                    grid.appendChild(cell);
+                }
+
+                document.getElementById('cs-derash').textContent = availableCount;
+                startCardSelectTimer();
             } catch (err) {
-                console.error('Error loading cartelas:', err);
-                container.innerHTML = '<div class="text-center py-8"><p class="text-red-400 text-sm">Error loading cartelas. Try again.</p><button onclick="cancelCartelaSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
+                console.error('Error loading cards:', err);
+                grid.innerHTML = '<div class="text-center py-8"><p class="text-red-400 text-sm">Error loading cards.</p><button onclick="cancelCardSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
             }
         }
-            });
-            document.getElementById('cartela-select-screen').classList.remove('hidden');
+
+        function startCardSelectTimer() {
+            if (cardSelectTimerInterval) clearInterval(cardSelectTimerInterval);
+            cardSelectSeconds = 24;
+            const timerEl = document.getElementById('cs-timer');
+            timerEl.textContent = cardSelectSeconds;
+            timerEl.classList.add('timer-pulse');
+            cardSelectTimerInterval = setInterval(() => {
+                cardSelectSeconds--;
+                timerEl.textContent = cardSelectSeconds;
+                if (cardSelectSeconds <= 0) {
+                    clearInterval(cardSelectTimerInterval);
+                    cardSelectTimerInterval = null;
+                    cancelCardSelect();
+                    showToast('Time ran out! No card selected.');
+                }
+            }, 1000);
         }
 
-        function cancelCartelaSelect() {
-            document.getElementById('cartela-select-screen').classList.add('hidden');
-            pendingCartelaOptions = null;
+        function stopCardSelectTimer() {
+            if (cardSelectTimerInterval) { clearInterval(cardSelectTimerInterval); cardSelectTimerInterval = null; }
         }
 
-        async function confirmCartelaSelection(idx) {
-            const cartela = pendingCartelaOptions[idx];
-            const cartelaPoolDocId = pendingCartelaDocIds ? pendingCartelaDocIds[idx] : null;
-            const cartelaNumber = pendingCartelaOptions._cartelaNumbers ? pendingCartelaOptions._cartelaNumbers[idx] : Math.floor(Math.random() * 9000) + 1000;
-            document.getElementById('cartela-select-screen').classList.add('hidden');
-            pendingCartelaOptions = null;
-            pendingCartelaDocIds = null;
+        function selectCard(cardNum, cellEl) {
+            if (selectedCardIndex > 0) return;
+            stopCardSelectTimer();
+            selectedCardIndex = cardNum;
+            cellEl.className = cellEl.className.replace('bg-white/10 text-white/80 border border-white/10', 'selected bg-bingo-green text-white');
+            cellEl.style.boxShadow = '0 0 15px rgba(16,185,129,0.5)';
+            setTimeout(() => {
+                confirmCardSelection(cardNum);
+            }, 300);
+        }
+
+        async function confirmCardSelection(cardNum) {
+            document.getElementById('card-select-screen').classList.add('hidden');
             showLoading('Starting game...');
             try {
-                const flatCartela = cartela.flat();
+                const poolSnap = await db.collection('cartela_pool').where('number', '==', cardNum).where('status', '==', 'available').limit(1).get();
+                if (poolSnap.empty) {
+                    hideLoading();
+                    showToast('That card was just taken. Try again.');
+                    return;
+                }
+                const poolDoc = poolSnap.docs[0];
+                const poolData = poolDoc.data();
+                const flatCartela = poolData.cartela || [];
+                const cartela = unflattenCartela(flatCartela);
+                const cartelaNumber = cardNum;
+
                 const gameData = {
                     user_id: currentUser.id,
                     stake: currentStake,
@@ -916,19 +1007,20 @@
                 };
                 const gameRef = await db.collection('games').add(gameData);
                 currentGameId = gameRef.id;
+
                 await db.collection('users').doc(String(currentUser.id)).update({
                     play_wallet: firebase.firestore.FieldValue.increment(-currentStake),
                     is_playing: true,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                if (cartelaPoolDocId) {
-                    await db.collection('cartela_pool').doc(cartelaPoolDocId).update({
-                        status: 'assigned',
-                        assigned_to: currentUser.id,
-                        game_id: currentGameId,
-                        assigned_at: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
+
+                await db.collection('cartela_pool').doc(poolDoc.id).update({
+                    status: 'assigned',
+                    assigned_to: currentUser.id,
+                    game_id: currentGameId,
+                    assigned_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
                 await db.collection('cartelas').add({
                     game_id: currentGameId,
                     user_id: currentUser.id,
@@ -938,6 +1030,7 @@
                     marked: [],
                     created_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
                 hideLoading();
                 navigateTo('game');
                 setupGameBoard(currentStake, cartela, cartelaNumber);
@@ -949,14 +1042,26 @@
             }
         }
 
-        // ==================== CARTERA GENERATION ====================
+        function cancelCardSelect() {
+            stopCardSelectTimer();
+            document.getElementById('card-select-screen').classList.add('hidden');
+            selectedCardIndex = -1;
+        }
+
+        function refreshCardSelect() {
+            if (currentStake > 0) {
+                showCardSelection(currentStake);
+            }
+        }
+
+        // ==================== CARTELA GENERATION (Standard Bingo 1-75) ====================
         function generateCartela() {
             const ranges = [
-                { min: 1, max: 20 },
-                { min: 21, max: 40 },
-                { min: 41, max: 60 },
-                { min: 61, max: 80 },
-                { min: 81, max: 100 }
+                { min: 1, max: 15 },   // B
+                { min: 16, max: 30 },  // I
+                { min: 31, max: 45 },  // N
+                { min: 46, max: 60 },  // G
+                { min: 61, max: 75 }   // O
             ];
             const cartela = [];
             for (let col = 0; col < 5; col++) {
@@ -991,119 +1096,10 @@
             return result;
         }
 
-        let numberCallInterval = null;
-        let allNumbers = [];
-        let currentCallingNumber = null;
-        let announceCountdownInterval = null;
-
-        function getNumberLetter(num) {
-            if (num >= 1 && num <= 20) return 'B';
-            if (num >= 21 && num <= 40) return 'I';
-            if (num >= 41 && num <= 60) return 'N';
-            if (num >= 61 && num <= 80) return 'G';
-            if (num >= 81 && num <= 100) return 'O';
-            return '?';
-        }
-
-        function getLetterColor(letter) {
-            const colors = { B: '#10B981', I: '#3B82F6', N: '#8B5CF6', G: '#FF8C00', O: '#14B8A6' };
-            return colors[letter] || '#FF8C00';
-        }
-
-        function showNumberAnnouncement(num) {
-            const letter = getNumberLetter(num);
-            const color = getLetterColor(letter);
-            const el = document.getElementById('number-announce');
-            const letterEl = document.getElementById('announce-letter');
-            const numberEl = document.getElementById('announce-number');
-            const countdownEl = document.getElementById('announce-countdown');
-            letterEl.textContent = letter;
-            letterEl.style.color = color;
-            numberEl.textContent = num;
-            el.classList.remove('hidden');
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            let remaining = 5;
-            countdownEl.textContent = remaining + 's to mark';
-            if (announceCountdownInterval) clearInterval(announceCountdownInterval);
-            announceCountdownInterval = setInterval(() => {
-                remaining--;
-                countdownEl.textContent = remaining + 's to mark';
-                if (remaining <= 0) {
-                    clearInterval(announceCountdownInterval);
-                    el.classList.add('hidden');
-                }
-            }, 1000);
-        }
-
-        function hideAnnouncement() {
-            const el = document.getElementById('number-announce');
-            el.classList.add('hidden');
-            if (announceCountdownInterval) { clearInterval(announceCountdownInterval); announceCountdownInterval = null; }
-        }
-
-        function wouldCompleteBingo(num, cartela, marked) {
-            if (!cartela) return false;
-            const testMarked = new Set(marked);
-            testMarked.add(num);
-            for (let row = 0; row < 5; row++) {
-                let complete = true;
-                for (let col = 0; col < 5; col++) {
-                    const n = cartela[col][row];
-                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
-                }
-                if (complete) return true;
-            }
-            for (let col = 0; col < 5; col++) {
-                let complete = true;
-                for (let row = 0; row < 5; row++) {
-                    const n = cartela[col][row];
-                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
-                }
-                if (complete) return true;
-            }
-            let diag1 = true, diag2 = true;
-            for (let i = 0; i < 5; i++) {
-                if (cartela[i][i] !== 0 && !testMarked.has(cartela[i][i])) diag1 = false;
-                if (cartela[i][4 - i] !== 0 && !testMarked.has(cartela[i][4 - i])) diag2 = false;
-            }
-            if (diag1 || diag2) return true;
-            return false;
-        }
-
-        function wouldCompleteLine(num, cartela, marked) {
-            if (!cartela) return false;
-            const testMarked = new Set(marked);
-            testMarked.add(num);
-            let lines = 0;
-            for (let row = 0; row < 5; row++) {
-                let complete = true;
-                for (let col = 0; col < 5; col++) {
-                    const n = cartela[col][row];
-                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
-                }
-                if (complete) lines++;
-            }
-            for (let col = 0; col < 5; col++) {
-                let complete = true;
-                for (let row = 0; row < 5; row++) {
-                    const n = cartela[col][row];
-                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
-                }
-                if (complete) lines++;
-            }
-            let diag1 = true, diag2 = true;
-            for (let i = 0; i < 5; i++) {
-                if (cartela[i][i] !== 0 && !testMarked.has(cartela[i][i])) diag1 = false;
-                if (cartela[i][4 - i] !== 0 && !testMarked.has(cartela[i][4 - i])) diag2 = false;
-            }
-            if (diag1) lines++;
-            if (diag2) lines++;
-            return lines >= 1;
-        }
-
+        // ==================== SMART NUMBER CALLING (1-75) ====================
         async function startNumberCalling(gameId) {
             allNumbers = [];
-            for (let n = 1; n <= 100; n++) allNumbers.push(n);
+            for (let n = 1; n <= 75; n++) allNumbers.push(n);
             for (let i = allNumbers.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
@@ -1152,6 +1148,7 @@
                             last_called: numToCall,
                             updated_at: firebase.firestore.FieldValue.serverTimestamp()
                         });
+                        playNumberSound();
                         showNumberAnnouncement(numToCall);
                         updateCalledNumbersBar(called);
                     }
@@ -1168,7 +1165,6 @@
                     console.error('Error calling number:', e);
                 }
             }
-
             callNextNumber();
         }
 
@@ -1181,24 +1177,19 @@
                 const keyboard = {
                     inline_keyboard: [
                         [
-                            { text: '✅ Allow Win', callback_data: `allow_win_${gameId}` },
-                            { text: '🎲 Random', callback_data: `random_win_${gameId}` }
+                            { text: 'Allow Win', callback_data: 'allow_win_' + gameId },
+                            { text: 'Random', callback_data: 'random_win_' + gameId }
                         ],
                         [
-                            { text: '❌ Block All', callback_data: `block_win_${gameId}` }
+                            { text: 'Block All', callback_data: 'block_win_' + gameId }
                         ]
                     ]
                 };
-                const text = `🎮 *New Game Started!*\n\n👤 ${user.first_name || 'Unknown'} (@${user.username || 'unknown'})\n💰 Stake: ${gameData.stake} ETB\n🎯 Cartela #${gameData.cartela_number || 'N/A'}`;
-                await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
+                const text = 'New Game Started!\n\n' + (user.first_name || 'Unknown') + ' (@' + (user.username || 'unknown') + ')\nStake: ' + gameData.stake + ' ETB\nCartela #' + (gameData.cartela_number || 'N/A');
+                await fetch('https://api.telegram.org/bot' + tgBotToken + '/sendMessage', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: adminId,
-                        text: text,
-                        parse_mode: 'Markdown',
-                        reply_markup: keyboard
-                    })
+                    body: JSON.stringify({ chat_id: adminId, text: text, reply_markup: keyboard })
                 });
             } catch (e) {
                 console.error('Failed to notify admin:', e);
@@ -1210,75 +1201,126 @@
             hideAnnouncement();
         }
 
+        function showNumberAnnouncement(num) {
+            const letter = getNumberLetter(num);
+            const color = getLetterColor(letter);
+            const el = document.getElementById('number-announce');
+            document.getElementById('announce-letter').textContent = letter;
+            document.getElementById('announce-letter').style.color = color;
+            document.getElementById('announce-number').textContent = num;
+            el.classList.remove('hidden');
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            let remaining = 5;
+            document.getElementById('announce-countdown').textContent = remaining + 's to mark';
+            if (announceCountdownInterval) clearInterval(announceCountdownInterval);
+            announceCountdownInterval = setInterval(() => {
+                remaining--;
+                document.getElementById('announce-countdown').textContent = remaining + 's to mark';
+                if (remaining <= 0) {
+                    clearInterval(announceCountdownInterval);
+                    el.classList.add('hidden');
+                }
+            }, 1000);
+        }
+
+        function hideAnnouncement() {
+            document.getElementById('number-announce').classList.add('hidden');
+            if (announceCountdownInterval) { clearInterval(announceCountdownInterval); announceCountdownInterval = null; }
+        }
+
+        // ==================== BINGO LINE CHECK ====================
+        function wouldCompleteLine(num, cartela, marked) {
+            if (!cartela) return false;
+            const testMarked = new Set(marked);
+            testMarked.add(num);
+            for (let row = 0; row < 5; row++) {
+                let complete = true;
+                for (let col = 0; col < 5; col++) {
+                    const n = cartela[col][row];
+                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
+                }
+                if (complete) return true;
+            }
+            for (let col = 0; col < 5; col++) {
+                let complete = true;
+                for (let row = 0; row < 5; row++) {
+                    const n = cartela[col][row];
+                    if (n !== 0 && !testMarked.has(n)) { complete = false; break; }
+                }
+                if (complete) return true;
+            }
+            let diag1 = true, diag2 = true;
+            for (let i = 0; i < 5; i++) {
+                if (cartela[i][i] !== 0 && !testMarked.has(cartela[i][i])) diag1 = false;
+                if (cartela[i][4 - i] !== 0 && !testMarked.has(cartela[i][4 - i])) diag2 = false;
+            }
+            if (diag1 || diag2) return true;
+            return false;
+        }
+
         // ==================== GAME BOARD SETUP ====================
         function setupGameBoard(stake, cartela, cartelaNumber) {
             document.getElementById('game-stake').textContent = stake + ' ETB';
-            document.getElementById('game-derash').textContent = 0;
-            document.getElementById('game-timer').textContent = '180s';
-            document.getElementById('game-timer').classList.remove('timer-pulse');
+            document.getElementById('game-derash').textContent = '0/75';
+            document.getElementById('game-called-count').textContent = '0';
+            document.getElementById('game-id-display').textContent = '#' + (currentGameId ? currentGameId.substring(0, 6) : '---');
             document.getElementById('cartela-number').textContent = cartelaNumber;
             document.getElementById('called-numbers-display').innerHTML = '';
-            document.getElementById('game-status').innerHTML = '<div class="text-sm font-semibold text-white">Game Active!</div><div id="game-status-sub" class="text-xs text-white/50 mt-1">Find each number on your cartela and tap to mark!</div>';
-            renderGrid(cartela);
+            renderMasterGrid();
             renderCartela(cartela, [], []);
-            startTimer();
+            startGameTimer();
             startNumberCalling(currentGameId);
         }
 
-        // ==================== BINGO GRID (5 columns × 20 rows = 100) ====================
-        function renderGrid(cartela) {
-            const headers = document.getElementById('grid-headers');
-            const grid = document.getElementById('bingo-grid');
-            const headerLetters = ['B', 'I', 'N', 'G', 'O'];
-            const headerColors = ['text-bingo-green', 'text-bingo-blue', 'text-bingo-purple', 'text-bingo-orange', 'text-bingo-teal'];
-            headers.innerHTML = '';
-            for (let i = 0; i < 5; i++) {
-                headers.innerHTML += `<div class="bingo-grid-header ${headerColors[i]} text-center py-1 font-bold">${headerLetters[i]}</div>`;
-            }
+        // ==================== MASTER GRID (15 rows x 5 cols = 75 numbers) ====================
+        function renderMasterGrid() {
+            const grid = document.getElementById('master-grid');
             grid.innerHTML = '';
-            const ranges = [{min:1,max:20},{min:21,max:40},{min:41,max:60},{min:61,max:80},{min:81,max:100}];
-            for (let row = 0; row < 20; row++) {
+            for (let row = 0; row < 15; row++) {
                 for (let col = 0; col < 5; col++) {
-                    const num = ranges[col].min + row;
+                    const range = BINGO_RANGES[col];
+                    const num = range.min + row;
                     const cell = document.createElement('div');
-                    cell.id = 'grid-cell-' + num;
-                    cell.className = 'bingo-cell bg-bingo-dark/50 rounded-lg text-center py-1 text-[10px] font-medium text-white/70 flex items-center justify-center aspect-square';
+                    cell.id = 'master-cell-' + num;
+                    cell.className = 'master-cell bg-bingo-dark/50 rounded text-center py-1 text-[9px] font-medium text-white/50 flex items-center justify-center aspect-square cursor-default';
                     cell.textContent = num;
                     grid.appendChild(cell);
                 }
             }
         }
 
-        // ==================== CARTELA RENDER ====================
+        // ==================== CARTELA RENDER (5x5) ====================
         function renderCartela(cartela, marked, called) {
             const grid = document.getElementById('cartela-grid');
             grid.innerHTML = '';
             const calledSet = new Set(called || []);
             const markedSet = new Set(marked || []);
             const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
+
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
                     const num = cartela[col][row];
                     const cell = document.createElement('div');
                     const isCenter = (col === 2 && row === 2);
                     const isMarked = isCenter || markedSet.has(num);
-                    const isLastCalled = num === lastCalled && !isMarked;
-                    cell.className = 'bingo-cell rounded-xl text-center py-3 text-sm font-bold flex items-center justify-center aspect-square ';
+                    const isLastCalled = num === lastCalled && !isMarked && calledSet.has(num);
+
+                    cell.className = 'bingo-cell rounded text-center py-2 text-[11px] font-bold flex items-center justify-center aspect-square ';
+
                     if (isCenter) {
                         cell.className += 'bg-bingo-orange/20 text-bingo-orange border border-bingo-orange/30';
-                        cell.innerHTML = '⭐';
-                    } else if (isLastCalled) {
-                        const letter = getNumberLetter(num);
-                        cell.className += 'bg-bingo-green/40 text-white border-2 border-bingo-green cursor-pointer active:scale-90 number-called';
-                        cell.textContent = num;
-                        cell.style.animation = 'pulse-glow 0.8s ease-in-out infinite';
-                        cell.onclick = () => toggleMark(num);
+                        cell.innerHTML = '&#11088;';
                     } else if (isMarked) {
                         cell.className += 'number-marked text-white shadow-lg shadow-orange-500/20';
                         cell.textContent = num;
-                    } else if (calledSet.has(num)) {
-                        cell.className += 'bg-white/10 text-white/40 border border-white/5';
+                    } else if (isLastCalled) {
+                        cell.className += 'bg-bingo-green/40 text-white border-2 border-bingo-green cursor-pointer number-called';
                         cell.textContent = num;
+                        cell.onclick = () => toggleMark(num);
+                    } else if (calledSet.has(num)) {
+                        cell.className += 'bg-white/10 text-white/50 border border-white/5 cursor-pointer';
+                        cell.textContent = num;
+                        cell.onclick = () => toggleMark(num);
                     } else {
                         cell.className += 'bg-white/5 text-white/30 border border-white/5';
                         cell.textContent = num;
@@ -1297,6 +1339,7 @@
                 marked = marked.filter(n => n !== num);
             } else {
                 marked.push(num);
+                playMarkSound();
             }
             try {
                 await db.collection('games').doc(currentGameId).update({
@@ -1308,48 +1351,48 @@
             }
         }
 
-        // ==================== GAME LISTENER ====================
-        function listenToGame(gameId) {
-            if (gameUnsubscribe) gameUnsubscribe();
-            gameUnsubscribe = db.collection('games').doc(gameId).onSnapshot(doc => {
-                if (!doc.exists) return;
-                currentGameData = { id: doc.id, ...doc.data() };
-                const data = currentGameData;
-                updateGameDisplay(data);
-                if (data.status === 'completed' && Number(data.winner) === Number(currentUser.id)) {
-                    stopNumberCalling();
-                    showWinCelebration(data);
-                } else if (data.status === 'completed') {
-                    stopNumberCalling();
-                    if (data.winner) {
-                        showToast('Game over! Better luck next time.');
-                    } else {
-                        showToast('Time\'s up! No winner this round.');
-                    }
-                    setTimeout(() => navigateTo('home'), 2000);
-                }
-            });
-        }
-
-        function updateGameDisplay(data) {
-            const called = data.called_numbers || [];
-            const marked = data.marked_numbers || [];
-            document.getElementById('game-derash').textContent = called.length;
-            const cartela = unflattenCartela(data.cartela);
-            
-            if (cartela) {
-                data._cartela2d = cartela;
-                renderCartela(cartela, marked, called);
-                updateGridHighlights(called, marked, cartela);
-                updateCartelaLines(cartela, marked);
-                checkBingo(cartela, marked, data);
+        // ==================== AUTO MARK TOGGLE ====================
+        function toggleAutoMark() {
+            autoMarkEnabled = !autoMarkEnabled;
+            const toggle = document.getElementById('auto-toggle');
+            if (autoMarkEnabled) {
+                toggle.classList.add('on');
+                autoMarkAll();
+            } else {
+                toggle.classList.remove('on');
             }
         }
 
-        function getMarkedNumbers(data) {
-            return data.marked_numbers || [];
+        async function autoMarkAll() {
+            if (!autoMarkEnabled || !currentGameId || !currentGameData) return;
+            const called = currentGameData.called_numbers || [];
+            let marked = currentGameData.marked_numbers || [];
+            const cartela = unflattenCartela(currentGameData.cartela);
+            if (!cartela) return;
+
+            let changed = false;
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const num = cartela[col][row];
+                    if (num !== 0 && called.includes(num) && !marked.includes(num)) {
+                        marked.push(num);
+                        changed = true;
+                    }
+                }
+            }
+            if (changed) {
+                try {
+                    await db.collection('games').doc(currentGameId).update({
+                        marked_numbers: marked,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) {
+                    console.error('Auto mark error:', e);
+                }
+            }
         }
 
+        // ==================== CALLED NUMBERS BAR ====================
         function updateCalledNumbersBar(called) {
             const container = document.getElementById('called-numbers-display');
             container.innerHTML = '';
@@ -1358,7 +1401,7 @@
                 const isLast = idx === last10.length - 1;
                 const letter = getNumberLetter(num);
                 const el = document.createElement('div');
-                el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-xs font-bold ';
+                el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold ';
                 if (isLast) {
                     el.className += 'text-white number-called';
                     el.style.background = getLetterColor(letter);
@@ -1372,32 +1415,81 @@
             container.scrollLeft = container.scrollWidth;
         }
 
-        function updateGridHighlights(called, marked, cartela) {
+        // ==================== GAME LISTENER ====================
+        function listenToGame(gameId) {
+            if (gameUnsubscribe) gameUnsubscribe();
+            gameUnsubscribe = db.collection('games').doc(gameId).onSnapshot(doc => {
+                if (!doc.exists) return;
+                currentGameData = { id: doc.id, ...doc.data() };
+                const data = currentGameData;
+                updateGameDisplay(data);
+
+                if (data.status === 'completed' && Number(data.winner) === Number(currentUser.id)) {
+                    stopNumberCalling();
+                    showWinCelebration(data);
+                } else if (data.status === 'completed') {
+                    stopNumberCalling();
+                    if (data.winner) {
+                        showToast('Game over! Better luck next time.');
+                    } else {
+                        showToast('No winner this round.');
+                    }
+                    setTimeout(() => navigateTo('home'), 2000);
+                }
+            });
+        }
+
+        function updateGameDisplay(data) {
+            const called = data.called_numbers || [];
+            const marked = data.marked_numbers || [];
+            const cartela = unflattenCartela(data.cartela);
+
+            document.getElementById('game-derash').textContent = called.length + '/75';
+            document.getElementById('game-called-count').textContent = called.length;
+            document.getElementById('game-id-display').textContent = '#' + (data.id ? data.id.substring(0, 6) : '---');
+
+            if (called.length > 0) {
+                updateCalledNumbersBar(called);
+            }
+
+            if (cartela) {
+                data._cartela2d = cartela;
+                renderCartela(cartela, marked, called);
+                updateMasterGridHighlights(called, marked, cartela);
+                updateCartelaLines(cartela, marked);
+                checkBingo(cartela, marked, data);
+            }
+
+            if (autoMarkEnabled) {
+                autoMarkAll();
+            }
+        }
+
+        function updateMasterGridHighlights(called, marked, cartela) {
             const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
-            for (let num = 1; num <= 100; num++) {
-                const cell = document.getElementById('grid-cell-' + num);
+            for (let num = 1; num <= 75; num++) {
+                const cell = document.getElementById('master-cell-' + num);
                 if (!cell) continue;
-                cell.className = 'bingo-cell rounded-lg text-center py-1 text-[10px] font-medium flex items-center justify-center aspect-square ';
+                const letter = getNumberLetter(num);
+                const color = getLetterColor(letter);
+
+                cell.className = 'master-cell rounded text-center py-1 text-[9px] font-medium flex items-center justify-center aspect-square cursor-default ';
+
                 if (num === lastCalled) {
-                    const letter = getNumberLetter(num);
                     cell.className += 'text-white border-2 number-called';
-                    cell.style.background = getLetterColor(letter);
+                    cell.style.background = color;
                     cell.style.borderColor = 'white';
                 } else if (called.includes(num)) {
-                    if (marked.includes(num)) {
-                        cell.className += 'bg-bingo-orange/30 text-bingo-orange border border-bingo-orange/50';
+                    const isInCartela = isNumberInCartela(num, cartela);
+                    if (isInCartela) {
+                        cell.className += 'bg-bingo-green/30 text-bingo-green border border-bingo-green/50';
                     } else {
-                        cell.className += 'bg-bingo-green/20 text-bingo-green border border-bingo-green/30';
+                        cell.className += 'bg-white/10 text-white/60 border border-white/5';
                     }
                     cell.style.background = '';
                     cell.style.borderColor = '';
                 } else {
-                    const isInCartela = isNumberInCartela(num, cartela);
-                    if (isInCartela) {
-                        cell.className += 'bg-white/10 text-white border border-white/20';
-                    } else {
-                        cell.className += 'bg-bingo-dark/50 text-white/70';
-                    }
+                    cell.className += 'bg-bingo-dark/50 text-white/40';
                     cell.style.background = '';
                     cell.style.borderColor = '';
                 }
@@ -1435,46 +1527,36 @@
             }
             let diag1 = true, diag2 = true;
             for (let i = 0; i < 5; i++) {
-                const n1 = cartela[i][i];
-                const n2 = cartela[i][4 - i];
-                if (n1 !== 0 && !markedSet.has(n1)) diag1 = false;
-                if (n2 !== 0 && !markedSet.has(n2)) diag2 = false;
+                if (cartela[i][i] !== 0 && !markedSet.has(cartela[i][i])) diag1 = false;
+                if (cartela[i][4 - i] !== 0 && !markedSet.has(cartela[i][4 - i])) diag2 = false;
             }
             if (diag1) lines++;
             if (diag2) lines++;
             const el = document.getElementById('cartela-lines');
             if (lines > 0) {
                 el.textContent = lines + '/12 lines';
-                el.className = 'text-xs font-semibold text-bingo-orange';
+                el.className = 'text-[9px] font-semibold text-bingo-orange text-center mb-0.5';
             } else {
                 el.textContent = '';
-                el.className = 'text-xs text-white/50';
+                el.className = 'text-[9px] text-white/50 text-center mb-0.5';
             }
         }
 
-        // ==================== TIMER ====================
-        function startTimer() {
+        // ==================== GAME TIMER (180s) ====================
+        function startGameTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerSeconds = 180;
-            const timerEl = document.getElementById('game-timer');
-            timerEl.classList.remove('timer-pulse');
             timerInterval = setInterval(() => {
                 timerSeconds--;
                 if (timerSeconds <= 0) {
                     stopTimer();
                     stopNumberCalling();
-                if (currentGameId && currentGameData && currentGameData.status === 'active') {
-                    endGameNoWin(currentGameId, currentUser.id);
-                }
-                    showToast("Time's up! No winner this round.");
+                    if (currentGameId && currentGameData && currentGameData.status === 'active') {
+                        endGameNoWin(currentGameId, currentUser.id);
+                    }
+                    showToast('Time is up! No winner this round.');
                     setTimeout(() => navigateTo('home'), 2000);
                     return;
-                }
-                timerEl.textContent = timerSeconds + 's';
-                if (timerSeconds <= 10) {
-                    timerEl.classList.add('timer-pulse');
-                } else {
-                    timerEl.classList.remove('timer-pulse');
                 }
             }, 1000);
         }
@@ -1488,6 +1570,7 @@
             if (!cartela || !marked || marked.length < 5) return;
             const markedSet = new Set(marked);
             let hasBingo = false;
+
             for (let row = 0; row < 5; row++) {
                 let complete = true;
                 for (let col = 0; col < 5; col++) {
@@ -1514,6 +1597,7 @@
                 }
                 if (diag1 || diag2) hasBingo = true;
             }
+
             if (hasBingo && data.status === 'active' && data.winner === null) {
                 if (data.allow_win === true) {
                     endGame(data.id, data.user_id, data);
@@ -1603,7 +1687,7 @@
             stopTimer();
             const modal = document.getElementById('win-modal');
             const cartela = unflattenCartela(data.cartela);
-            const marked = data.marked_numbers || getMarkedNumbers(data);
+            const marked = data.marked_numbers || [];
             const prize = data.prize || Math.round(data.stake * 15.2 * 100) / 100;
             document.getElementById('winner-name').textContent = currentUser.first_name + ' WON!';
             document.getElementById('winner-cartela').textContent = data.cartela_number;
@@ -1619,7 +1703,7 @@
                     cell.className = 'win-cartela-cell rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
                     if (isCenter) {
                         cell.className += 'bg-bingo-orange/20 text-bingo-orange';
-                        cell.innerHTML = '⭐';
+                        cell.innerHTML = '&#11088;';
                     } else if (isMarked) {
                         cell.className += 'bg-bingo-green text-white';
                         cell.textContent = num;
@@ -1680,27 +1764,18 @@
                     .limit(50)
                     .get();
                 loadingState.classList.add('hidden');
-                if (snapshot.empty) {
-                    emptyState.classList.remove('hidden');
-                    return;
-                }
+                if (snapshot.empty) { emptyState.classList.remove('hidden'); return; }
                 historyList.innerHTML = '';
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    const card = createHistoryCard(doc.id, data);
-                    historyList.appendChild(card);
+                    historyList.appendChild(createHistoryCard(doc.id, data));
                 });
             } catch (err) {
                 console.error('Error loading history:', err);
                 loadingState.classList.add('hidden');
                 try {
-                    const snapshot = await db.collection('games')
-                        .where('user_id', '==', currentUser.id)
-                        .get();
-                    if (snapshot.empty) {
-                        emptyState.classList.remove('hidden');
-                        return;
-                    }
+                    const snapshot = await db.collection('games').where('user_id', '==', currentUser.id).get();
+                    if (snapshot.empty) { emptyState.classList.remove('hidden'); return; }
                     historyList.innerHTML = '';
                     const sorted = snapshot.docs.sort((a, b) => {
                         const ta = a.data().created_at?.toMillis?.() || 0;
@@ -1708,12 +1783,9 @@
                         return tb - ta;
                     });
                     sorted.forEach(doc => {
-                        const data = doc.data();
-                        const card = createHistoryCard(doc.id, data);
-                        historyList.appendChild(card);
+                        historyList.appendChild(createHistoryCard(doc.id, doc.data()));
                     });
                 } catch (err2) {
-                    console.error('Error loading history fallback:', err2);
                     emptyState.classList.remove('hidden');
                 }
             }
@@ -1724,51 +1796,26 @@
             card.className = 'glass rounded-xl p-4';
             let statusColor = 'text-white/50';
             let statusText = data.status || 'unknown';
-            let statusIcon = '⏳';
+            let statusIcon = '\u23F3';
             if (data.status === 'completed') {
                 if (Number(data.winner) === Number(currentUser.id)) {
-                    statusColor = 'text-bingo-green';
-                    statusText = 'Won';
-                    statusIcon = '🏆';
+                    statusColor = 'text-bingo-green'; statusText = 'Won'; statusIcon = '\uD83C\uDFC6';
                 } else if (data.winner) {
-                    statusColor = 'text-red-400';
-                    statusText = 'Lost';
-                    statusIcon = '❌';
+                    statusColor = 'text-red-400'; statusText = 'Lost'; statusIcon = '\u274C';
                 } else {
-                    statusColor = 'text-white/50';
-                    statusText = 'No Winner';
-                    statusIcon = '⏸️';
+                    statusColor = 'text-white/50'; statusText = 'No Winner'; statusIcon = '\u23F8\uFE0F';
                 }
             } else if (data.status === 'active') {
-                statusColor = 'text-bingo-blue';
-                statusText = 'Active';
-                statusIcon = '🎮';
+                statusColor = 'text-bingo-blue'; statusText = 'Active'; statusIcon = '\uD83C\uDFAE';
             }
             let dateStr = '';
             if (data.created_at) {
                 try {
                     const d = data.created_at.toDate ? data.created_at.toDate() : new Date(data.created_at);
                     dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                } catch (e) {
-                    dateStr = 'N/A';
-                }
+                } catch (e) { dateStr = 'N/A'; }
             }
-            card.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="text-2xl">${statusIcon}</div>
-                        <div>
-                            <div class="text-sm font-semibold text-white">Cartela #${data.cartela_number || 'N/A'}</div>
-                            <div class="text-xs text-white/50">Stake: ${data.stake || 0} ETB</div>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm font-semibold ${statusColor}">${statusText}</div>
-                        ${data.prize > 0 ? '<div class="text-xs text-bingo-green font-bold">+' + data.prize + ' ETB</div>' : ''}
-                        <div class="text-[10px] text-white/30 mt-1">${dateStr}</div>
-                    </div>
-                </div>
-            `;
+            card.innerHTML = '<div class="flex items-center justify-between"><div class="flex items-center gap-3"><div class="text-2xl">' + statusIcon + '</div><div><div class="text-sm font-semibold text-white">Cartela #' + (data.cartela_number || 'N/A') + '</div><div class="text-xs text-white/50">Stake: ' + (data.stake || 0) + ' ETB</div></div></div><div class="text-right"><div class="text-sm font-semibold ' + statusColor + '">' + statusText + '</div>' + (data.prize > 0 ? '<div class="text-xs text-bingo-green font-bold">+' + data.prize + ' ETB</div>' : '') + '<div class="text-[10px] text-white/30 mt-1">' + dateStr + '</div></div></div>';
             return card;
         }
 
@@ -1777,37 +1824,26 @@
             document.getElementById('transfer-modal').classList.remove('hidden');
             document.getElementById('transfer-amount').value = '';
         }
-
         function hideTransferModal() {
             document.getElementById('transfer-modal').classList.add('hidden');
         }
-
         async function transferFunds(direction) {
             const amount = parseFloat(document.getElementById('transfer-amount').value);
-            if (!amount || amount <= 0) {
-                showToast('Enter a valid amount');
-                return;
-            }
+            if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
             if (!currentUser) return;
             try {
                 const userRef = db.collection('users').doc(String(currentUser.id));
                 const userDoc = await userRef.get();
                 const userData = userDoc.data();
                 if (direction === 'toPlay') {
-                    if (userData.balance < amount) {
-                        showToast('Insufficient main balance');
-                        return;
-                    }
+                    if (userData.balance < amount) { showToast('Insufficient main balance'); return; }
                     await userRef.update({
                         balance: firebase.firestore.FieldValue.increment(-amount),
                         play_wallet: firebase.firestore.FieldValue.increment(amount),
                         updated_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
-                    if (userData.play_wallet < amount) {
-                        showToast('Insufficient play wallet');
-                        return;
-                    }
+                    if (userData.play_wallet < amount) { showToast('Insufficient play wallet'); return; }
                     await userRef.update({
                         play_wallet: firebase.firestore.FieldValue.increment(-amount),
                         balance: firebase.firestore.FieldValue.increment(amount),
@@ -1827,73 +1863,41 @@
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         }
-
         function openDepositBot() {
             window.open('https://t.me/yegarapaymentbot', '_blank');
         }
-
         async function requestWithdrawal() {
             if (!currentUser) return;
-            const balance = currentUser.balance || 0;
-            document.getElementById('withdraw-available').textContent = balance + ' ETB';
+            document.getElementById('withdraw-available').textContent = (currentUser.balance || 0) + ' ETB';
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('withdrawTelebirr').value = currentUser.phone || '';
             document.getElementById('withdrawTelebirrName').value = currentUser.telebirr_name || '';
             document.getElementById('withdrawModal').classList.remove('hidden');
         }
-
         async function submitWithdrawal() {
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
             const telebirr = document.getElementById('withdrawTelebirr').value.trim();
             const telebirrName = document.getElementById('withdrawTelebirrName').value.trim();
-
-            if (!amount || amount < 10) {
-                showToast('Minimum withdrawal is 10 ETB');
-                return;
-            }
-
-            if (!telebirr || !telebirr.startsWith('+251')) {
-                showToast('Enter valid TeleBirr number (+251...)');
-                return;
-            }
-
-            if (!telebirrName) {
-                showToast('Enter the name on your TeleBirr account');
-                return;
-            }
-
+            if (!amount || amount < 10) { showToast('Minimum withdrawal is 10 ETB'); return; }
+            if (!telebirr || !telebirr.startsWith('+251')) { showToast('Enter valid TeleBirr number (+251...)'); return; }
+            if (!telebirrName) { showToast('Enter the name on your TeleBirr account'); return; }
             if (!currentUser) return;
-
             try {
                 const userId = currentUser.user_id || currentUser.id;
                 const userDoc = await db.collection('users').doc(String(userId)).get();
                 const currentBalance = userDoc.data()?.balance || 0;
-
-                if (amount > currentBalance) {
-                    showToast('Insufficient balance');
-                    return;
-                }
-
+                if (amount > currentBalance) { showToast('Insufficient balance'); return; }
                 await db.collection('users').doc(String(userId)).update({
-                    balance: currentBalance - amount,
-                    telebirr_name: telebirrName,
-                    phone: telebirr,
+                    balance: currentBalance - amount, telebirr_name: telebirrName, phone: telebirr,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
-
                 await db.collection('withdrawals').add({
-                    user_id: userId,
-                    username: currentUser.username || 'unknown',
-                    first_name: currentUser.first_name || 'Unknown',
-                    amount: amount,
-                    telebirr_number: telebirr,
-                    telebirr_name: telebirrName,
-                    status: 'pending',
+                    user_id: userId, username: currentUser.username || 'unknown',
+                    first_name: currentUser.first_name || 'Unknown', amount: amount,
+                    telebirr_number: telebirr, telebirr_name: telebirrName, status: 'pending',
                     created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                    processed_at: null,
-                    admin_note: ''
+                    processed_at: null, admin_note: ''
                 });
-
                 currentUser.balance = currentBalance - amount;
                 currentUser.telebirr_name = telebirrName;
                 currentUser.phone = telebirr;
@@ -1906,37 +1910,14 @@
             }
         }
 
-        async function loadUserData() {
-            if (!currentUser) return;
-            try {
-                const userDoc = await db.collection('users').doc(String(currentUser.id)).get();
-                if (userDoc.exists) {
-                    currentUser = { id: currentUser.id, ...userDoc.data() };
-                    updateAllDisplays();
-                }
-            } catch (err) {
-                console.error('Error loading user data:', err);
-            }
-        }
-
         // ==================== MODALS ====================
-        function showRules() {
-            document.getElementById('rules-modal').classList.remove('hidden');
-        }
-
-        function hideRules() {
-            document.getElementById('rules-modal').classList.add('hidden');
-        }
-
+        function showRules() { document.getElementById('rules-modal').classList.remove('hidden'); }
+        function hideRules() { document.getElementById('rules-modal').classList.add('hidden'); }
         function showLoading(text) {
             document.getElementById('loading-text').textContent = text || 'Loading...';
             document.getElementById('loading-overlay').classList.remove('hidden');
         }
-
-        function hideLoading() {
-            document.getElementById('loading-overlay').classList.add('hidden');
-        }
-
+        function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
         function showToast(message) {
             const toast = document.getElementById('toast');
             document.getElementById('toast-text').textContent = message;
@@ -1949,8 +1930,7 @@
             try {
                 if (currentUser) {
                     await db.collection('users').doc(String(currentUser.id)).update({
-                        is_playing: false,
-                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                        is_playing: false, updated_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
                 if (userUnsubscribe) userUnsubscribe();
@@ -1959,26 +1939,15 @@
                 currentUser = null;
                 showToast('Logged out');
                 if (tg) tg.close();
-            } catch (err) {
-                console.error('Logout error:', err);
-            }
+            } catch (err) { console.error('Logout error:', err); }
         }
 
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', () => {
-            initUser();
-        });
-
-        // Handle back button
+        document.addEventListener('DOMContentLoaded', () => { initUser(); });
         window.addEventListener('popstate', (e) => {
-            if (currentScreen !== 'home') {
-                navigateTo('home');
-            } else if (tg) {
-                tg.close();
-            }
+            if (currentScreen !== 'home') { navigateTo('home'); }
+            else if (tg) { tg.close(); }
         });
-
-        // Prevent pull to refresh
         document.body.addEventListener('touchmove', (e) => {
             if (e.touches.length > 1) return;
         }, { passive: true });
