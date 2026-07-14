@@ -397,7 +397,10 @@
         </div>
 
         <!-- Game History -->
-        <h4 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Game History</h4>
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Game History</h4>
+            <button onclick="requestDeleteAllGames()" class="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg bg-red-400/10 hover:bg-red-400/20 transition-all font-semibold">Delete All</button>
+        </div>
         <div class="glass rounded-2xl overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -803,6 +806,54 @@
         <div class="flex items-center gap-3">
             <button onclick="closeModal('deleteConfirmModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
             <button onclick="confirmDeleteUser()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Game Delete Confirmation Modal -->
+<div id="gameDeleteModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('gameDeleteModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-sm relative z-10 p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">🗑️</span>
+        </div>
+        <h3 class="text-lg font-bold mb-2">Delete Game</h3>
+        <p class="text-sm text-gray-400 mb-6">Are you sure you want to delete game <span id="gameDeleteId" class="text-white font-semibold"></span>? This action cannot be undone.</p>
+        <div class="flex items-center gap-3">
+            <button onclick="closeModal('gameDeleteModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="confirmDeleteGame()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete All Games Confirmation Modal -->
+<div id="deleteAllGamesModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('deleteAllGamesModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-sm relative z-10 p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">⚠️</span>
+        </div>
+        <h3 class="text-lg font-bold mb-2">Delete All Game History</h3>
+        <p class="text-sm text-gray-400 mb-6">Are you sure you want to delete ALL completed games? This will remove <span id="gameDeleteAllCount" class="text-white font-semibold">0</span> games permanently.</p>
+        <div class="flex items-center gap-3">
+            <button onclick="closeModal('deleteAllGamesModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="confirmDeleteAllGames()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Delete All</button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear All Cartelas Confirmation Modal -->
+<div id="clearAllCartelasModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('clearAllCartelasModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-sm relative z-10 p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">🗑️</span>
+        </div>
+        <h3 class="text-lg font-bold mb-2">Clear All Cartelas</h3>
+        <p class="text-sm text-gray-400 mb-6">Are you sure you want to delete ALL available cartelas? This cannot be undone.</p>
+        <div class="flex items-center gap-3">
+            <button onclick="closeModal('clearAllCartelasModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="confirmClearAllCartelas()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Clear All</button>
         </div>
     </div>
 </div>
@@ -1387,7 +1438,7 @@ function renderGames(){
                 '<td class="px-4 py-3 text-sm text-[#10B981]">' + escHtml(g.winner_name || (g.winner ? g.winner.toString().substring(0,6) : '-')) + '</td>' +
                 '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ' + statusColor + '">' + statusLabel + '</span></td>' +
                 '<td class="px-4 py-3 text-xs text-gray-500">' + fmtTime(g.created_at) + '</td>' +
-                '<td class="px-4 py-3"><button onclick="deleteGame(\'' + id + '\')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20">Delete</button></td>' +
+                '<td class="px-4 py-3"><button onclick="requestDeleteGame(\'' + id + '\',\'' + shortId + '\')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20">Delete</button></td>' +
             '</tr>';
         }).join('');
     }
@@ -1428,13 +1479,42 @@ function adminEndGame(gameId){
 }
 
 function deleteGame(gameId){
-    if(!confirm('Delete this game permanently?')) return;
-    db.collection('games').doc(gameId).delete()
+    requestDeleteGame(gameId, gameId.substring(0,8));
+}
+
+var gameToDeleteId = null;
+function requestDeleteGame(gameId, shortId){
+    gameToDeleteId = gameId;
+    document.getElementById('gameDeleteId').textContent = '#' + shortId;
+    openModal('gameDeleteModal');
+}
+
+function confirmDeleteGame(){
+    if(!gameToDeleteId) return;
+    var gid = gameToDeleteId;
+    gameToDeleteId = null;
+    closeModal('gameDeleteModal');
+    db.collection('games').doc(gid).delete()
     .then(function(){
-        alert('Game deleted.');
         loadGames();
     })
     .catch(function(e){console.error(e);alert('Failed to delete game.');});
+}
+
+function requestDeleteAllGames(){
+    var completed = allGames.filter(function(g){return g.status === 'completed';});
+    document.getElementById('gameDeleteAllCount').textContent = completed.length;
+    openModal('deleteAllGamesModal');
+}
+
+function confirmDeleteAllGames(){
+    closeModal('deleteAllGamesModal');
+    db.collection('games').where('status', '==', 'completed').get().then(function(snap){
+        if(snap.empty) return;
+        var batch = db.batch();
+        snap.forEach(function(doc){ batch.delete(doc.ref); });
+        batch.commit().then(function(){ loadGames(); });
+    }).catch(function(e){console.error(e);alert('Failed to delete games.');});
 }
 
 // ==================== CARTELA POOL ====================
@@ -1551,7 +1631,11 @@ function deleteCartela(id) {
 }
 
 function deleteAllCartelas() {
-    if (!confirm('Delete ALL available cartelas?')) return;
+    openModal('clearAllCartelasModal');
+}
+
+function confirmClearAllCartelas() {
+    closeModal('clearAllCartelasModal');
     db.collection('cartela_pool').where('status', '==', 'available').get().then(function(snap) {
         var batch = db.batch();
         snap.forEach(function(doc) { batch.delete(doc.ref); });

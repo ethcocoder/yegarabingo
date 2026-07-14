@@ -679,6 +679,94 @@
             } catch(e) {}
         }
 
+        // ==================== HUGGINGFACE TTS (Amharic) ====================
+        const AMHARIC_NUMBERS = {
+            0: 'ዜሮ', 1: 'አንድ', 2: 'ሁለት', 3: 'ሦስት', 4: 'አራት', 5: 'አምስት',
+            6: 'ስድስት', 7: 'ሰባት', 8: 'ሰምንት', 9: 'ዘጠኙ', 10: 'አሥር',
+            11: 'አስራ አንድ', 12: 'አስራ ሁለት', 13: 'አስራ ሦስት', 14: 'አስራ አራት', 15: 'አስራ አምስት',
+            16: 'አስራ ስድስት', 17: 'አስራ ሰባት', 18: 'አስራ ሰምንት', 19: 'አስራ ዘጠኙ', 20: 'ሀያ',
+            21: 'ሀያ አንድ', 22: 'ሀያ ሁለት', 23: 'ሀያ ሦስት', 24: 'ሀያ አራት', 25: 'ሀያ አምስት',
+            26: 'ሀያ ስድስት', 27: 'ሀያ ሰባት', 28: 'ሀያ ሰምንት', 29: 'ሀያ ዘጠኙ', 30: 'ሠላሳ',
+            31: 'ሠላሳ አንድ', 32: 'ሠላሳ ሁለት', 33: 'ሠላሳ ሦስት', 34: 'ሠላሳ አራት', 35: 'ሠላሳ አምስት',
+            36: 'ሠላሳ ስድስት', 37: 'ሠላሳ ሰባት', 38: 'ሠላሳ ሰምንት', 39: 'ሠላሳ ዘጠኙ', 40: 'አርባ',
+            41: 'አርባ አንድ', 42: 'አርባ ሁለት', 43: 'አርባ ሦስት', 44: 'አርባ አራት', 45: 'አርባ አምስት',
+            46: 'አርባ ስድስት', 47: 'አርባ ሰባት', 48: 'አርባ ሰምንት', 49: 'አርባ ዘጠኙ', 50: 'ሃምሳ',
+            51: 'ሃምሳ አንድ', 52: 'ሃምሳ ሁለት', 53: 'ሃምሳ ሦስት', 54: 'ሃምሳ አራት', 55: 'ሃምሳ አምስት',
+            56: 'ሃምሳ ስድስት', 57: 'ሃምሳ ሰባት', 58: 'ሃምሳ ሰምንት', 59: 'ሃምሳ ዘጠኙ', 60: 'ሰキャッシング',
+            61: 'ሰキャッシング አንድ', 62: 'ሰキャッシング ሁለት', 63: 'ሰキャッシング ሦስት', 64: 'ሰキャッシング አራት', 65: 'ሰキャッシング አምስት',
+            66: 'ሰキャッシング ስድስት', 67: 'ሰキャッシング ሰባት', 68: 'ሰキャッシング ሰምንት', 69: 'ሰキャッシング ዘጠኙ', 70: 'ሰባ',
+            71: 'ሰባ አንድ', 72: 'ሰባ ሁለት', 73: 'ሰባ ሦስት', 74: 'ሰባ አራት', 75: 'ሰባ አምስት'
+        };
+        const BINGO_LETTERS_AMHARIC = {
+            'B': 'ቢ', 'I': 'አይ', 'N': 'ኤን', 'G': 'ጂ', 'O': 'ኦ'
+        };
+        let ttsCache = {};
+        let ttsSupported = false;
+
+        async function initTTS() {
+            try {
+                const testResp = await fetch('https://api-inference.huggingface.co/models/facebook/mms-tts-amh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inputs: 'አንድ' })
+                });
+                if (testResp.ok || testResp.status === 503) {
+                    ttsSupported = true;
+                    console.log('HuggingFace TTS available');
+                }
+            } catch(e) {
+                console.log('HuggingFace TTS not available, using fallback');
+            }
+        }
+
+        async function generateTTS(text) {
+            if (ttsCache[text]) return ttsCache[text];
+            try {
+                const response = await fetch('https://api-inference.huggingface.co/models/facebook/mms-tts-amh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inputs: text })
+                });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    ttsCache[text] = url;
+                    return url;
+                }
+            } catch(e) {
+                console.log('TTS generation failed:', e);
+            }
+            return null;
+        }
+
+        async function speakAmharic(text) {
+            if (!ttsSupported) return false;
+            try {
+                const audioUrl = await generateTTS(text);
+                if (!audioUrl) return false;
+                const audio = new Audio(audioUrl);
+                audio.volume = 0.9;
+                await new Promise((resolve) => {
+                    audio.onended = resolve;
+                    audio.onerror = resolve;
+                    audio.play().catch(resolve);
+                });
+                return true;
+            } catch(e) {
+                return false;
+            }
+        }
+
+        async function speakNumberWithLetter(letter, num) {
+            const amharicNum = AMHARIC_NUMBERS[num] || String(num);
+            const amharicLetter = BINGO_LETTERS_AMHARIC[letter] || letter;
+            const text = amharicLetter + ' ' + amharicNum;
+            const spoken = await speakAmharic(text);
+            if (!spoken) {
+                playNumberSound();
+            }
+        }
+
         // ==================== TELEGRAM INIT ====================
         const tg = window.Telegram?.WebApp;
         if (tg) {
@@ -943,34 +1031,38 @@
             grid.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2 float-anim">&#127183;</div><p class="text-white/50 text-sm">Loading 400 cards...</p></div>';
 
             try {
-                const snap = await db.collection('cartela_pool').where('status', '==', 'available').get();
-                const takenSnap = await db.collection('cartela_pool').where('status', 'in', ['assigned', 'used']).get();
-
+                const allSnap = await db.collection('cartela_pool').get();
                 const takenNumbers = new Set();
-                takenSnap.forEach(doc => {
+                const availableNumbers = new Set();
+
+                allSnap.forEach(doc => {
                     const d = doc.data();
-                    if (d.number) takenNumbers.add(d.number);
+                    const num = d.number;
+                    if (num) {
+                        if (d.status === 'assigned' || d.status === 'used') {
+                            takenNumbers.add(num);
+                        } else {
+                            availableNumbers.add(num);
+                        }
+                    }
                 });
 
                 const totalCards = 400;
-                let availableCount = 0;
+                let availableCount = availableNumbers.size;
 
                 grid.innerHTML = '';
                 for (let i = 1; i <= totalCards; i++) {
                     const cell = document.createElement('div');
                     const isTaken = takenNumbers.has(i);
-                    if (!isTaken) availableCount++;
                     cell.className = 'card-num rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square ';
                     if (isTaken) {
                         cell.className += 'taken bg-bingo-orange text-white';
                     } else {
                         cell.className += 'bg-white/10 text-white/80 border border-white/10';
+                        cell.onclick = () => selectCard(i, cell);
                     }
                     cell.textContent = i;
                     cell.dataset.num = i;
-                    if (!isTaken) {
-                        cell.onclick = () => selectCard(i, cell);
-                    }
                     grid.appendChild(cell);
                 }
 
@@ -994,10 +1086,28 @@
                 if (cardSelectSeconds <= 0) {
                     clearInterval(cardSelectTimerInterval);
                     cardSelectTimerInterval = null;
-                    cancelCardSelect();
-                    showToast('Time ran out! No card selected.');
+                    autoSelectRandomCard();
                 }
             }, 1000);
+        }
+
+        async function autoSelectRandomCard() {
+            const grid = document.getElementById('card-select-grid');
+            const availableCells = grid.querySelectorAll('.card-num:not(.taken)');
+            if (availableCells.length === 0) {
+                showToast('No available cards! Try again later.');
+                cancelCardSelect();
+                return;
+            }
+            const randomIdx = Math.floor(Math.random() * availableCells.length);
+            const cell = availableCells[randomIdx];
+            const cardNum = parseInt(cell.dataset.num);
+            cell.style.background = '#10B981';
+            cell.style.color = 'white';
+            cell.style.boxShadow = '0 0 15px rgba(16,185,129,0.5)';
+            showToast('Auto-selected card #' + cardNum);
+            await new Promise(r => setTimeout(r, 500));
+            confirmCardSelection(cardNum);
         }
 
         function stopCardSelectTimer() {
@@ -1008,7 +1118,7 @@
             if (selectedCardIndex > 0) return;
             stopCardSelectTimer();
             selectedCardIndex = cardNum;
-            cellEl.className = cellEl.className.replace('bg-white/10 text-white/80 border border-white/10', 'selected bg-bingo-green text-white');
+            cellEl.className = 'card-num rounded-lg text-center py-2 text-xs font-bold flex items-center justify-center aspect-square selected bg-bingo-green text-white';
             cellEl.style.boxShadow = '0 0 15px rgba(16,185,129,0.5)';
             setTimeout(() => {
                 confirmCardSelection(cardNum);
@@ -1192,7 +1302,8 @@
                             last_called: numToCall,
                             updated_at: firebase.firestore.FieldValue.serverTimestamp()
                         });
-                        playNumberSound();
+                        const letter = getNumberLetter(numToCall);
+                        speakNumberWithLetter(letter, numToCall);
                         showNumberAnnouncement(numToCall);
                         updateCalledNumbersBar(called);
                     }
@@ -1987,7 +2098,7 @@
         }
 
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', () => { initUser(); });
+        document.addEventListener('DOMContentLoaded', () => { initUser(); initTTS(); });
         window.addEventListener('popstate', (e) => {
             if (currentScreen !== 'home') { navigateTo('home'); }
             else if (tg) { tg.close(); }

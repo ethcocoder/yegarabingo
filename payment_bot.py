@@ -1,5 +1,6 @@
 import os
 import io
+import asyncio
 import hashlib
 import logging
 import re
@@ -121,6 +122,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "pay_main":
+        user_id = query.from_user.id
+        db.collection("users").doc(str(user_id)).set({"awaiting_screenshot": False}, merge=True)
         user_doc = db.collection("users").doc(str(user_id)).get()
         balance = 0
         play_wallet = 0
@@ -148,7 +151,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("❓ Help", callback_data="pay_help")
             ]
         ]
-        await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        try:
+            await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception as e:
+            logger.error(f"Error editing message: {e}")
 
     await query.answer()
 
@@ -228,7 +234,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🔍 Analyzing your screenshot...")
 
-    extracted = extract_text_from_image(bytes(image_bytes))
+    extracted = await asyncio.to_thread(extract_text_from_image, bytes(image_bytes))
 
     if not extracted.get("transaction_id"):
         db.collection("users").doc(str(user.id)).set({"awaiting_screenshot": False}, merge=True)
