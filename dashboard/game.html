@@ -75,34 +75,20 @@
         .telegram-header button { -webkit-app-region: no-drag; }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .loading-shimmer { background: linear-gradient(90deg, #1A1A2E 25%, #2A2A3E 50%, #1A1A2E 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        .card-select-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 4px; }
+        .card-select-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 4px; min-height: 0; }
+        @media (max-width: 360px) { .card-select-grid { grid-template-columns: repeat(7, 1fr); } }
         .card-select-grid::-webkit-scrollbar { width: 4px; }
         .card-select-grid::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 2px; }
-        .card-num { transition: all 0.15s ease; cursor: pointer; width: 100%; aspect-ratio: 1; font-size: 11px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-        .card-num:active { transform: scale(0.9); }
+        .card-num { transition: all 0.15s ease; cursor: pointer; width: 100%; aspect-ratio: 1; font-size: 11px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: visible; }
+        .card-num:active { transform: scale(0.92); }
         .card-num.taken { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; color: white !important; pointer-events: none; opacity: 0.6; }
-        .card-num.selected { background: linear-gradient(135deg, #10B981, #059669) !important; color: white !important; box-shadow: 0 0 20px rgba(16,185,129,0.6); transform: scale(1.05); }
-        .card-num::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%); pointer-events: none; }
-        .master-cell { transition: all 0.3s ease; font-size: 9px; }
+        .card-num.selected { background: linear-gradient(135deg, #10B981, #059669) !important; color: white !important; box-shadow: 0 0 16px rgba(16,185,129,0.6), 0 0 4px rgba(16,185,129,0.4); transform: scale(1.08); z-index: 2; }
+        .card-num::after { content: ''; position: absolute; inset: 0; border-radius: 8px; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%); pointer-events: none; }
         .bingo-cell { transition: all 0.2s ease; position: relative; overflow: hidden; }
         .bingo-cell:active { transform: scale(0.9); }
         .number-called { animation: pulse-glow 1s ease-in-out infinite; }
         .number-marked { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; box-shadow: 0 0 12px rgba(255,140,0,0.4); }
-        .timer-pulse { animation: pulse-red 0.5s ease-in-out infinite; }
-        .nav-item { transition: all 0.3s ease; }
-        .nav-item.active { color: #FF8C00; }
-        .nav-item:active { transform: scale(0.9); }
-        .screen-transition { animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .info-bar::-webkit-scrollbar { display: none; }
-        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); }
-        .win-cartela-cell { transition: all 0.3s ease; }
-        .stat-card { transition: all 0.3s ease; }
-        .stat-card:active { transform: scale(0.95); }
-        .telegram-header { -webkit-app-region: drag; }
-        .telegram-header button { -webkit-app-region: no-drag; }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        .loading-shimmer { background: linear-gradient(90deg, #1A1A2E 25%, #2A2A3E 50%, #1A1A2E 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .master-cell { transition: all 0.3s ease; font-size: 9px; }
         .auto-toggle { position: relative; width: 44px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s; }
         .auto-toggle.on { background: #10B981; }
         .auto-toggle::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.3s; }
