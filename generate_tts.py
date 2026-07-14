@@ -1,73 +1,78 @@
 """
-Pre-generate all Amharic bingo number TTS audio files.
-Run this once to generate audio files in dashboard/public/audio/
+Pre-generate ALL Amharic bingo TTS audio files (5 letters x 75 numbers = 375 files).
+Run: python generate_tts.py
 Requires: pip install gTTS
+
+This script reads the Amharic strings DIRECTLY from game.html to ensure 100% correctness.
 """
-import os
+import os, sys, re, time
 from gtts import gTTS
 
-AMHARIC_NUMBERS = {
-    0: 'ዜሮ', 1: 'አንድ', 2: 'ሁለት', 3: 'ሦስት', 4: 'አራት', 5: 'አምስት',
-    6: 'ስድስት', 7: 'ሰባት', 8: 'ስምንት', 9: 'ዘጠኝ', 10: 'አሥር',
-    11: 'አስራ አንድ', 12: 'አስራ ሁለት', 13: 'አስራ ሦስት', 14: 'አስራ አራት', 15: 'አስራ አምስት',
-    16: 'አስራ ስድስት', 17: 'አስራ ሰባት', 18: 'አስራ ስምንት', 19: 'አስራ ዘጠኝ', 20: 'ሀያ',
-    21: 'ሀያ አንድ', 22: 'ሀያ ሁለት', 23: 'ሀያ ሦስት', 24: 'ሀያ አራት', 25: 'ሀያ አምስት',
-    26: 'ሀያ ስድስት', 27: 'ሀያ ሰባት', 28: 'ሀያ ስምንት', 29: 'ሀያ ዘጠኝ', 30: 'ሠላሳ',
-    31: 'ሠላሳ አንድ', 32: 'ሠላሳ ሁለት', 33: 'ሠላሳ ሦስት', 34: 'ሠላሳ አራት', 35: 'ሠላሳ አምስት',
-    36: 'ሠላሳ ስድስት', 37: 'ሠላሳ ሰባት', 38: 'ሠላሳ ስምንት', 39: 'ሠላሳ ዘጠኝ', 40: 'አርባ',
-    41: 'አርባ አንድ', 42: 'አርባ ሁለት', 43: 'አርባ ሦስት', 44: 'አርባ አራት', 45: 'አርባ አምስት',
-    46: 'አርባ ስድስት', 47: 'አርባ ሰባት', 48: 'አርባ ስምንት', 49: 'አርባ ዘጠኝ', 50: 'ሃምሳ',
-    51: 'ሃምሳ አንድ', 52: 'ሃምሳ ሁለት', 53: 'ሃምሳ ሦስት', 54: 'ሃምሳ አራት', 55: 'ሃምሳ አምስት',
-    56: 'ሃምሳ ስድስት', 57: 'ሃምሳ ሰባት', 58: 'ሃምሳ ስምንት', 59: 'ሃምሳ ዘጠኝ', 60: 'ስልሳ',
-    61: 'ስልሳ አንድ', 62: 'ስልሳ ሁለት', 63: 'ስልሳ ሶስት', 64: 'ስልሳ አራት', 65: 'ስልሳ አምስት',
-    66: 'ስልሳ ስድስት', 67: 'ስልሳ ሰባት', 68: 'ስልሳ ስምንት', 69: 'ስልሳ ዘጠኝ', 70: 'ሰባ',
-    71: 'ሰባ አንድ', 72: 'ሰባ ሁለት', 73: 'ሰባ ሦስት', 74: 'ሰባ አራት', 75: 'ሰባ አምስት'
-}
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 
-BINGO_LETTERS_AMHARIC = {
-    'B': 'ቢ', 'I': 'አይ', 'N': 'ኤን', 'G': 'ጂ', 'O': 'ኦ'
-}
+def extract_from_game_html():
+    """Read game.html and extract the Amharic dictionaries."""
+    with open(os.path.join('dashboard', 'game.html'), 'r', encoding='utf-8') as f:
+        content = f.read()
 
-BINGO_RANGES = [
-    {'letter': 'B', 'min': 1, 'max': 15},
-    {'letter': 'I', 'min': 16, 'max': 30},
-    {'letter': 'N', 'min': 31, 'max': 45},
-    {'letter': 'G', 'min': 46, 'max': 60},
-    {'letter': 'O', 'min': 61, 'max': 75}
-]
+    numbers = {}
+    m = re.search(r'const AMHARIC_NUMBERS\s*=\s*\{(.*?)\};', content, re.DOTALL)
+    if m:
+        for match in re.finditer(r"(\d+)\s*:\s*'([^']+)'", m.group(1)):
+            numbers[int(match.group(1))] = match.group(2)
 
-def get_letter(num):
-    for r in BINGO_RANGES:
-        if r['min'] <= num <= r['max']:
-            return r['letter']
-    return 'X'
+    letters = {}
+    m2 = re.search(r'BINGO_LETTERS_AMHARIC\s*=\s*\{(.*?)\}', content, re.DOTALL)
+    if m2:
+        for match in re.finditer(r"'([A-Z])'\s*:\s*'([^']+)'", m2.group(1)):
+            letters[match.group(1)] = match.group(2)
+
+    return numbers, letters
+
+LETTERS = ['B', 'I', 'N', 'G', 'O']
 
 def main():
     output_dir = os.path.join('dashboard', 'public', 'audio')
     os.makedirs(output_dir, exist_ok=True)
 
-    total = 0
-    for num in range(1, 76):
-        letter = get_letter(num)
-        amharic_num = AMHARIC_NUMBERS[num]
-        amharic_letter = BINGO_LETTERS_AMHARIC[letter]
-        text = amharic_letter + ' ' + amharic_num
-        filename = f'{letter}{num}.mp3'
-        filepath = os.path.join(output_dir, filename)
+    amharic_numbers, bingo_letters = extract_from_game_html()
 
-        if os.path.exists(filepath):
-            print(f'  SKIP {filename} (exists)')
-            continue
+    if not amharic_numbers or not bingo_letters:
+        print('ERROR: Could not extract Amharic data from game.html')
+        sys.exit(1)
 
-        try:
-            tts = gTTS(text=text, lang='am')
-            tts.save(filepath)
-            total += 1
-            print(f'  OK   {filename} -> "{text}"')
-        except Exception as e:
-            print(f'  ERR  {filename}: {e}')
+    print(f'Loaded {len(amharic_numbers)} numbers and {len(bingo_letters)} letters from game.html')
 
-    print(f'\nDone! Generated {total} files in {output_dir}')
+    generated = 0
+    skipped = 0
+    errors = 0
+
+    for letter in LETTERS:
+        am_letter = bingo_letters[letter]
+        for num in range(1, 76):
+            am_num = amharic_numbers[num]
+            text = am_letter + ' ' + am_num
+            filename = f'{letter}{num}.mp3'
+            filepath = os.path.join(output_dir, filename)
+
+            if os.path.exists(filepath) and os.path.getsize(filepath) > 1000:
+                skipped += 1
+                continue
+
+            try:
+                tts = gTTS(text=text, lang='am')
+                tts.save(filepath)
+                generated += 1
+                print(f'  OK   {filename}')
+                time.sleep(0.15)
+            except Exception as e:
+                errors += 1
+                print(f'  ERR  {filename}: {e}')
+
+    print(f'\nDone! Generated: {generated}, Skipped: {skipped}, Errors: {errors}, Total: 375')
 
 if __name__ == '__main__':
     main()

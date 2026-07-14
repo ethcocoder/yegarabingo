@@ -21,6 +21,10 @@
                         'bingo-blue': '#3B82F6',
                         'bingo-purple': '#8B5CF6',
                         'bingo-teal': '#14B8A6',
+                        'bingo-red': '#EF4444',
+                        'bingo-pink': '#EC4899',
+                        'bingo-yellow': '#EAB308',
+                        'bingo-cyan': '#06B6D4',
                     }
                 }
             }
@@ -74,15 +78,50 @@
         .card-select-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 4px; }
         .card-select-grid::-webkit-scrollbar { width: 4px; }
         .card-select-grid::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 2px; }
-        .card-num { transition: all 0.15s ease; cursor: pointer; width: 100%; aspect-ratio: 1; font-size: 11px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .card-num { transition: all 0.15s ease; cursor: pointer; width: 100%; aspect-ratio: 1; font-size: 11px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
         .card-num:active { transform: scale(0.9); }
-        .card-num.taken { background: #FF8C00 !important; color: white !important; pointer-events: none; }
-        .card-num.selected { background: #10B981 !important; color: white !important; box-shadow: 0 0 15px rgba(16,185,129,0.5); }
+        .card-num.taken { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; color: white !important; pointer-events: none; opacity: 0.6; }
+        .card-num.selected { background: linear-gradient(135deg, #10B981, #059669) !important; color: white !important; box-shadow: 0 0 20px rgba(16,185,129,0.6); transform: scale(1.05); }
+        .card-num::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%); pointer-events: none; }
         .master-cell { transition: all 0.3s ease; font-size: 9px; }
+        .bingo-cell { transition: all 0.2s ease; position: relative; overflow: hidden; }
+        .bingo-cell:active { transform: scale(0.9); }
+        .number-called { animation: pulse-glow 1s ease-in-out infinite; }
+        .number-marked { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; box-shadow: 0 0 12px rgba(255,140,0,0.4); }
+        .timer-pulse { animation: pulse-red 0.5s ease-in-out infinite; }
+        .nav-item { transition: all 0.3s ease; }
+        .nav-item.active { color: #FF8C00; }
+        .nav-item:active { transform: scale(0.9); }
+        .screen-transition { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .info-bar::-webkit-scrollbar { display: none; }
+        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); }
+        .win-cartela-cell { transition: all 0.3s ease; }
+        .stat-card { transition: all 0.3s ease; }
+        .stat-card:active { transform: scale(0.95); }
+        .telegram-header { -webkit-app-region: drag; }
+        .telegram-header button { -webkit-app-region: no-drag; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .loading-shimmer { background: linear-gradient(90deg, #1A1A2E 25%, #2A2A3E 50%, #1A1A2E 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
         .auto-toggle { position: relative; width: 44px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s; }
         .auto-toggle.on { background: #10B981; }
         .auto-toggle::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.3s; }
         .auto-toggle.on::after { transform: translateX(20px); }
+        @keyframes rainbow-border { 0% { border-color: #10B981; } 25% { border-color: #3B82F6; } 50% { border-color: #8B5CF6; } 75% { border-color: #FF8C00; } 100% { border-color: #14B8A6; } }
+        @keyframes color-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .gradient-rainbow { background: linear-gradient(135deg, #10B981, #3B82F6, #8B5CF6, #FF8C00, #EC4899, #10B981); background-size: 300% 300%; animation: color-shift 4s ease infinite; }
+        .col-b { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); }
+        .col-i { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
+        .col-n { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); }
+        .col-g { background: rgba(255,140,0,0.15); border: 1px solid rgba(255,140,0,0.3); }
+        .col-o { background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.3); }
+        .col-b-light { background: rgba(16,185,129,0.08); }
+        .col-i-light { background: rgba(59,130,246,0.08); }
+        .col-n-light { background: rgba(139,92,246,0.08); }
+        .col-g-light { background: rgba(255,140,0,0.08); }
+        .col-o-light { background: rgba(20,184,166,0.08); }
+        @keyframes pop-in { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+        .pop-in { animation: pop-in 0.3s ease-out; }
     </style>
 </head>
 <body class="bg-bingo-dark">
@@ -99,7 +138,7 @@
     </div>
 
     <!-- ==================== SCREEN 1: HOME ==================== -->
-    <div id="screen-home" class="screen active pt-14">
+    <div id="screen-home" class="screen active pt-14" style="background: linear-gradient(180deg, #0D1117 0%, #0a1628 40%, #111827 100%);">
         <div class="px-4 py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl gradient-orange flex items-center justify-center text-white font-black text-xl">B</div>
@@ -123,14 +162,14 @@
         <div class="px-4 mb-6">
             <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Choose Your Stake</h3>
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="selectStake(10)" class="gradient-green rounded-2xl p-5 btn-hover text-center shadow-lg shadow-green-500/20">
+                <button onclick="selectStake(10)" class="rounded-2xl p-5 btn-hover text-center shadow-lg" style="background: linear-gradient(135deg, #10B981, #059669); box-shadow: 0 8px 25px rgba(16,185,129,0.3);">
                     <div class="text-3xl mb-2">&#128176;</div>
-                    <div class="text-xl font-bold text-white">10 ETB</div>
+                    <div class="text-xl font-black text-white">10 ETB</div>
                     <div class="text-xs text-white/80 mt-1">Prize: <span class="font-bold">152 ETB</span></div>
                 </button>
-                <button onclick="selectStake(20)" class="gradient-blue rounded-2xl p-5 btn-hover text-center shadow-lg shadow-purple-500/20">
+                <button onclick="selectStake(20)" class="rounded-2xl p-5 btn-hover text-center shadow-lg" style="background: linear-gradient(135deg, #3B82F6, #8B5CF6); box-shadow: 0 8px 25px rgba(139,92,246,0.3);">
                     <div class="text-3xl mb-2">&#128142;</div>
-                    <div class="text-xl font-bold text-white">20 ETB</div>
+                    <div class="text-xl font-black text-white">20 ETB</div>
                     <div class="text-xs text-white/80 mt-1">Prize: <span class="font-bold">304 ETB</span></div>
                 </button>
             </div>
@@ -138,29 +177,29 @@
         <div class="px-4 mb-6">
             <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Live Stats</h3>
             <div class="grid grid-cols-3 gap-3">
-                <div class="glass rounded-xl p-3 text-center stat-card">
-                    <div id="stat-players" class="text-xl font-bold text-bingo-green">0</div>
-                    <div class="text-[10px] text-white/50 mt-1">Active Players</div>
+                <div class="rounded-xl p-3 text-center stat-card" style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.3);">
+                    <div id="stat-players" class="text-xl font-black text-emerald-400">0</div>
+                    <div class="text-[10px] text-emerald-400/60 mt-1">Active Players</div>
                 </div>
-                <div class="glass rounded-xl p-3 text-center stat-card">
-                    <div id="stat-games" class="text-xl font-bold text-bingo-blue">0</div>
-                    <div class="text-[10px] text-white/50 mt-1">Games Played</div>
+                <div class="rounded-xl p-3 text-center stat-card" style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); border: 1px solid rgba(59,130,246,0.3);">
+                    <div id="stat-games" class="text-xl font-black text-blue-400">0</div>
+                    <div class="text-[10px] text-blue-400/60 mt-1">Games Played</div>
                 </div>
-                <div class="glass rounded-xl p-3 text-center stat-card">
-                    <div id="stat-winners" class="text-xl font-bold text-bingo-orange">0</div>
-                    <div class="text-[10px] text-white/50 mt-1">Winners Today</div>
+                <div class="rounded-xl p-3 text-center stat-card" style="background: linear-gradient(135deg, rgba(255,140,0,0.15), rgba(255,140,0,0.05)); border: 1px solid rgba(255,140,0,0.3);">
+                    <div id="stat-winners" class="text-xl font-black text-orange-400">0</div>
+                    <div class="text-[10px] text-orange-400/60 mt-1">Winners Today</div>
                 </div>
             </div>
         </div>
         <div class="px-4 mb-6">
-            <div class="glass rounded-2xl p-4">
+            <div class="rounded-2xl p-4" style="background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(255,140,0,0.08)); border: 1px solid rgba(255,255,255,0.08);">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm text-white/60">Your Balance</span>
-                    <span id="home-balance" class="text-lg font-bold text-bingo-green">0 ETB</span>
+                    <span class="text-sm text-emerald-400/70">Your Balance</span>
+                    <span id="home-balance" class="text-lg font-black text-emerald-400">0 ETB</span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-white/60">Play Wallet</span>
-                    <span id="home-play-wallet" class="text-lg font-bold text-bingo-orange">0 ETB</span>
+                    <span class="text-sm text-orange-400/70">Play Wallet</span>
+                    <span id="home-play-wallet" class="text-lg font-black text-orange-400">0 ETB</span>
                 </div>
             </div>
         </div>
@@ -179,7 +218,7 @@
     </div>
 
     <!-- ==================== SCREEN 2: GAME BOARD ==================== -->
-    <div id="screen-game" class="screen pt-14">
+    <div id="screen-game" class="screen pt-14" style="background: linear-gradient(180deg, #0D1117 0%, #0a0f18 50%, #111827 100%);">
         <div class="px-3 py-2 flex items-center justify-between border-b border-white/5">
             <button onclick="navigateTo('home'); leaveGame();" class="w-8 h-8 rounded-full glass flex items-center justify-center text-white/70">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -192,25 +231,25 @@
 
         <!-- Game Info Bar -->
         <div class="info-bar flex gap-1.5 px-3 py-2 overflow-x-auto" style="scrollbar-width: none;">
-            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
-                <div class="text-[9px] text-white/40 uppercase">Game</div>
-                <div id="game-id-display" class="text-[11px] font-bold text-bingo-orange">#---</div>
+            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(255,140,0,0.12); border: 1px solid rgba(255,140,0,0.25);">
+                <div class="text-[9px] text-orange-400/60 uppercase">Game</div>
+                <div id="game-id-display" class="text-[11px] font-bold text-orange-400">#---</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
-                <div class="text-[9px] text-white/40 uppercase">Players</div>
-                <div id="game-players" class="text-[11px] font-bold text-bingo-green">1</div>
+            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25);">
+                <div class="text-[9px] text-emerald-400/60 uppercase">Players</div>
+                <div id="game-players" class="text-[11px] font-bold text-emerald-400">1</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
-                <div class="text-[9px] text-white/40 uppercase">Bet</div>
-                <div id="game-stake" class="text-[11px] font-bold text-bingo-blue">0</div>
+            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25);">
+                <div class="text-[9px] text-blue-400/60 uppercase">Bet</div>
+                <div id="game-stake" class="text-[11px] font-bold text-blue-400">0</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
-                <div class="text-[9px] text-white/40 uppercase">Derash</div>
-                <div id="game-derash" class="text-[11px] font-bold text-bingo-teal">0</div>
+            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25);">
+                <div class="text-[9px] text-purple-400/60 uppercase">Derash</div>
+                <div id="game-derash" class="text-[11px] font-bold text-purple-400">0</div>
             </div>
-            <div class="flex-shrink-0 glass rounded-lg px-2.5 py-1.5">
-                <div class="text-[9px] text-white/40 uppercase">Called</div>
-                <div id="game-called-count" class="text-[11px] font-bold text-white">0</div>
+            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25);">
+                <div class="text-[9px] text-teal-400/60 uppercase">Called</div>
+                <div id="game-called-count" class="text-[11px] font-bold text-teal-400">0</div>
             </div>
         </div>
 
@@ -225,11 +264,11 @@
             <div class="flex-1 glass rounded-xl p-1.5 min-w-0">
                 <div class="text-[9px] text-white/40 uppercase mb-1 text-center">Master Grid</div>
                 <div class="grid grid-cols-5 gap-px" id="master-grid-headers">
-                    <div class="text-center text-[9px] font-bold text-bingo-green py-0.5">B</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-blue py-0.5">I</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-purple py-0.5">N</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-orange py-0.5">G</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-teal py-0.5">O</div>
+                    <div class="text-center text-[10px] font-black text-emerald-400 py-0.5 rounded-t" style="background:rgba(16,185,129,0.15)">B</div>
+                    <div class="text-center text-[10px] font-black text-blue-400 py-0.5 rounded-t" style="background:rgba(59,130,246,0.15)">I</div>
+                    <div class="text-center text-[10px] font-black text-purple-400 py-0.5 rounded-t" style="background:rgba(139,92,246,0.15)">N</div>
+                    <div class="text-center text-[10px] font-black text-orange-400 py-0.5 rounded-t" style="background:rgba(255,140,0,0.15)">G</div>
+                    <div class="text-center text-[10px] font-black text-teal-400 py-0.5 rounded-t" style="background:rgba(20,184,166,0.15)">O</div>
                 </div>
                 <div class="grid grid-cols-5 gap-px" id="master-grid"></div>
             </div>
@@ -238,11 +277,11 @@
                 <div class="text-[9px] text-white/40 uppercase mb-1 text-center">Cartela #<span id="cartela-number">0</span></div>
                 <div id="cartela-lines" class="text-[9px] text-bingo-green font-semibold text-center mb-0.5"></div>
                 <div class="grid grid-cols-5 gap-px" id="cartela-grid-headers">
-                    <div class="text-center text-[9px] font-bold text-bingo-green py-0.5">B</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-blue py-0.5">I</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-purple py-0.5">N</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-orange py-0.5">G</div>
-                    <div class="text-center text-[9px] font-bold text-bingo-teal py-0.5">O</div>
+                    <div class="text-center text-[10px] font-black text-emerald-400 py-0.5 rounded-t" style="background:rgba(16,185,129,0.15)">B</div>
+                    <div class="text-center text-[10px] font-black text-blue-400 py-0.5 rounded-t" style="background:rgba(59,130,246,0.15)">I</div>
+                    <div class="text-center text-[10px] font-black text-purple-400 py-0.5 rounded-t" style="background:rgba(139,92,246,0.15)">N</div>
+                    <div class="text-center text-[10px] font-black text-orange-400 py-0.5 rounded-t" style="background:rgba(255,140,0,0.15)">G</div>
+                    <div class="text-center text-[10px] font-black text-teal-400 py-0.5 rounded-t" style="background:rgba(20,184,166,0.15)">O</div>
                 </div>
                 <div class="grid grid-cols-5 gap-px" id="cartela-grid"></div>
             </div>
@@ -394,7 +433,7 @@
     <div id="win-modal" class="fixed inset-0 z-[100] hidden">
         <div class="modal-overlay absolute inset-0"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
-            <div class="glass rounded-3xl p-6 w-full max-w-[380px] text-center relative overflow-hidden border border-bingo-orange/30">
+            <div class="glass rounded-3xl p-6 w-full max-w-[380px] text-center relative overflow-hidden gradient-rainbow" style="border: 2px solid rgba(255,255,255,0.2);">
                 <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
                 <div class="text-6xl crown-anim mb-3">&#128081;</div>
                 <h1 class="text-4xl font-black text-bingo-orange glow-text mb-4">BINGO!</h1>
@@ -536,7 +575,7 @@
 
     <!-- ==================== CARD SELECTION OVERLAY (400 cards, 24s timer) ==================== -->
     <div id="card-select-screen" class="fixed inset-0 z-[150] hidden">
-        <div class="absolute inset-0 bg-bingo-dark"></div>
+        <div class="absolute inset-0" style="background: linear-gradient(180deg, #0D1117 0%, #0a1628 30%, #111827 100%);"></div>
         <div class="absolute inset-0 flex flex-col max-w-[420px] mx-auto">
             <!-- Top Bar: Wallets + Stake -->
             <div class="px-4 pt-14 pb-2 flex items-center justify-between border-b border-white/5">
@@ -1545,13 +1584,15 @@
         function renderMasterGrid() {
             const grid = document.getElementById('master-grid');
             grid.innerHTML = '';
+            const colClasses = ['col-b-light', 'col-i-light', 'col-n-light', 'col-g-light', 'col-o-light'];
+            const colTextColors = ['text-emerald-400/40', 'text-blue-400/40', 'text-purple-400/40', 'text-orange-400/40', 'text-teal-400/40'];
             for (let row = 0; row < 15; row++) {
                 for (let col = 0; col < 5; col++) {
                     const range = BINGO_RANGES[col];
                     const num = range.min + row;
                     const cell = document.createElement('div');
                     cell.id = 'master-cell-' + num;
-                    cell.className = 'master-cell bg-bingo-dark/50 rounded text-center py-1 text-[9px] font-medium text-white/50 flex items-center justify-center aspect-square cursor-default';
+                    cell.className = 'master-cell rounded text-center py-1 text-[9px] font-medium flex items-center justify-center aspect-square cursor-default ' + colClasses[col] + ' ' + colTextColors[col];
                     cell.textContent = num;
                     grid.appendChild(cell);
                 }
@@ -1565,6 +1606,9 @@
             const calledSet = new Set(called || []);
             const markedSet = new Set(marked || []);
             const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
+            const colBgs = ['rgba(16,185,129,0.12)', 'rgba(59,130,246,0.12)', 'rgba(139,92,246,0.12)', 'rgba(255,140,0,0.12)', 'rgba(20,184,166,0.12)'];
+            const colBorders = ['rgba(16,185,129,0.25)', 'rgba(59,130,246,0.25)', 'rgba(139,92,246,0.25)', 'rgba(255,140,0,0.25)', 'rgba(20,184,166,0.25)'];
+            const colColors = ['#10B981', '#3B82F6', '#8B5CF6', '#FF8C00', '#14B8A6'];
 
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
@@ -1577,21 +1621,30 @@
                     cell.className = 'bingo-cell rounded text-center py-2 text-[11px] font-bold flex items-center justify-center aspect-square ';
 
                     if (isCenter) {
-                        cell.className += 'bg-bingo-orange/20 text-bingo-orange border border-bingo-orange/30';
+                        cell.className += 'text-bingo-orange border border-bingo-orange/40';
+                        cell.style.background = 'linear-gradient(135deg, rgba(255,140,0,0.25), rgba(255,107,0,0.15))';
                         cell.innerHTML = '&#11088;';
                     } else if (isMarked) {
-                        cell.className += 'number-marked text-white shadow-lg shadow-orange-500/20';
+                        cell.className += 'text-white pop-in';
+                        cell.style.background = 'linear-gradient(135deg, ' + colColors[col] + ', ' + colColors[col] + 'cc)';
+                        cell.style.boxShadow = '0 0 14px ' + colColors[col] + '66';
                         cell.textContent = num;
                     } else if (isLastCalled) {
-                        cell.className += 'bg-bingo-green/40 text-white border-2 border-bingo-green cursor-pointer number-called';
+                        cell.className += 'text-white cursor-pointer number-called';
+                        cell.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.5), rgba(20,184,166,0.5))';
+                        cell.style.border = '2px solid #10B981';
                         cell.textContent = num;
                         cell.onclick = () => toggleMark(num);
                     } else if (calledSet.has(num)) {
-                        cell.className += 'bg-white/10 text-white/50 border border-white/5 cursor-pointer';
+                        cell.className += 'text-white/70 cursor-pointer';
+                        cell.style.background = colBgs[col];
+                        cell.style.border = '1px solid ' + colBorders[col];
                         cell.textContent = num;
                         cell.onclick = () => toggleMark(num);
                     } else {
-                        cell.className += 'bg-white/5 text-white/30 border border-white/5';
+                        cell.className += 'text-white/30';
+                        cell.style.background = 'rgba(255,255,255,0.04)';
+                        cell.style.border = '1px solid rgba(255,255,255,0.06)';
                         cell.textContent = num;
                     }
                     grid.appendChild(cell);
@@ -1669,14 +1722,18 @@
             last10.forEach((num, idx) => {
                 const isLast = idx === last10.length - 1;
                 const letter = getNumberLetter(num);
+                const color = getLetterColor(letter);
                 const el = document.createElement('div');
-                el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold ';
+                el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold pop-in ';
                 if (isLast) {
                     el.className += 'text-white number-called';
-                    el.style.background = getLetterColor(letter);
+                    el.style.background = 'linear-gradient(135deg, ' + color + ', ' + color + 'cc)';
+                    el.style.boxShadow = '0 0 8px ' + color + '66';
                     el.textContent = letter + '-' + num;
                 } else {
-                    el.className += 'bg-white/10 text-white/50';
+                    el.className += 'text-white/70';
+                    el.style.background = color + '22';
+                    el.style.border = '1px solid ' + color + '44';
                     el.textContent = letter + '-' + num;
                 }
                 container.appendChild(el);
@@ -1736,31 +1793,40 @@
 
         function updateMasterGridHighlights(called, marked, cartela) {
             const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
+            const colBgs = ['rgba(16,185,129,0.08)', 'rgba(59,130,246,0.08)', 'rgba(139,92,246,0.08)', 'rgba(255,140,0,0.08)', 'rgba(20,184,166,0.08)'];
+            const colTexts = ['text-emerald-400/40', 'text-blue-400/40', 'text-purple-400/40', 'text-orange-400/40', 'text-teal-400/40'];
             for (let num = 1; num <= 75; num++) {
                 const cell = document.getElementById('master-cell-' + num);
                 if (!cell) continue;
                 const letter = getNumberLetter(num);
                 const color = getLetterColor(letter);
+                const colIdx = BINGO_RANGES.findIndex(r => r.letter === letter);
 
                 cell.className = 'master-cell rounded text-center py-1 text-[9px] font-medium flex items-center justify-center aspect-square cursor-default ';
 
                 if (num === lastCalled) {
-                    cell.className += 'text-white border-2 number-called';
-                    cell.style.background = color;
-                    cell.style.borderColor = 'white';
+                    cell.className += 'text-white font-bold number-called';
+                    cell.style.background = 'linear-gradient(135deg, ' + color + ', ' + color + 'cc)';
+                    cell.style.border = '2px solid white';
+                    cell.style.boxShadow = '0 0 10px ' + color + '88';
                 } else if (called.includes(num)) {
                     const isInCartela = isNumberInCartela(num, cartela);
                     if (isInCartela) {
-                        cell.className += 'bg-bingo-green/30 text-bingo-green border border-bingo-green/50';
+                        cell.className += 'text-emerald-300 font-bold';
+                        cell.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.35), rgba(16,185,129,0.2))';
+                        cell.style.border = '1px solid rgba(16,185,129,0.5)';
+                        cell.style.boxShadow = '';
                     } else {
-                        cell.className += 'bg-white/10 text-white/60 border border-white/5';
+                        cell.className += 'text-white/50';
+                        cell.style.background = 'rgba(255,255,255,0.08)';
+                        cell.style.border = '1px solid rgba(255,255,255,0.1)';
+                        cell.style.boxShadow = '';
                     }
-                    cell.style.background = '';
-                    cell.style.borderColor = '';
                 } else {
-                    cell.className += 'bg-bingo-dark/50 text-white/40';
-                    cell.style.background = '';
-                    cell.style.borderColor = '';
+                    cell.className += colTexts[colIdx] || 'text-white/40';
+                    cell.style.background = colBgs[colIdx] || 'transparent';
+                    cell.style.border = '';
+                    cell.style.boxShadow = '';
                 }
             }
         }
