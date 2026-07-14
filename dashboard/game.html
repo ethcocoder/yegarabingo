@@ -585,10 +585,10 @@
     <!-- ==================== NUMBER ANNOUNCEMENT ==================== -->
     <div id="number-announce" class="fixed inset-0 z-[180] hidden">
         <div class="absolute inset-0 flex items-center justify-center">
-            <div class="glass rounded-3xl p-8 text-center border-2 border-bingo-orange/50 animate-bounce-in">
-                <div id="announce-letter" class="text-6xl font-black mb-2"></div>
-                <div id="announce-number" class="text-7xl font-black text-bingo-orange glow-text mb-2"></div>
-                <div id="announce-countdown" class="text-2xl font-bold text-white/60"></div>
+            <div class="glass rounded-2xl px-6 py-4 text-center border-2 border-bingo-orange/50 animate-bounce-in max-w-[160px]">
+                <div id="announce-letter" class="text-3xl font-black mb-1"></div>
+                <div id="announce-number" class="text-5xl font-black text-bingo-orange glow-text mb-1"></div>
+                <div id="announce-countdown" class="text-xs font-bold text-white/60"></div>
             </div>
         </div>
     </div>
@@ -708,47 +708,36 @@
         const BINGO_LETTERS_AMHARIC = {
             'B': 'ቢ', 'I': 'አይ', 'N': 'ኤን', 'G': 'ጂ', 'O': 'ኦ'
         };
-        let ttsCache = {};
         let ttsSupported = false;
 
         async function initTTS() {
             try {
-                const testResp = await fetch('https://translate.google.com/translate_tts?ie=UTF-8&tl=am&client=tw-ob&q=%E1%88%A0', {
-                    method: 'GET',
-                    mode: 'no-cors'
-                });
-                ttsSupported = true;
-                console.log('Google TTS available');
+                const testResp = await fetch('public/audio/B1.mp3', { method: 'HEAD' });
+                if (testResp.ok) {
+                    ttsSupported = true;
+                    console.log('Local TTS audio available');
+                }
             } catch(e) {
-                console.log('Google TTS not available via fetch, will use Audio element directly');
-                ttsSupported = true;
+                console.log('Local TTS not available, using fallback tones');
             }
         }
 
-        function getGoogleTTSUrl(text) {
-            return 'https://translate.google.com/translate_tts?ie=UTF-8&tl=am&client=tw-ob&q=' + encodeURIComponent(text);
+        function getAudioUrl(letter, num) {
+            return 'public/audio/' + letter + num + '.mp3';
         }
 
-        async function generateTTS(text) {
-            if (ttsCache[text]) return ttsCache[text];
-            const url = getGoogleTTSUrl(text);
-            ttsCache[text] = url;
-            return url;
-        }
-
-        async function speakAmharic(text) {
+        async function speakAmharic(letter, num) {
             try {
-                const audioUrl = await generateTTS(text);
-                if (!audioUrl) return false;
-                const audio = new Audio(audioUrl);
+                const url = getAudioUrl(letter, num);
+                const audio = new Audio(url);
                 audio.volume = 1.0;
                 audio.preload = 'auto';
                 await new Promise((resolve) => {
                     let resolved = false;
                     audio.onended = () => { resolved = true; resolve(true); };
-                    audio.onerror = (e) => { resolved = true; resolve(false); };
+                    audio.onerror = () => { resolved = true; resolve(false); };
                     audio.play().catch(() => { if (!resolved) resolve(false); });
-                    setTimeout(() => { if (!resolved) { resolved = true; resolve(true); } }, 8000);
+                    setTimeout(() => { if (!resolved) { resolved = true; resolve(true); } }, 5000);
                 });
                 return true;
             } catch(e) {
@@ -757,17 +746,13 @@
         }
 
         async function speakNumberWithLetter(letter, num) {
-            const amharicNum = AMHARIC_NUMBERS[num] || String(num);
-            const amharicLetter = BINGO_LETTERS_AMHARIC[letter] || letter;
-            const text = amharicLetter + ' ' + amharicNum;
-            try {
-                const spoken = await speakAmharic(text);
-                if (!spoken) {
-                    playNumberSound();
-                }
-            } catch(e) {
-                playNumberSound();
+            if (ttsSupported) {
+                try {
+                    const spoken = await speakAmharic(letter, num);
+                    if (spoken) return;
+                } catch(e) {}
             }
+            playNumberSound();
         }
 
         // ==================== TELEGRAM INIT ====================
@@ -1048,9 +1033,12 @@
         // ==================== STAKE SELECTION ====================
         async function selectStake(stake) {
             if (!currentUser) { showToast('Loading user data...'); return; }
-            if (currentUser.play_wallet < stake) { showToast('Insufficient play wallet! Transfer funds first.'); return; }
             if (currentUser.is_playing) {
                 resumeActiveGame();
+                return;
+            }
+            if ((currentUser.play_wallet || 0) < stake) {
+                showToast('Transfer funds to Play Wallet to join!');
                 return;
             }
             currentStake = stake;
@@ -1067,7 +1055,7 @@
             document.getElementById('card-select-screen').classList.remove('hidden');
 
             const grid = document.getElementById('card-select-grid');
-            grid.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2 float-anim">&#127183;</div><p class="text-white/50 text-sm">Loading 400 cards...</p></div>';
+            grid.innerHTML = '<div class="text-center py-8 col-span-8"><div class="text-3xl mb-2 float-anim">&#127183;</div><p class="text-white/50 text-sm">Loading cards...</p></div>';
 
             try {
                 const allSnap = await db.collection('cartela_pool').get();
@@ -1088,6 +1076,12 @@
 
                 const totalCards = 400;
                 let availableCount = Object.keys(availableDocs).length;
+
+                if (availableCount === 0) {
+                    grid.innerHTML = '<div class="col-span-8 text-center py-12 px-4"><div class="text-4xl mb-3">&#128531;</div><p class="text-white/80 text-sm font-bold mb-1">No Cards Available</p><p class="text-white/40 text-xs">All cartelas are currently in use. Please try again later.</p></div>';
+                    document.getElementById('cs-derash').textContent = '0';
+                    return;
+                }
 
                 grid.innerHTML = '';
                 for (let i = 1; i <= totalCards; i++) {
@@ -1434,7 +1428,7 @@
                     }
 
                     if (numberCallIndex < allNumbers.length && gameData.status === 'active') {
-                        numberCallInterval = setTimeout(callNextNumber, 6000);
+                        numberCallInterval = setTimeout(callNextNumber, 4000);
                     }
                 } catch (e) {
                     console.error('Error calling number:', e);
@@ -1485,7 +1479,7 @@
             document.getElementById('announce-number').textContent = num;
             el.classList.remove('hidden');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            let remaining = 5;
+            let remaining = 3;
             document.getElementById('announce-countdown').textContent = remaining + 's to mark';
             if (announceCountdownInterval) clearInterval(announceCountdownInterval);
             announceCountdownInterval = setInterval(() => {
