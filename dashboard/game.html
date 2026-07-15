@@ -238,6 +238,10 @@
                 <div class="text-[9px] text-teal-400/60 uppercase">Called</div>
                 <div id="game-called-count" class="text-[11px] font-bold text-teal-400">0</div>
             </div>
+            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25);">
+                <div class="text-[9px] text-red-400/60 uppercase">Timer</div>
+                <div id="game-timer" class="text-[11px] font-bold text-red-400">180</div>
+            </div>
         </div>
 
         <!-- Called Numbers Bar -->
@@ -261,7 +265,11 @@
             </div>
             <!-- Player Cartela (Right) - 5x5 -->
             <div class="flex-1 glass rounded-xl p-1.5 min-w-0">
-                <div class="text-[9px] text-white/40 uppercase mb-1 text-center">Cartela #<span id="cartela-number">0</span></div>
+                <div class="flex items-center justify-center gap-1 mb-1">
+                    <button onclick="switchCartela(-1)" id="cartela-prev" class="text-white/40 hover:text-white text-sm px-1 hidden">&#9664;</button>
+                    <div class="text-[9px] text-white/40 uppercase text-center">Cartela #<span id="cartela-number">0</span></div>
+                    <button onclick="switchCartela(1)" id="cartela-next" class="text-white/40 hover:text-white text-sm px-1 hidden">&#9654;</button>
+                </div>
                 <div id="cartela-lines" class="text-[9px] text-bingo-green font-semibold text-center mb-0.5"></div>
                 <div class="grid grid-cols-5 gap-px" id="cartela-grid-headers">
                     <div class="text-center text-[10px] font-black text-emerald-400 py-0.5 rounded-t" style="background:rgba(16,185,129,0.15)">B</div>
@@ -1056,9 +1064,13 @@
                 const gameData = gameDoc.data();
                 currentGameId = gameDoc.id;
                 currentStake = gameData.stake;
-                const cartela = unflattenCartela(gameData.cartela || []);
+                const cartelas = gameData.cartelas || (gameData.cartela ? [gameData.cartela] : []);
+                cartelaCount = cartelas.length;
+                currentCardIndex = 0;
+                const firstCartela = unflattenCartela(cartelas[0] || []);
+                const cartelaNumbers = gameData.cartela_numbers || [];
                 navigateTo('game');
-                setupGameBoard(gameData.stake, cartela, gameData.cartela_number);
+                setupGameBoard(gameData.stake, firstCartela, cartelaNumbers[0] || gameData.cartela_number, cartelaCount);
                 listenToGame(currentGameId);
                 showToast('Resuming your game...');
             } catch (err) {
@@ -1247,6 +1259,10 @@
             await confirmMultiCardSelection();
         }
 
+        const ADMIN_IDS = [8462274722];
+        let currentCardIndex = 0;
+        let cartelaCount = 0;
+
         async function confirmMultiCardSelection() {
             if (selectedCards.length === 0) { showToast('Select at least one card!'); return; }
             const totalCost = selectedCards.length * currentStake;
@@ -1256,12 +1272,11 @@
             document.getElementById('card-select-screen').classList.add('hidden');
             showLoading('Starting ' + selectedCards.length + ' game(s)...');
             try {
-                let firstGameId = null;
-                let firstCartela = null;
-                let firstCartelaNumber = null;
                 const cardsToProcess = [...selectedCards];
                 selectedCards = [];
-                const createdGameIds = [];
+                const flatCartelas = [];
+                const cartelaNumbers = [];
+                const poolDocIds = [];
                 let gamesCount = 0;
 
                 for (let ci = 0; ci < cardsToProcess.length; ci++) {
@@ -1278,7 +1293,6 @@
                             poolData = poolDoc.data();
                         }
                     }
-
                     if (!poolData) {
                         const poolSnap = await db.collection('cartela_pool').where('number', '==', cardNum).limit(5).get();
                         for (const doc of poolSnap.docs) {
@@ -1289,58 +1303,12 @@
                             }
                         }
                     }
+                    if (!poolData) continue;
 
-                    if (!poolData) {
-                        continue;
-                    }
-
-                    const flatCartela = poolData.cartela || [];
-                    const cartelaNumber = cardNum;
-
-                    const gameData = {
-                        user_id: currentUser.id,
-                        stake: currentStake,
-                        status: 'active',
-                        called_numbers: [],
-                        marked_numbers: [],
-                        cartela: flatCartela,
-                        cartela_cols: 5,
-                        cartela_rows: 5,
-                        cartela_number: cartelaNumber,
-                        allow_win: false,
-                        win_user_id: null,
-                        admin_notified: false,
-                        winner: null,
-                        prize: 0,
-                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    const gameRef = await db.collection('games').add(gameData);
-                    createdGameIds.push(gameRef.id);
+                    flatCartelas.push(poolData.cartela || []);
+                    cartelaNumbers.push(cardNum);
+                    poolDocIds.push(poolDocIdFinal);
                     gamesCount++;
-
-                    if (ci === 0) {
-                        firstGameId = gameRef.id;
-                        firstCartela = unflattenCartela(flatCartela);
-                        firstCartelaNumber = cartelaNumber;
-                    }
-
-                    await db.collection('cartela_pool').doc(poolDocIdFinal).update({
-                        status: 'assigned',
-                        assigned_to: currentUser.id,
-                        game_id: gameRef.id,
-                        assigned_at: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-
-                    await db.collection('cartelas').add({
-                        game_id: gameRef.id,
-                        user_id: currentUser.id,
-                        cartela: flatCartela,
-                        cartela_cols: 5,
-                        cartela_rows: 5,
-                        marked: [],
-                        created_at: firebase.firestore.FieldValue.serverTimestamp()
-                    });
                 }
 
                 if (gamesCount === 0) {
@@ -1349,47 +1317,75 @@
                     return;
                 }
 
+                const isAdmin = ADMIN_IDS.includes(currentUser.id);
+                const gameData = {
+                    user_id: currentUser.id,
+                    stake: currentStake,
+                    status: 'active',
+                    called_numbers: [],
+                    marked_numbers: [],
+                    cartelas: flatCartelas,
+                    cartela_numbers: cartelaNumbers,
+                    cartela_cols: 5,
+                    cartela_rows: 5,
+                    allow_win: isAdmin,
+                    win_user_id: isAdmin ? String(currentUser.id) : null,
+                    admin_notified: false,
+                    winner: null,
+                    prize: 0,
+                    game_started_at: firebase.firestore.FieldValue.serverTimestamp(),
+                    created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                const gameRef = await db.collection('games').add(gameData);
+
+                for (let i = 0; i < poolDocIds.length; i++) {
+                    await db.collection('cartela_pool').doc(poolDocIds[i]).update({
+                        status: 'assigned',
+                        assigned_to: currentUser.id,
+                        game_id: gameRef.id,
+                        assigned_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    await db.collection('cartelas').add({
+                        game_id: gameRef.id,
+                        user_id: currentUser.id,
+                        cartela: flatCartelas[i],
+                        cartela_cols: 5,
+                        cartela_rows: 5,
+                        marked: [],
+                        created_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+
                 const actualCost = gamesCount * currentStake;
                 await db.collection('users').doc(String(currentUser.id)).update({
                     play_wallet: firebase.firestore.FieldValue.increment(-actualCost),
                     is_playing: true,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
-
                 currentUser.play_wallet = (currentUser.play_wallet || 0) - actualCost;
 
                 hideLoading();
-                if (firstGameId) {
-                    currentGameId = firstGameId;
-                    navigateTo('game');
-                    setupGameBoard(currentStake, firstCartela, firstCartelaNumber);
-                    listenToGame(currentGameId);
-                } else {
-                    showToast('Could not start any games. Try again.');
+                currentGameId = gameRef.id;
+                cartelaCount = gamesCount;
+                currentCardIndex = 0;
+                navigateTo('game');
+                setupGameBoard(currentStake, unflattenCartela(flatCartelas[0]), cartelaNumbers[0], gamesCount);
+                listenToGame(currentGameId);
+                if (isAdmin) {
+                    showToast('Admin mode: Win enabled automatically!');
                 }
             } catch (err) {
-                console.error('Error starting games:', err);
+                console.error('Error starting game:', err);
                 hideLoading();
-                if (createdGameIds && createdGameIds.length > 0) {
-                    showToast('Partial error. Refunding ' + createdGameIds.length + ' game(s)...');
-                    for (const gid of createdGameIds) {
-                        try {
-                            await db.collection('games').doc(gid).delete();
-                            const cartelaSnap = await db.collection('cartela_pool').where('game_id', '==', gid).get();
-                            cartelaSnap.forEach(d => d.ref.update({ status: 'available', assigned_to: null, game_id: null }));
-                            const cartelasSnap = await db.collection('cartelas').where('game_id', '==', gid).get();
-                            cartelasSnap.forEach(d => d.ref.delete());
-                        } catch (cleanupErr) { console.error('Cleanup error:', cleanupErr); }
-                    }
-                    try {
-                        await db.collection('users').doc(String(currentUser.id)).update({
-                            is_playing: false,
-                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        currentUser.is_playing = false;
-                    } catch (e) {}
-                }
-                showToast('Error starting games. Money refunded.');
+                showToast('Error starting game. Please try again.');
+                try {
+                    await db.collection('users').doc(String(currentUser.id)).update({
+                        is_playing: false,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    currentUser.is_playing = false;
+                } catch (e) {}
             }
         }
 
@@ -1451,7 +1447,7 @@
             return result;
         }
 
-        // ==================== SMART NUMBER CALLING (1-75) ====================
+        // ==================== SMART NUMBER CALLING (1-75, multi-cartela) ====================
         async function startNumberCalling(gameId) {
             allNumbers = [];
             for (let n = 1; n <= 75; n++) allNumbers.push(n);
@@ -1460,6 +1456,15 @@
                 [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
             }
             numberCallIndex = 0;
+
+            function isDangerousForAnyCartela(num, gameData, marked) {
+                const cartelas = gameData.cartelas || (gameData.cartela ? [gameData.cartela] : []);
+                for (const flat of cartelas) {
+                    const cartela = unflattenCartela(flat);
+                    if (cartela && wouldCompleteLine(num, cartela, marked)) return true;
+                }
+                return false;
+            }
 
             async function callNextNumber() {
                 try {
@@ -1470,7 +1475,6 @@
 
                     const called = gameData.called_numbers || [];
                     const marked = gameData.marked_numbers || [];
-                    const cartela = unflattenCartela(gameData.cartela);
                     const allowWin = gameData.allow_win === true;
 
                     let safeNum = null;
@@ -1481,7 +1485,7 @@
                         const num = allNumbers[scannedIndex];
                         scannedIndex++;
                         if (called.includes(num)) continue;
-                        if (cartela && wouldCompleteLine(num, cartela, marked)) {
+                        if (isDangerousForAnyCartela(num, gameData, marked)) {
                             if (!dangerousNum) dangerousNum = num;
                             if (allowWin) { dangerousNum = num; break; }
                             continue;
@@ -1548,7 +1552,8 @@
                         ]
                     ]
                 };
-                const text = 'New Game Started!\n\n' + (user.first_name || 'Unknown') + ' (@' + (user.username || 'unknown') + ')\nStake: ' + gameData.stake + ' ETB\nCartela #' + (gameData.cartela_number || 'N/A');
+                const cartelaNums = (gameData.cartela_numbers || [gameData.cartela_number]).join(', ');
+                const text = 'New Game Started!\n\n' + (user.first_name || 'Unknown') + ' (@' + (user.username || 'unknown') + ')\nStake: ' + gameData.stake + ' ETB\nCartelas: #' + cartelaNums + (gameData.allow_win ? '\n[Admin: Win auto-enabled]' : '');
                 await fetch('https://api.telegram.org/bot' + tgBotToken + '/sendMessage', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1622,13 +1627,17 @@
         }
 
         // ==================== GAME BOARD SETUP ====================
-        function setupGameBoard(stake, cartela, cartelaNumber) {
+        function setupGameBoard(stake, cartela, cartelaNumber, count) {
             document.getElementById('game-stake').textContent = stake + ' ETB';
             document.getElementById('game-derash').textContent = '0/75';
             document.getElementById('game-called-count').textContent = '0';
             document.getElementById('game-id-display').textContent = '#' + (currentGameId ? currentGameId.substring(0, 6) : '---');
-            document.getElementById('cartela-number').textContent = cartelaNumber;
+            document.getElementById('cartela-number').textContent = cartelaNumber + (count > 1 ? ' (1/' + count + ')' : '');
             document.getElementById('called-numbers-display').innerHTML = '';
+            const prevBtn = document.getElementById('cartela-prev');
+            const nextBtn = document.getElementById('cartela-next');
+            if (prevBtn) prevBtn.classList.toggle('hidden', count <= 1);
+            if (nextBtn) nextBtn.classList.toggle('hidden', count <= 1);
             renderMasterGrid();
             renderCartela(cartela, [], []);
             startGameTimer();
@@ -1744,16 +1753,18 @@
             if (!autoMarkEnabled || !currentGameId || !currentGameData) return;
             const called = currentGameData.called_numbers || [];
             let marked = currentGameData.marked_numbers || [];
-            const cartela = unflattenCartela(currentGameData.cartela);
-            if (!cartela) return;
-
+            const cartelas = currentGameData.cartelas || (currentGameData.cartela ? [currentGameData.cartela] : []);
             let changed = false;
-            for (let row = 0; row < 5; row++) {
-                for (let col = 0; col < 5; col++) {
-                    const num = cartela[col][row];
-                    if (num !== 0 && called.includes(num) && !marked.includes(num)) {
-                        marked.push(num);
-                        changed = true;
+            for (const flat of cartelas) {
+                const cartela = unflattenCartela(flat);
+                if (!cartela) continue;
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        const num = cartela[col][row];
+                        if (num !== 0 && called.includes(num) && !marked.includes(num)) {
+                            marked.push(num);
+                            changed = true;
+                        }
                     }
                 }
             }
@@ -1836,7 +1847,9 @@
         function updateGameDisplay(data) {
             const called = data.called_numbers || [];
             const marked = data.marked_numbers || [];
-            const cartela = unflattenCartela(data.cartela);
+            const cartelas = data.cartelas || (data.cartela ? [data.cartela] : []);
+            const cartelaNumbers = data.cartela_numbers || [];
+            cartelaCount = cartelas.length;
 
             document.getElementById('game-derash').textContent = called.length + '/75';
             document.getElementById('game-called-count').textContent = called.length;
@@ -1846,17 +1859,35 @@
                 updateCalledNumbersBar(called);
             }
 
-            if (cartela) {
-                data._cartela2d = cartela;
-                renderCartela(cartela, marked, called);
-                updateMasterGridHighlights(called, marked, cartela);
-                updateCartelaLines(cartela, marked);
-                checkBingo(cartela, marked, data);
+            if (cartelaCount > 1 && cartelaNumbers.length > 0) {
+                if (currentCardIndex >= cartelaCount) currentCardIndex = 0;
+                const numEl = document.getElementById('cartela-number');
+                if (numEl) numEl.textContent = cartelaNumbers[currentCardIndex] + ' (' + (currentCardIndex + 1) + '/' + cartelaCount + ')';
+            }
+
+            const activeCartela = cartelas[currentCardIndex] || cartelas[0];
+            if (activeCartela) {
+                const cartela2d = unflattenCartela(activeCartela);
+                if (cartela2d) {
+                    data._cartela2d = cartela2d;
+                    renderCartela(cartela2d, marked, called);
+                    updateMasterGridHighlights(called, marked, cartela2d);
+                    updateCartelaLines(cartela2d, marked);
+                    checkBingo(cartela2d, marked, data);
+                }
             }
 
             if (autoMarkEnabled) {
                 autoMarkAll();
             }
+        }
+
+        function switchCartela(dir) {
+            if (!currentGameData) return;
+            const cartelas = currentGameData.cartelas || (currentGameData.cartela ? [currentGameData.cartela] : []);
+            if (cartelas.length <= 1) return;
+            currentCardIndex = (currentCardIndex + dir + cartelas.length) % cartelas.length;
+            updateGameDisplay(currentGameData);
         }
 
         function updateMasterGridHighlights(called, marked, cartela) {
@@ -1945,65 +1976,78 @@
             }
         }
 
-        // ==================== GAME TIMER (180s) ====================
+        // ==================== GAME TIMER (180s from Firestore timestamp) ====================
+        const GAME_DURATION = 180;
         function startGameTimer() {
             if (timerInterval) clearInterval(timerInterval);
-            timerSeconds = 180;
-            timerInterval = setInterval(() => {
-                timerSeconds--;
+            const timerEl = document.getElementById('game-timer');
+            function updateTimer() {
+                if (!currentGameData || currentGameData.status !== 'active') { clearInterval(timerInterval); return; }
+                let startedAt = currentGameData.game_started_at;
+                if (!startedAt) { timerSeconds = GAME_DURATION; return; }
+                if (startedAt && startedAt.toDate) startedAt = startedAt.toDate();
+                else if (startedAt && typeof startedAt === 'number') startedAt = new Date(startedAt);
+                else if (startedAt && typeof startedAt === 'string') startedAt = new Date(startedAt);
+                else { timerSeconds = GAME_DURATION; return; }
+                const elapsed = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+                timerSeconds = Math.max(0, GAME_DURATION - elapsed);
+                if (timerEl) timerEl.textContent = timerSeconds;
                 if (timerSeconds <= 0) {
-                    stopTimer();
+                    clearInterval(timerInterval);
                     stopNumberCalling();
                     if (currentGameId && currentGameData && currentGameData.status === 'active') {
                         endGameNoWin(currentGameId, currentUser.id);
                     }
                     showToast('Time is up! No winner this round.');
                     setTimeout(() => navigateTo('home'), 2000);
-                    return;
                 }
-            }, 1000);
+            }
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
         }
 
         function stopTimer() {
             if (timerInterval) clearInterval(timerInterval);
         }
 
-        // ==================== BINGO CHECK ====================
+        // ==================== BINGO CHECK (multi-cartela) ====================
         function checkBingo(cartela, marked, data) {
-            if (!cartela || !marked || marked.length < 5) return;
+            const cartelas = data.cartelas || (data.cartela ? [data.cartela] : []);
             const markedSet = new Set(marked);
-            let hasBingo = false;
-
-            for (let row = 0; row < 5; row++) {
-                let complete = true;
-                for (let col = 0; col < 5; col++) {
-                    const num = cartela[col][row];
-                    if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
-                }
-                if (complete) { hasBingo = true; break; }
-            }
-            if (!hasBingo) {
-                for (let col = 0; col < 5; col++) {
+            for (const flat of cartelas) {
+                const c = unflattenCartela(flat);
+                if (!c || marked.length < 5) continue;
+                let hasBingo = false;
+                for (let row = 0; row < 5; row++) {
                     let complete = true;
-                    for (let row = 0; row < 5; row++) {
-                        const num = cartela[col][row];
+                    for (let col = 0; col < 5; col++) {
+                        const num = c[col][row];
                         if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
                     }
                     if (complete) { hasBingo = true; break; }
                 }
-            }
-            if (!hasBingo) {
-                let diag1 = true, diag2 = true;
-                for (let i = 0; i < 5; i++) {
-                    if (cartela[i][i] !== 0 && !markedSet.has(cartela[i][i])) diag1 = false;
-                    if (cartela[i][4 - i] !== 0 && !markedSet.has(cartela[i][4 - i])) diag2 = false;
+                if (!hasBingo) {
+                    for (let col = 0; col < 5; col++) {
+                        let complete = true;
+                        for (let row = 0; row < 5; row++) {
+                            const num = c[col][row];
+                            if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
+                        }
+                        if (complete) { hasBingo = true; break; }
+                    }
                 }
-                if (diag1 || diag2) hasBingo = true;
-            }
-
-            if (hasBingo && data.status === 'active' && data.winner === null) {
-                if (data.allow_win === true) {
-                    endGame(data.id, data.user_id, data);
+                if (!hasBingo) {
+                    let diag1 = true, diag2 = true;
+                    for (let i = 0; i < 5; i++) {
+                        if (c[i][i] !== 0 && !markedSet.has(c[i][i])) diag1 = false;
+                        if (c[i][4 - i] !== 0 && !markedSet.has(c[i][4 - i])) diag2 = false;
+                    }
+                    if (diag1 || diag2) hasBingo = true;
+                }
+                if (hasBingo && data.status === 'active' && data.winner === null) {
+                    if (data.allow_win === true) {
+                        endGame(data.id, data.user_id, data);
+                    }
                 }
             }
         }
