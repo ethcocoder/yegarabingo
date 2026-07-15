@@ -14,12 +14,14 @@ from telegram.ext import (
     ConversationHandler, ContextTypes, filters,
 )
 from config import (
-    BOT_TOKEN, db, ADMIN_CHAT_ID,
+    db, ADMIN_CHAT_ID,
     DEFAULT_STAKE_10, DEFAULT_STAKE_20,
     SUPPORT_USERNAME, REFERRAL_BONUS, BONUS_TO_ETB_RATE, MIN_WITHDRAW,
     TELEBIRR_NUMBER,
 )
 from handlers.user_manager import UserManager
+
+BOT_TOKEN = "8969362242:AAGuXZOrsDndXYbxfq3AMjGZ5QB-bxOxXY8"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
