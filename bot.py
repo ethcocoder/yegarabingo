@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import hashlib
 import asyncio
@@ -24,6 +25,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 user_manager = UserManager(db)
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
 
 # ─── Conversation states ───
 REG_NAME, REG_PHONE = range(2)
@@ -73,7 +75,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Welcome to Yegara Bingo, {user.first_name}!\n\n"
         f"Choose an option below to get started."
     )
-    await update.message.reply_text(text, reply_markup=MAIN_KEYBOARD)
+    banner_path = os.path.join(ASSETS_DIR, 'welcome_banner.png')
+    if os.path.exists(banner_path):
+        with open(banner_path, 'rb') as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=text,
+                reply_markup=MAIN_KEYBOARD,
+            )
+    else:
+        await update.message.reply_text(text, reply_markup=MAIN_KEYBOARD)
 
     await update.message.reply_text(
         "🎮 ጨዋታውን ለመጀመር ከታች ያለውን Play የሚለውን ይጫኑ\n"
