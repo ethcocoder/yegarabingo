@@ -838,14 +838,8 @@ def main():
     # ─── /start ───
     app.add_handler(CommandHandler("start", start))
 
-    # ─── Menu text handlers (persistent keyboard) ───
-    app.add_handler(MessageHandler(filters.Regex("^🎮 Play$"), handle_play))
-    app.add_handler(MessageHandler(filters.Regex("^📝 Register$"), handle_register))
+    # ─── Simple menu handlers (no conversation needed) ───
     app.add_handler(MessageHandler(filters.Regex("^💵 Check Balance$"), handle_balance))
-    app.add_handler(MessageHandler(filters.Regex("^💵 Deposit$"), handle_deposit))
-    app.add_handler(MessageHandler(filters.Regex("^🎰 Withdraw$"), handle_withdraw))
-    app.add_handler(MessageHandler(filters.Regex("^🎁 Transfer$"), handle_transfer))
-    app.add_handler(MessageHandler(filters.Regex("^🔄 Convert Bonus$"), handle_convert_bonus))
     app.add_handler(MessageHandler(filters.Regex("^🔗 Invite$"), handle_invite))
     app.add_handler(MessageHandler(filters.Regex("^📖 Instruction$"), handle_instruction))
     app.add_handler(MessageHandler(filters.Regex("^🆘 Contact Support$"), handle_support))
