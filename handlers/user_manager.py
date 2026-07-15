@@ -76,13 +76,12 @@ class UserManager:
         return True
     
     async def add_winnings(self, user_id: int, amount: float) -> bool:
-        """Add winnings to user balance"""
+        """Add winnings to user play wallet only"""
         user = await self.get_user(user_id)
         if not user:
             return False
         
         self.users_ref.document(str(user_id)).update({
-            'balance': user.get('balance', 0) + amount,
             'play_wallet': user.get('play_wallet', 0) + amount,
             'wins': user.get('wins', 0) + 1,
             'updated_at': datetime.utcnow()

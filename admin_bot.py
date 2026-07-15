@@ -6,16 +6,13 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import firestore
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Firebase
-cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), "bingo-bot-5c708-firebase-adminsdk-fbsvc-c5d4b699f3.json"))
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+from config import db
 
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "YOUR_ADMIN_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))

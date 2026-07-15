@@ -1052,6 +1052,15 @@
                 showToast('Resuming your game...');
             } catch (err) {
                 console.error('Error resuming game:', err);
+                try {
+                    await db.collection('users').doc(String(currentUser.id)).update({
+                        is_playing: false, updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    currentUser.is_playing = false;
+                    showToast('Game recovery complete. You can start a new game.');
+                } catch (e2) {
+                    showToast('Connection error. Please refresh.');
+                }
             }
         }
 
@@ -1059,8 +1068,18 @@
         async function selectStake(stake) {
             if (!currentUser) { showToast('Loading user data...'); return; }
             if (currentUser.is_playing) {
-                resumeActiveGame();
-                return;
+                const snap = await db.collection('games')
+                    .where('user_id', '==', currentUser.id)
+                    .where('status', '==', 'active')
+                    .limit(1).get();
+                if (!snap.empty) {
+                    resumeActiveGame();
+                    return;
+                }
+                await db.collection('users').doc(String(currentUser.id)).update({
+                    is_playing: false, updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentUser.is_playing = false;
             }
             if ((currentUser.play_wallet || 0) < stake) {
                 showToast('Transfer funds to Play Wallet to join!');
@@ -1231,6 +1250,8 @@
                 let firstCartelaNumber = null;
                 const cardsToProcess = [...selectedCards];
                 selectedCards = [];
+                const createdGameIds = [];
+                let gamesCount = 0;
 
                 for (let ci = 0; ci < cardsToProcess.length; ci++) {
                     const cardNum = cardsToProcess[ci];
@@ -1259,7 +1280,6 @@
                     }
 
                     if (!poolData) {
-                        showToast('Card #' + cardNum + ' was taken, skipping...');
                         continue;
                     }
 
@@ -1285,6 +1305,8 @@
                         updated_at: firebase.firestore.FieldValue.serverTimestamp()
                     };
                     const gameRef = await db.collection('games').add(gameData);
+                    createdGameIds.push(gameRef.id);
+                    gamesCount++;
 
                     if (ci === 0) {
                         firstGameId = gameRef.id;
@@ -1310,11 +1332,20 @@
                     });
                 }
 
+                if (gamesCount === 0) {
+                    hideLoading();
+                    showToast('No cards available. Try again.');
+                    return;
+                }
+
+                const actualCost = gamesCount * currentStake;
                 await db.collection('users').doc(String(currentUser.id)).update({
-                    play_wallet: firebase.firestore.FieldValue.increment(-totalCost),
+                    play_wallet: firebase.firestore.FieldValue.increment(-actualCost),
                     is_playing: true,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                currentUser.play_wallet = (currentUser.play_wallet || 0) - actualCost;
 
                 hideLoading();
                 if (firstGameId) {
@@ -1328,7 +1359,26 @@
             } catch (err) {
                 console.error('Error starting games:', err);
                 hideLoading();
-                showToast('Error starting games. Please try again.');
+                if (createdGameIds && createdGameIds.length > 0) {
+                    showToast('Partial error. Refunding ' + createdGameIds.length + ' game(s)...');
+                    for (const gid of createdGameIds) {
+                        try {
+                            await db.collection('games').doc(gid).delete();
+                            const cartelaSnap = await db.collection('cartela_pool').where('game_id', '==', gid).get();
+                            cartelaSnap.forEach(d => d.ref.update({ status: 'available', assigned_to: null, game_id: null }));
+                            const cartelasSnap = await db.collection('cartelas').where('game_id', '==', gid).get();
+                            cartelasSnap.forEach(d => d.ref.delete());
+                        } catch (cleanupErr) { console.error('Cleanup error:', cleanupErr); }
+                    }
+                    try {
+                        await db.collection('users').doc(String(currentUser.id)).update({
+                            is_playing: false,
+                            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        currentUser.is_playing = false;
+                    } catch (e) {}
+                }
+                showToast('Error starting games. Money refunded.');
             }
         }
 
@@ -1457,6 +1507,7 @@
                     }
                 } catch (e) {
                     console.error('Error calling number:', e);
+                    numberCallInterval = setTimeout(callNextNumber, 6000);
                 }
             }
             callNextNumber();
@@ -1731,7 +1782,20 @@
         function listenToGame(gameId) {
             if (gameUnsubscribe) gameUnsubscribe();
             gameUnsubscribe = db.collection('games').doc(gameId).onSnapshot(doc => {
-                if (!doc.exists) return;
+                if (!doc.exists) {
+                    stopNumberCalling();
+                    stopTimer();
+                    currentGameId = null;
+                    currentGameData = null;
+                    if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
+                    db.collection('users').doc(String(currentUser.id)).update({
+                        is_playing: false, updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(()=>{});
+                    currentUser.is_playing = false;
+                    showToast('Game was removed.');
+                    navigateTo('home');
+                    return;
+                }
                 currentGameData = { id: doc.id, ...doc.data() };
                 const data = currentGameData;
                 updateGameDisplay(data);
@@ -1945,6 +2009,11 @@
                 markCartelaUsed(gameId);
             } catch (err) {
                 console.error('Error ending game:', err);
+                try {
+                    await db.collection('users').doc(String(userId)).update({
+                        is_playing: false, updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) {}
             }
         }
 
@@ -1966,6 +2035,13 @@
                 markCartelaUsed(gameId);
             } catch (err) {
                 console.error('Error ending game (no win):', err);
+                if (userId) {
+                    try {
+                        await db.collection('users').doc(String(userId)).update({
+                            is_playing: false, updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    } catch (e) {}
+                }
             }
         }
 
@@ -1989,6 +2065,8 @@
             }
             currentGameId = null;
             currentGameData = null;
+            showScreen('home');
+            loadUserData();
         }
 
         function refreshGame() {
@@ -1999,6 +2077,9 @@
                         currentGameData = { id: doc.id, ...doc.data() };
                         updateGameDisplay(currentGameData);
                     }
+                }).catch(err => {
+                    console.error('Error refreshing:', err);
+                    showToast('Refresh failed. Try again.');
                 });
             }
         }

@@ -390,7 +390,10 @@
         </div>
 
         <!-- Active Games -->
-        <h4 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Active Games</h4>
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Active Games</h4>
+            <button onclick="requestClearAllActiveGames()" class="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg bg-red-400/10 hover:bg-red-400/20 transition-all font-semibold">Clear All Active</button>
+        </div>
         <div class="glass rounded-2xl p-6 mb-8">
             <div id="gamesActiveList" class="space-y-3"></div>
             <div id="gamesActiveEmpty" class="text-center py-8 text-gray-500 text-sm">No active games</div>
@@ -838,6 +841,22 @@
         <div class="flex items-center gap-3">
             <button onclick="closeModal('deleteAllGamesModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
             <button onclick="confirmDeleteAllGames()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Delete All</button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear All Cartelas Confirmation Modal -->
+<div id="clearAllActiveGamesModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="modal-bg absolute inset-0" onclick="closeModal('clearAllActiveGamesModal')"></div>
+    <div class="modal-body glass rounded-2xl w-full max-w-sm relative z-10 p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">🗑️</span>
+        </div>
+        <h3 class="text-lg font-bold mb-2">Clear All Active Games</h3>
+        <p class="text-sm text-gray-400 mb-6">This will end ALL active games with no winner and reset player statuses. Are you sure? <span id="clearActiveGamesCount" class="text-white font-semibold">0</span> games will be affected.</p>
+        <div class="flex items-center gap-3">
+            <button onclick="closeModal('clearAllActiveGamesModal')" class="flex-1 py-3 rounded-xl glass text-sm font-semibold text-gray-400 hover:text-white transition-all">Cancel</button>
+            <button onclick="confirmClearAllActiveGames()" class="flex-1 btn-red-g py-3 rounded-xl text-sm font-semibold">Clear All</button>
         </div>
     </div>
 </div>
@@ -1474,8 +1493,17 @@ function adminControlGame(gameId, action){
 
 function adminEndGame(gameId){
     if(!confirm('End this game? No winner will be declared.')) return;
-    db.collection('games').doc(gameId).update({status: 'completed', winner: null, prize: 0})
-    .catch(function(e){console.error(e);alert('Failed to end game.');});
+    db.collection('games').doc(gameId).get().then(function(doc){
+        var userId = doc.exists ? doc.data().user_id : null;
+        db.collection('games').doc(gameId).update({status: 'completed', winner: null, prize: 0})
+        .then(function(){
+            if(userId){
+                return db.collection('users').doc(String(userId)).update({is_playing: false});
+            }
+        })
+        .then(function(){ loadGames(); })
+        .catch(function(e){console.error(e);alert('Failed to end game.');});
+    });
 }
 
 function deleteGame(gameId){
@@ -1515,6 +1543,36 @@ function confirmDeleteAllGames(){
         snap.forEach(function(doc){ batch.delete(doc.ref); });
         batch.commit().then(function(){ loadGames(); });
     }).catch(function(e){console.error(e);alert('Failed to delete games.');});
+}
+
+function requestClearAllActiveGames(){
+    db.collection('games').where('status', '==', 'active').get().then(function(snap){
+        document.getElementById('clearActiveGamesCount').textContent = snap.size;
+        openModal('clearAllActiveGamesModal');
+    });
+}
+
+function confirmClearAllActiveGames(){
+    closeModal('clearAllActiveGamesModal');
+    db.collection('games').where('status', '==', 'active').get().then(function(snap){
+        if(snap.empty){ loadGames(); return; }
+        var count = 0;
+        var total = snap.size;
+        snap.forEach(function(doc){
+            var userId = doc.data().user_id;
+            doc.ref.update({status: 'completed', winner: null, prize: 0})
+            .then(function(){
+                if(userId){
+                    return db.collection('users').doc(String(userId)).update({is_playing: false});
+                }
+            })
+            .then(function(){
+                count++;
+                if(count >= total){ loadGames(); }
+            })
+            .catch(function(e){ console.error(e); count++; if(count >= total){ loadGames(); } });
+        });
+    }).catch(function(e){console.error(e);alert('Failed to clear games.');});
 }
 
 // ==================== CARTELA POOL ====================
