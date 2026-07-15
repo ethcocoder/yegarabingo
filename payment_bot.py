@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-import httpx
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +21,7 @@ ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "8462274722"))
 TELEBIRR_NUMBER = os.getenv("TELEBIRR_NUMBER", "+251911000000")
 
 
-def is_admin_online():
+def _is_admin_online_sync():
     try:
         doc = db.collection("system").document("admin_status").get()
         if doc.exists:
@@ -31,6 +30,10 @@ def is_admin_online():
         return False
     except Exception:
         return False
+
+
+async def is_admin_online():
+    return await asyncio.to_thread(_is_admin_online_sync)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -47,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         balance = ud.get("balance", 0)
         play_wallet = ud.get("play_wallet", 0)
 
-    admin_online = is_admin_online()
+    admin_online = await is_admin_online()
 
     if admin_online:
         status_text = "🟢 Admin is *Online* — Ready to process payments!"
@@ -87,7 +90,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == "pay_deposit":
-        admin_online = is_admin_online()
+        admin_online = await is_admin_online()
         if not admin_online:
             await query.answer("Admin is offline right now. Payments are paused. Try again later.", show_alert=True)
             return
@@ -234,7 +237,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Please send a screenshot image, not text.")
         return
 
-    admin_online = is_admin_online()
+    admin_online = await is_admin_online()
     if not admin_online:
         await update.message.reply_text(
             "🔴 *Admin is Offline*\n\n"
@@ -264,7 +267,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🔍 Analyzing your screenshot...")
 
-    extracted = extract_text_from_image(bytes(image_bytes))
+    extracted = await asyncio.to_thread(extract_text_from_image, bytes(image_bytes))
 
     txn_id = ""
     amount = 0
@@ -306,7 +309,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     doc_ref = db.collection("deposits").add(deposit_data)
-    deposit_id = doc_ref[1].id
+    deposit_id = doc_ref[0].id
 
     db.collection("users").doc(str(user.id)).set({"awaiting_screenshot": False}, merge=True)
 
@@ -329,6 +332,9 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def notify_admin(deposit_data, deposit_id, context):
     try:
+        created_at = deposit_data.get('createdAt', datetime.utcnow())
+        time_str = created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(created_at, 'strftime') else str(created_at)
+
         text = (
             f"💰 *New Deposit Request!*\n\n"
             f"👤 *User:* {deposit_data['firstName']} (@{deposit_data['username']})\n"
@@ -336,7 +342,7 @@ async def notify_admin(deposit_data, deposit_id, context):
             f"💳 *Amount:* *{deposit_data.get('amount', 'Unknown')} ETB*\n"
             f"📝 *TXN:* `{deposit_data.get('transactionId', 'N/A')}`\n"
             f"👤 *Sender:* {deposit_data.get('senderName', 'Unknown')}\n"
-            f"⏰ *Time:* {deposit_data['createdAt'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"⏰ *Time:* {time_str}\n\n"
             f"Deposit ID: `{deposit_id}`"
         )
         keyboard = [[

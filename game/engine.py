@@ -1,7 +1,5 @@
 import random
-import time
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from firebase_admin import firestore
 
 
@@ -11,15 +9,15 @@ class GameEngine:
         self.games_ref = db.collection('games')
         self.cartelas_ref = db.collection('cartelas')
 
-    async def get_stats(self):
-        """Get game statistics"""
+    def get_stats(self):
+        """Get game statistics (synchronous)"""
         try:
-            active_players = len(await self.db.collection('users').where('is_playing', '==', True).get())
-            games = await self.db.collection('games').get()
-            games_played = len(games)
+            active_players = len(list(self.db.collection('users').where('is_playing', '==', True).get()))
+            games = self.db.collection('games').get()
+            games_played = len(list(games))
 
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            winners_today = len(await self.db.collection('games').where('winner', '!=', None).where('created_at', '>=', today).get())
+            winners_today = len(list(self.db.collection('games').where('winner', '!=', None).where('created_at', '>=', today).get()))
 
             return {
                 'active_players': active_players,
@@ -48,13 +46,13 @@ class GameEngine:
         return {'id': doc_ref.id, **game_data}
 
     async def generate_cartela(self):
-        """Generate a random Bingo cartela (5x5 card)"""
+        """Generate a random Bingo cartela (5x5 card) - standard ranges"""
         columns = {
-            'B': random.sample(range(1, 21), 5),
-            'I': random.sample(range(21, 41), 5),
-            'N': random.sample(range(41, 61), 5),
-            'G': random.sample(range(61, 81), 5),
-            'O': random.sample(range(81, 101), 5)
+            'B': random.sample(range(1, 16), 5),
+            'I': random.sample(range(16, 31), 5),
+            'N': random.sample(range(31, 46), 5),
+            'G': random.sample(range(46, 61), 5),
+            'O': random.sample(range(61, 76), 5)
         }
 
         cartela = []
@@ -62,7 +60,7 @@ class GameEngine:
             row = [
                 columns['B'][i],
                 columns['I'][i],
-                columns['N'][i] if i != 2 else '⭐',
+                columns['N'][i] if i != 2 else 0,
                 columns['G'][i],
                 columns['O'][i]
             ]
@@ -72,10 +70,15 @@ class GameEngine:
 
     async def save_cartela(self, game_id, user_id, cartela):
         """Save cartela to database"""
+        flat = []
+        for row in cartela:
+            for num in row:
+                flat.append(num)
+
         cartela_data = {
             'game_id': game_id,
             'user_id': user_id,
-            'cartela': cartela,
+            'cartela': flat,
             'marked': [],
             'created_at': datetime.utcnow()
         }
@@ -90,7 +93,7 @@ class GameEngine:
         game = game_doc.to_dict()
 
         called = game.get('called_numbers', [])
-        available = [n for n in range(1, 101) if n not in called]
+        available = [n for n in range(1, 76) if n not in called]
 
         if not available:
             return None
@@ -106,14 +109,20 @@ class GameEngine:
         return number
 
     async def mark_number(self, game_id, user_id, number):
-        """Mark a number on player's cartela"""
+        """Mark a number on player's cartela using transaction"""
         cartelas = self.cartelas_ref.where('game_id', '==', game_id).where('user_id', '==', user_id).get()
 
         for cartela_doc in cartelas:
-            marked = cartela_doc.to_dict().get('marked', [])
-            if number not in marked:
-                marked.append(number)
-                self.cartelas_ref.document(cartela_doc.id).update({'marked': marked})
+            @firestore.transactional
+            def update_in_transaction(transaction, doc_ref):
+                snapshot = doc_ref.get(transaction=transaction)
+                marked = snapshot.to_dict().get('marked', [])
+                if number not in marked:
+                    marked.append(number)
+                    transaction.update(doc_ref, {'marked': marked})
+
+            transaction = self.db.transaction()
+            update_in_transaction(transaction, self.cartelas_ref.document(cartela_doc.id))
 
         return True
 
@@ -122,23 +131,24 @@ class GameEngine:
         cartelas = self.cartelas_ref.where('game_id', '==', game_id).where('user_id', '==', user_id).get()
 
         for cartela_doc in cartelas:
-            cartela = cartela_doc.to_dict().get('cartela', [])
-            marked = cartela_doc.to_dict().get('marked', [])
+            flat = cartela_doc.to_dict().get('cartela', [])
+            marked = set(cartela_doc.to_dict().get('marked', []))
 
-            # Check rows
+            cartela = []
+            for row in range(5):
+                cartela.append(flat[row*5:(row+1)*5])
+
             for row in cartela:
-                if all(num in marked for num in row if num != '⭐'):
+                if all((n in marked or n == 0) for n in row):
                     return True
 
-            # Check columns
             for col in range(5):
-                if all(row[col] in marked for row in cartela if row[col] != '⭐'):
+                if all((row[col] in marked or row[col] == 0) for row in cartela):
                     return True
 
-            # Check diagonals
-            if all(cartela[i][i] in marked for i in range(5) if cartela[i][i] != '⭐'):
+            if all((cartela[i][i] in marked or cartela[i][i] == 0) for i in range(5)):
                 return True
-            if all(cartela[i][4-i] in marked for i in range(5) if cartela[i][4-i] != '⭐'):
+            if all((cartela[i][4-i] in marked or cartela[i][4-i] == 0) for i in range(5)):
                 return True
 
         return False
@@ -148,7 +158,7 @@ class GameEngine:
         game_doc = self.games_ref.document(game_id).get()
         game = game_doc.to_dict()
 
-        prize = game['stake'] * 15.2 if winner_id else 0
+        prize = game['stake'] * 1.5 if winner_id else 0
 
         self.games_ref.document(game_id).update({
             'status': 'completed',
@@ -163,9 +173,8 @@ class GameEngine:
         """Format the game board for display"""
         header = f"🎯 *Yegara Bingo*\n"
         header += f"💰 Stake: {stake} ETB | Play Wallet: {play_wallet} ETB\n"
-        header += f"⏰ Timer: 60s\n\n"
+        header += f"⏰ Timer: 35s\n\n"
 
-        # Column headers
         board = "```"
         board += "  B    I    N    G    O\n"
         board += "┌────┬────┬────┬────┬────┐\n"
@@ -173,8 +182,8 @@ class GameEngine:
         for row in cartela:
             board += "│"
             for num in row:
-                if num == '⭐':
-                    board += "  ⭐ │"
+                if num == 0:
+                    board += "  ★  │"
                 elif num in called_numbers:
                     board += f" [{num:2d}]│"
                 else:
@@ -182,7 +191,7 @@ class GameEngine:
             board += "\n"
             board += "├────┼────┼────┼────┼────┤\n"
 
-        board = board[:-23] + "└────┴────┴────┴────┴────┘"
+        board = board[:-27] + "└────┴────┴────┴────┴────┘"
         board += "```"
 
         return header + board

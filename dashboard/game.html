@@ -767,7 +767,7 @@
         function startBgMusic() {
             if (bgMusicAudio) return;
             try {
-                bgMusicAudio = new Audio('public/audio/bg_music.mp3');
+                bgMusicAudio = new Audio('public/audio/bg_music.wav');
                 bgMusicAudio.loop = true;
                 bgMusicAudio.volume = masterVolume * 0.3;
                 bgMusicAudio.play().catch(function() {
@@ -1394,11 +1394,6 @@
             }
         }
 
-        async function confirmCardSelection(cardNum) {
-            selectedCards = [cardNum];
-            await confirmMultiCardSelection();
-        }
-
         const ADMIN_IDS = [8462274722];
         let currentCardIndex = 0;
         let cartelaCount = 0;
@@ -1863,14 +1858,16 @@
             if (!currentGameId || !currentGameData) return;
             const called = currentGameData.called_numbers || [];
             if (!called.includes(num)) return;
-            let marked = currentGameData.marked_numbers || [];
-            if (marked.includes(num)) {
-                marked = marked.filter(n => n !== num);
-            } else {
-                marked.push(num);
-                playMarkSound();
-            }
             try {
+                const doc = await db.collection('games').doc(currentGameId).get();
+                if (!doc.exists) return;
+                let marked = doc.data().marked_numbers || [];
+                if (marked.includes(num)) {
+                    marked = marked.filter(n => n !== num);
+                } else {
+                    marked.push(num);
+                    playMarkSound();
+                }
                 await db.collection('games').doc(currentGameId).update({
                     marked_numbers: marked,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()

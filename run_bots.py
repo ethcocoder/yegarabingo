@@ -11,8 +11,7 @@ def run_game_bot():
     """Run the main game bot"""
     try:
         from bot import main
-        import asyncio
-        asyncio.run(main())
+        main()
     except Exception as e:
         logger.error(f"Game bot error: {e}")
 
@@ -44,7 +43,6 @@ def run_api():
 if __name__ == "__main__":
     logger.info("🚀 Starting Yegara Bingo Platform - All Services...")
 
-    # Start all services in separate threads
     threads = []
 
     services = [
