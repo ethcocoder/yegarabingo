@@ -8,8 +8,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-import firebase_admin
-from firebase_admin import firestore
+import httpx
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -21,12 +20,24 @@ PAYMENT_BOT_TOKEN = os.getenv("PAYMENT_BOT_TOKEN")
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "8462274722"))
 TELEBIRR_NUMBER = os.getenv("TELEBIRR_NUMBER", "+251911000000")
-RATE_LIMIT_HOURS = 1
-MAX_DEPOSITS_PER_HOUR = 3
+
+
+def is_admin_online():
+    try:
+        doc = db.collection("system").document("admin_status").get()
+        if doc.exists:
+            data = doc.to_dict()
+            return data.get("online", False)
+        return False
+    except Exception:
+        return False
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
+
+    db.collection("users").doc(str(user_id)).set({"awaiting_screenshot": False}, merge=True)
 
     user_doc = db.collection("users").doc(str(user_id)).get()
     balance = 0
@@ -36,11 +47,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         balance = ud.get("balance", 0)
         play_wallet = ud.get("play_wallet", 0)
 
+    admin_online = is_admin_online()
+
+    if admin_online:
+        status_text = "🟢 Admin is *Online* — Ready to process payments!"
+    else:
+        status_text = "🔴 Admin is *Offline* — Payments are paused right now. Try again later."
+
     text = (
         f"👋 Hello {user.first_name}!\n\n"
         f"💰 *Your Balances:*\n"
-        f"   Main Wallet: *{balance:.2f} ETB*\n"
-        f"   Play Wallet: *{play_wallet:.2f} ETB*\n\n"
+        f"   🏦 Main Wallet: *{balance:.2f} ETB*\n"
+        f"   🎮 Play Wallet: *{play_wallet:.2f} ETB*\n\n"
+        f"📡 *Status:* {status_text}\n\n"
         f"Choose what you want to do:"
     )
 
@@ -68,6 +87,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == "pay_deposit":
+        admin_online = is_admin_online()
+        if not admin_online:
+            await query.answer("Admin is offline right now. Payments are paused. Try again later.", show_alert=True)
+            return
         await show_deposit_flow(query, user)
 
     elif data == "pay_withdraw":
@@ -87,11 +110,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎮 Play Wallet: *{play_wallet:.2f} ETB*\n"
             f"💎 Total: *{balance + play_wallet:.2f} ETB*"
         )
-        keyboard = [[InlineKeyboardButton("🔄 Refresh", callback_data="pay_balance")]]
+        keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="pay_main")]]
         await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "pay_history":
-        deposits = db.collection("deposits").where("userId", "==", user_id).order_by("createdAt", direction=firestore.Query.DESCENDING).limit(5).get()
+        deposits = db.collection("deposits").where("userId", "==", user_id).order_by("createdAt", direction=1).limit(5).get()
         if not deposits:
             text = "📋 *No deposits found.*\n\nMake your first deposit to get started!"
         else:
@@ -109,18 +132,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "pay_help":
         text = (
             "❓ *How to Deposit*\n\n"
-            "1️⃣ Click *Deposit* below\n"
-            "2️⃣ Send payment to TeleBirr: `+251911000000`\n"
-            "3️⃣ Send the screenshot here\n"
-            "4️⃣ Wait for admin approval\n\n"
-            "✅ Balance updates automatically!\n\n"
-            "📞 *Support:* @yegarabingobot"
+            f"1️⃣ Click *Deposit* below\n"
+            f"2️⃣ Send payment to TeleBirr: `{TELEBIRR_NUMBER}`\n"
+            f"3️⃣ Send the screenshot here\n"
+            f"4️⃣ Wait for admin approval\n\n"
+            f"✅ Balance updates automatically!\n\n"
+            f"📞 *Support:* @yegarabingobot"
         )
         keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="pay_main")]]
         await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "pay_main":
-        user_id = query.from_user.id
         db.collection("users").doc(str(user_id)).set({"awaiting_screenshot": False}, merge=True)
         user_doc = db.collection("users").doc(str(user_id)).get()
         balance = 0
@@ -132,8 +154,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             f"👋 Hello {user.first_name}!\n\n"
             f"💰 *Your Balances:*\n"
-            f"   Main Wallet: *{balance:.2f} ETB*\n"
-            f"   Play Wallet: *{play_wallet:.2f} ETB*\n\n"
+            f"   🏦 Main Wallet: *{balance:.2f} ETB*\n"
+            f"   🎮 Play Wallet: *{play_wallet:.2f} ETB*\n\n"
             f"Choose what you want to do:"
         )
         keyboard = [
@@ -171,15 +193,14 @@ async def show_deposit_flow(query, user):
         f"📱 *Send payment to:*\n"
         f"`{TELEBIRR_NUMBER}`\n\n"
         f"⚠️ *After paying:*\n"
-        f"1. Take a screenshot of the receipt\n"
+        f"1. Take a screenshot of the TeleBirr receipt\n"
         f"2. Send the screenshot here\n"
         f"3. Wait for admin approval\n\n"
-        f"⏳ Pending deposits: *{pending_count}/3*"
+        f"⏳ Pending deposits: *{pending_count}/3*\n\n"
+        f"📸 *Send your screenshot now:*"
     )
     keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="pay_main")]]
     await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
-    context = query.bot  # store state differently
-    # We set a flag on the user document
     db.collection("users").doc(str(query.from_user.id)).set(
         {"awaiting_screenshot": True}, merge=True
     )
@@ -213,6 +234,17 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Please send a screenshot image, not text.")
         return
 
+    admin_online = is_admin_online()
+    if not admin_online:
+        await update.message.reply_text(
+            "🔴 *Admin is Offline*\n\n"
+            "Payments are paused right now.\n"
+            "Please try again when admin is online.\n"
+            "Your money is safe! 💰",
+            parse_mode='Markdown'
+        )
+        return
+
     user_doc = db.collection("users").doc(str(user.id)).get()
     if user_doc.exists and user_doc.to_dict().get("awaiting_screenshot"):
         pass
@@ -232,21 +264,25 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🔍 Analyzing your screenshot...")
 
-    extracted = await asyncio.to_thread(extract_text_from_image, bytes(image_bytes))
+    extracted = extract_text_from_image(bytes(image_bytes))
 
-    if not extracted.get("transaction_id"):
-        db.collection("users").doc(str(user.id)).set({"awaiting_screenshot": False}, merge=True)
-        await update.message.reply_text(
-            "❌ Could not read the screenshot.\n\n"
-            "Make sure it shows:\n"
-            "• Transaction ID\n"
-            "• Amount\n"
-            "• Your name\n\n"
-            "Try again with /deposit"
-        )
-        return
+    txn_id = ""
+    amount = 0
+    sender_name = user.first_name
 
-    txn_id = extracted["transaction_id"]
+    if extracted.get("transaction_id"):
+        txn_id = extracted["transaction_id"]
+    else:
+        txn_id = f"IMG-{image_hash[:12].upper()}"
+
+    if extracted.get("amount"):
+        amount = extracted["amount"]
+    else:
+        amount = 0
+
+    if extracted.get("sender_name"):
+        sender_name = extracted["sender_name"]
+
     dup = db.collection("deposits").where("transactionId", "==", txn_id).get()
     if len(list(dup)) > 0:
         db.collection("users").doc(str(user.id)).set({"awaiting_screenshot": False}, merge=True)
@@ -257,11 +293,12 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "userId": user.id,
         "username": user.username or "unknown",
         "firstName": user.first_name,
-        "amount": extracted.get("amount", 0),
+        "amount": amount,
         "transactionId": txn_id,
-        "senderName": extracted.get("sender_name", "Unknown"),
+        "senderName": sender_name,
         "status": "pending",
         "imageHash": image_hash,
+        "imageFileId": photo.file_id,
         "extractedText": extracted.get("raw_text", ""),
         "createdAt": datetime.utcnow(),
         "processedAt": None,
@@ -273,11 +310,13 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     db.collection("users").doc(str(user.id)).set({"awaiting_screenshot": False}, merge=True)
 
+    amt_text = f"*{amount} ETB*" if amount > 0 else "_Amount not detected — admin will verify_"
+
     text = (
         f"✅ *Screenshot Received!*\n\n"
         f"💳 *Payment Details:*\n"
-        f"• Amount: *{extracted.get('amount', 'Unknown')} ETB*\n"
-        f"• Name: `{extracted.get('sender_name', 'Unknown')}`\n"
+        f"• Amount: {amt_text}\n"
+        f"• Name: `{sender_name}`\n"
         f"• TXN: `{txn_id}`\n\n"
         f"⏳ *Waiting for admin approval...*\n"
         f"You'll be notified once processed.\n\n"
@@ -285,12 +324,11 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(text, parse_mode='Markdown')
 
-    await notify_admin(deposit_data, deposit_id)
+    await notify_admin(deposit_data, deposit_id, context)
 
 
-async def notify_admin(deposit_data, deposit_id):
+async def notify_admin(deposit_data, deposit_id, context):
     try:
-        import httpx
         text = (
             f"💰 *New Deposit Request!*\n\n"
             f"👤 *User:* {deposit_data['firstName']} (@{deposit_data['username']})\n"
@@ -298,22 +336,33 @@ async def notify_admin(deposit_data, deposit_id):
             f"💳 *Amount:* *{deposit_data.get('amount', 'Unknown')} ETB*\n"
             f"📝 *TXN:* `{deposit_data.get('transactionId', 'N/A')}`\n"
             f"👤 *Sender:* {deposit_data.get('senderName', 'Unknown')}\n"
-            f"⏰ *Time:* {deposit_data['createdAt'].strftime('%Y-%m-%d %H:%M:%S')}"
+            f"⏰ *Time:* {deposit_data['createdAt'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"Deposit ID: `{deposit_id}`"
         )
         keyboard = [[
             InlineKeyboardButton("✅ Approve", callback_data=f"approve_{deposit_id}"),
             InlineKeyboardButton("❌ Reject", callback_data=f"reject_{deposit_id}")
         ]]
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage",
-                json={
-                    "chat_id": ADMIN_CHAT_ID,
-                    "text": text,
-                    "parse_mode": "Markdown",
-                    "reply_markup": {"inline_keyboard": keyboard}
-                }
-            )
+        image_file_id = deposit_data.get("imageFileId")
+        if image_file_id:
+            try:
+                await context.bot.send_photo(
+                    chat_id=ADMIN_CHAT_ID,
+                    photo=image_file_id,
+                    caption=text,
+                    parse_mode='Markdown',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                return
+            except Exception as e:
+                logger.error(f"Failed to send photo to admin: {e}")
+
+        await context.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     except Exception as e:
         logger.error(f"Failed to notify admin: {e}")
 
@@ -367,6 +416,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_screenshot))
     logger.info("💳 Yegara Payment Bot starting...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()

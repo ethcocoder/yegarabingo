@@ -78,6 +78,14 @@
         .loading-shimmer { background: linear-gradient(90deg, #1A1A2E 25%, #2A2A3E 50%, #1A1A2E 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
         .card-select-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 4px; min-height: 0; }
         @media (max-width: 360px) { .card-select-grid { grid-template-columns: repeat(7, 1fr); } }
+        @media (max-width: 380px) {
+            .info-bar { gap: 4px !important; }
+            .info-bar .flex-shrink-0 { padding: 4px 6px !important; }
+        }
+        @media (max-width: 340px) {
+            .game-board { gap: 2px !important; }
+            .game-cell { font-size: 10px !important; }
+        }
         .card-select-grid::-webkit-scrollbar { width: 4px; }
         .card-select-grid::-webkit-scrollbar-thumb { background: #FF8C00; border-radius: 2px; }
         .card-num { transition: all 0.15s ease; cursor: pointer; width: 100%; aspect-ratio: 1; font-size: 11px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: visible; }
@@ -109,6 +117,20 @@
         .col-o-light { background: rgba(20,184,166,0.08); }
         @keyframes pop-in { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
         .pop-in { animation: pop-in 0.3s ease-out; }
+    #btn-music-toggle.on, #btn-voice-toggle.on {
+        background: rgba(16,185,129,0.15) !important;
+        border-color: rgba(16,185,129,0.4) !important;
+    }
+    #btn-music-toggle.on #music-icon, #btn-voice-toggle.on #voice-icon { filter: none; }
+    #btn-music-toggle.on #music-label, #btn-voice-toggle.on #voice-label { color: #34D399; }
+    #volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+        background: #FF8C00; cursor: pointer; border: 2px solid #fff;
+    }
+    #volume-slider::-moz-range-thumb {
+        width: 14px; height: 14px; border-radius: 50%;
+        background: #FF8C00; cursor: pointer; border: 2px solid #fff;
+    }
     </style>
 </head>
 <body class="bg-bingo-dark">
@@ -247,6 +269,22 @@
         <!-- Called Numbers Bar -->
         <div class="px-3 py-1.5">
             <div class="flex gap-1.5 overflow-x-auto pb-1" id="called-numbers-display" style="scrollbar-width: none;"></div>
+        </div>
+
+        <!-- Audio Controls Bar -->
+        <div class="px-3 py-1.5 flex items-center gap-2 border-b border-white/5">
+            <button id="btn-music-toggle" onclick="toggleMusic()" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <span id="music-icon">🔇</span>
+                <span id="music-label" class="text-white/60">Music</span>
+            </button>
+            <button id="btn-voice-toggle" onclick="toggleVoice()" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <span id="voice-icon">🔊</span>
+                <span id="voice-label" class="text-white/60">Voice</span>
+            </button>
+            <div class="flex items-center gap-1.5 flex-1">
+                <svg class="w-3 h-3 text-white/40 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 8.5v7a4.49 4.49 0 002.5-3.5z"/></svg>
+                <input type="range" id="volume-slider" min="0" max="100" value="80" oninput="setVolume(this.value)" class="flex-1 h-1 appearance-none rounded-full cursor-pointer" style="background: linear-gradient(90deg, #FF8C00 var(--vol-pct, 80%), rgba(255,255,255,0.1) var(--vol-pct, 80%));" />
+            </div>
         </div>
 
         <!-- Game Board: Master Grid (left) + Cartela (right) -->
@@ -689,6 +727,83 @@
         let cardSelectDeadline = 0;
         let autoMarkEnabled = false;
         let selectedCards = [];
+        let musicEnabled = false;
+        let voiceEnabled = true;
+        let masterVolume = 0.8;
+        let bgMusicAudio = null;
+
+        // ==================== AUDIO CONTROLS ====================
+        function toggleMusic() {
+            musicEnabled = !musicEnabled;
+            var btn = document.getElementById('btn-music-toggle');
+            var icon = document.getElementById('music-icon');
+            if (musicEnabled) {
+                btn.classList.add('on');
+                icon.textContent = '🎵';
+                startBgMusic();
+            } else {
+                btn.classList.remove('on');
+                icon.textContent = '🔇';
+                stopBgMusic();
+            }
+            localStorage.setItem('yegara_music', musicEnabled ? '1' : '0');
+        }
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            var btn = document.getElementById('btn-voice-toggle');
+            var icon = document.getElementById('voice-icon');
+            if (voiceEnabled) {
+                btn.classList.add('on');
+                icon.textContent = '🔊';
+            } else {
+                btn.classList.remove('on');
+                icon.textContent = '🔇';
+            }
+            localStorage.setItem('yegara_voice', voiceEnabled ? '1' : '0');
+        }
+        function setVolume(val) {
+            masterVolume = val / 100;
+            var slider = document.getElementById('volume-slider');
+            slider.style.setProperty('--vol-pct', val + '%');
+            localStorage.setItem('yegara_volume', val);
+        }
+        function startBgMusic() {
+            if (bgMusicAudio) return;
+            bgMusicAudio = new Audio('public/audio/bg_music.mp3');
+            bgMusicAudio.loop = true;
+            bgMusicAudio.volume = masterVolume * 0.3;
+            bgMusicAudio.play().catch(function() {
+                bgMusicAudio = null;
+                musicEnabled = false;
+                document.getElementById('btn-music-toggle').classList.remove('on');
+                document.getElementById('music-icon').textContent = '🔇';
+            });
+        }
+        function stopBgMusic() {
+            if (bgMusicAudio) {
+                bgMusicAudio.pause();
+                bgMusicAudio.currentTime = 0;
+                bgMusicAudio = null;
+            }
+        }
+        function restoreAudioSettings() {
+            if (localStorage.getItem('yegara_music') === '1') {
+                musicEnabled = true;
+                document.getElementById('btn-music-toggle').classList.add('on');
+                document.getElementById('music-icon').textContent = '🎵';
+            }
+            if (localStorage.getItem('yegara_voice') === '0') {
+                voiceEnabled = false;
+                document.getElementById('btn-voice-toggle').classList.remove('on');
+                document.getElementById('voice-icon').textContent = '🔇';
+            }
+            var vol = localStorage.getItem('yegara_volume');
+            if (vol) {
+                masterVolume = parseInt(vol) / 100;
+                document.getElementById('volume-slider').value = vol;
+                document.getElementById('volume-slider').style.setProperty('--vol-pct', vol + '%');
+            }
+        }
 
         // ==================== AUDIO CONTEXT FOR SOUND ====================
         let audioCtx = null;
@@ -699,6 +814,7 @@
             return audioCtx;
         }
         function playNumberSound() {
+            if (!voiceEnabled) return;
             try {
                 const ctx = getAudioCtx();
                 const osc = ctx.createOscillator();
@@ -728,6 +844,25 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
                 osc.start(ctx.currentTime);
                 osc.stop(ctx.currentTime + 0.15);
+            } catch(e) {}
+        }
+        function playWinSound() {
+            if (!voiceEnabled) return;
+            try {
+                const ctx = getAudioCtx();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach(function(freq, i) {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15);
+                    gain.gain.setValueAtTime(masterVolume * 0.3, ctx.currentTime + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
+                    osc.start(ctx.currentTime + i * 0.15);
+                    osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+                });
             } catch(e) {}
         }
 
@@ -771,10 +906,11 @@
         }
 
         async function speakAmharic(letter, num) {
+            if (!voiceEnabled) return false;
             try {
                 const url = getAudioUrl(letter, num);
                 const audio = new Audio(url);
-                audio.volume = 1.0;
+                audio.volume = masterVolume;
                 audio.preload = 'auto';
                 await new Promise((resolve) => {
                     let resolved = false;
@@ -2149,6 +2285,7 @@
         // ==================== WIN CELEBRATION ====================
         function showWinCelebration(data) {
             stopTimer();
+            playWinSound();
             const modal = document.getElementById('win-modal');
             const cartela = unflattenCartela(data.cartela);
             const marked = data.marked_numbers || [];
@@ -2407,7 +2544,7 @@
         }
 
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', () => { initUser(); initTTS(); });
+        document.addEventListener('DOMContentLoaded', () => { initUser(); initTTS(); restoreAudioSettings(); });
         window.addEventListener('popstate', (e) => {
             if (currentScreen !== 'home') { navigateTo('home'); }
             else if (tg) { tg.close(); }
