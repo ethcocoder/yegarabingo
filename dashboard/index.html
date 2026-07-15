@@ -1461,7 +1461,15 @@ function renderGames(){
             var calledCount = (g.called_numbers || []).length;
             var markedCount = (g.marked_numbers || []).length;
             var allowWin = g.allow_win === true;
-            var winStatus = allowWin ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#10B981]/20 text-[#10B981]">WIN ALLOWED</span>' : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EF4444]/20 text-[#EF4444]">BLOCKED</span>';
+            var winUser = g.win_user_id || null;
+            var winStatus;
+            if (!allowWin) {
+                winStatus = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EF4444]/20 text-[#EF4444]">BLOCKED</span>';
+            } else if (winUser === 'random') {
+                winStatus = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#8B5CF6]/20 text-[#8B5CF6]">RANDOM</span>';
+            } else {
+                winStatus = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#10B981]/20 text-[#10B981]">ALLOW WIN</span>';
+            }
             var playerName = g._playerName || 'Unknown';
             var playerUser = g._playerUsername || 'unknown';
             var actionInfo = '';
@@ -1486,7 +1494,7 @@ function renderGames(){
                 '</div>' +
                 '<div class="grid grid-cols-4 gap-2 mb-3">' +
                     '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Stake</p><p class="text-xs font-bold text-[#FF8C00]">' + (g.stake||0) + ' ETB</p></div>' +
-                    '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Called</p><p class="text-xs font-bold text-[#3B82F6]">' + calledCount + '/100</p></div>' +
+                    '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Called</p><p class="text-xs font-bold text-[#3B82F6]">' + calledCount + '/75</p></div>' +
                     '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Marked</p><p class="text-xs font-bold text-[#8B5CF6]">' + markedCount + '</p></div>' +
                     '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Cartela</p><p class="text-xs font-bold text-[#14B8A6]">#' + (g.cartela_number || '?') + '</p></div>' +
                 '</div>' +
@@ -1544,19 +1552,43 @@ function adminControlGame(gameId, action){
         admin_id: 'admin'
     };
     if(action === 'allow'){
+        var game = allGames.find(function(g){ return g.id === gameId; });
         updates.allow_win = true;
-        label = '✅ Win Allowed! The player can now win. Dashboard and bot are synced.';
+        updates.win_user_id = game ? String(game.user_id) : null;
+        label = 'Win allowed! The player will receive winning numbers.';
     } else if(action === 'random'){
-        updates.allow_win = true;
-        updates.win_user_id = 'random';
-        label = '🎲 Random win enabled! Any player can win now.';
+        db.collection('games').where('status', '==', 'completed').where('win_user_id', '==', 'random').get()
+        .then(function(snap){
+            var randomWinCount = 0;
+            snap.forEach(function(doc){ if(doc.data().winner) randomWinCount++; });
+            if(randomWinCount >= 2){
+                alert('Max 2 random winners reached in this round! You can use Allow Win for a specific player instead.');
+                return;
+            }
+            updates.allow_win = true;
+            updates.win_user_id = 'random';
+            db.collection('games').doc(gameId).update(updates).then(function(){
+                alert('Random win enabled! The player has a chance to win. (' + (randomWinCount+1) + '/2 random winners)');
+                loadGames();
+            }).catch(function(e){console.error(e);alert('Failed to update game.');});
+        }).catch(function(){
+            updates.allow_win = true;
+            updates.win_user_id = 'random';
+            db.collection('games').doc(gameId).update(updates).then(function(){
+                alert('Random win enabled!');
+                loadGames();
+            }).catch(function(e){console.error(e);alert('Failed to update game.');});
+        });
+        return;
     } else if(action === 'block'){
         updates.allow_win = false;
-        label = '❌ Wins blocked. No winning numbers will be called.';
+        updates.win_user_id = null;
+        label = 'Wins blocked. No winning numbers will be called.';
     }
     db.collection('games').doc(gameId).update(updates)
     .then(function(){
         alert(label);
+        loadGames();
     })
     .catch(function(e){console.error(e);alert('Failed to update game.');});
 }

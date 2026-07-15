@@ -182,7 +182,7 @@ async def handle_game_control(game_id, action, query, context):
 
         if action == "allow":
             updates["allow_win"] = True
-            updates["win_user_id"] = user_id
+            updates["win_user_id"] = str(user_id)
             confirm_text = (
                 f"✅ *WIN ALLOWED*\n\n"
                 f"👤 Player: {user_name}\n"
@@ -194,6 +194,15 @@ async def handle_game_control(game_id, action, query, context):
             )
 
         elif action == "random":
+            random_ref = db.collection("games").where("status", "==", "completed").where("win_user_id", "==", "random")
+            random_docs = list(random_ref.stream())
+            random_win_count = sum(1 for d in random_docs if d.to_dict().get("winner"))
+            if random_win_count >= 2:
+                await query.answer(
+                    "Max 2 random winners reached! Use Allow Win for a specific player.",
+                    show_alert=True,
+                )
+                return
             updates["allow_win"] = True
             updates["win_user_id"] = "random"
             confirm_text = (
@@ -201,13 +210,15 @@ async def handle_game_control(game_id, action, query, context):
                 f"👤 Player: {user_name}\n"
                 f"💰 Stake: {game.get('stake', 0)} ETB\n"
                 f"📊 Numbers called: {called_count}/75\n"
-                f"🕐 {now_str}\n\n"
+                f"🕐 {now_str}\n"
+                f"🏆 Random winners: {random_win_count + 1}/2\n\n"
                 f"A random winning number will be called.\n"
                 f"Good luck to the player!"
             )
 
         elif action == "block":
             updates["allow_win"] = False
+            updates["win_user_id"] = None
             confirm_text = (
                 f"❌ *WINS BLOCKED*\n\n"
                 f"👤 Player: {user_name}\n"

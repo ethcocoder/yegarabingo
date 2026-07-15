@@ -528,8 +528,9 @@ async function resumeActiveGame() {
         currentCardIndex = 0;
         const firstCartela = unflattenCartela(cartelas[0] || []);
         const cartelaNumbers = gameData.cartela_numbers || [];
+        var hasCalled = (gameData.called_numbers || []).length > 0;
         navigateTo('game');
-        setupGameBoard(gameData.stake, firstCartela, cartelaNumbers[0] || gameData.cartela_number, cartelaCount);
+        setupGameBoard(gameData.stake, firstCartela, cartelaNumbers[0] || gameData.cartela_number, cartelaCount, hasCalled);
         listenToGame(currentGameId);
         showToast('Resuming your game...');
     } catch (err) {
@@ -685,15 +686,20 @@ function stopCardSelectTimer() {
 }
 
 function selectCard(cardNum, cellEl) {
-    const maxCards = Math.floor((currentUser.play_wallet || 0) / currentStake);
+    const MAX_CARTELAS = 3;
     const idx = selectedCards.indexOf(cardNum);
     if (idx > -1) {
         selectedCards.splice(idx, 1);
         cellEl.className = 'card-num font-bold bg-white/10 text-white/80 border border-white/10';
         cellEl.style.boxShadow = '';
     } else {
-        if (selectedCards.length >= maxCards) {
-            showToast('Max ' + maxCards + ' cards with your balance!');
+        if (selectedCards.length >= MAX_CARTELAS) {
+            showToast('Maximum 3 cartelas per game!');
+            return;
+        }
+        const budgetMax = Math.floor((currentUser.play_wallet || 0) / currentStake);
+        if (selectedCards.length >= budgetMax) {
+            showToast('Not enough balance for more cards!');
             return;
         }
         selectedCards.push(cardNum);
@@ -710,9 +716,9 @@ function updateSelectedInfo() {
     if (count > 0) {
         info.classList.remove('hidden');
         confirmBtn.classList.remove('hidden');
-        document.getElementById('cs-selected-count').textContent = count;
+        document.getElementById('cs-selected-count').textContent = count + '/3';
         document.getElementById('cs-selected-total').textContent = (count * currentStake) + ' ETB';
-        confirmBtn.textContent = 'Confirm (' + count + ' card' + (count > 1 ? 's' : '') + ')';
+        confirmBtn.textContent = 'Confirm (' + count + ' cartela' + (count > 1 ? 's' : '') + ')';
     } else {
         info.classList.add('hidden');
         confirmBtn.classList.add('hidden');
@@ -961,9 +967,18 @@ async function startNumberCalling(gameId) {
     numberCallIndex = 0;
 
     function isDangerousForAnyCartela(num, gameData, marked) {
-        const cartelas = reconstructCartelas(gameData);
-        for (const flat of cartelas) {
-            const cartela = unflattenCartela(flat);
+        var cartelas = reconstructCartelas(gameData);
+        for (var fi = 0; fi < cartelas.length; fi++) {
+            var cartela = unflattenCartela(cartelas[fi]);
+            if (cartela && wouldCompleteLine(num, cartela, marked)) return true;
+        }
+        return false;
+    }
+
+    function isDangerousForSpecificUser(num, gameData, marked, targetUserId) {
+        var cartelas = reconstructCartelas(gameData);
+        for (var fi = 0; fi < cartelas.length; fi++) {
+            var cartela = unflattenCartela(cartelas[fi]);
             if (cartela && wouldCompleteLine(num, cartela, marked)) return true;
         }
         return false;
@@ -971,34 +986,47 @@ async function startNumberCalling(gameId) {
 
     async function callNextNumber() {
         try {
-            const gameDoc = await db.collection('games').doc(gameId).get();
+            var gameDoc = await db.collection('games').doc(gameId).get();
             if (!gameDoc.exists) return;
-            const gameData = gameDoc.data();
+            var gameData = gameDoc.data();
             if (gameData.status !== 'active') return;
 
-            const called = gameData.called_numbers || [];
-            const marked = gameData.marked_numbers || [];
-            const allowWin = gameData.allow_win === true;
+            var called = gameData.called_numbers || [];
+            var marked = gameData.marked_numbers || [];
+            var allowWin = gameData.allow_win === true;
+            var winUserId = gameData.win_user_id || null;
+            var isSpecificWin = allowWin && winUserId && winUserId !== 'random' && String(winUserId) === String(currentUser.id);
+            var isRandomWin = allowWin && winUserId === 'random';
 
-            let safeNum = null;
-            let dangerousNum = null;
-            let scannedIndex = numberCallIndex;
+            var safeNum = null;
+            var dangerousNum = null;
+            var scannedIndex = numberCallIndex;
 
             while (scannedIndex < allNumbers.length) {
-                const num = allNumbers[scannedIndex];
+                var num = allNumbers[scannedIndex];
                 scannedIndex++;
                 if (called.includes(num)) continue;
-                if (isDangerousForAnyCartela(num, gameData, marked)) {
+                var isDangerous = isDangerousForAnyCartela(num, gameData, marked);
+                if (isDangerous) {
                     if (!dangerousNum) dangerousNum = num;
-                    if (allowWin) { dangerousNum = num; break; }
+                    if (isSpecificWin) { dangerousNum = num; break; }
+                    if (isRandomWin) {
+                        if (Math.random() < 0.5) { dangerousNum = num; break; }
+                        continue;
+                    }
+                    if (allowWin && !isRandomWin) { dangerousNum = num; break; }
                     continue;
                 }
                 safeNum = num;
-                break;
+                if (!allowWin) break;
             }
 
-            let numToCall = null;
-            if (safeNum !== null) {
+            var numToCall = null;
+            if (isSpecificWin && dangerousNum !== null) {
+                numToCall = dangerousNum;
+            } else if (isRandomWin && dangerousNum !== null) {
+                numToCall = Math.random() < 0.5 ? dangerousNum : (safeNum || dangerousNum);
+            } else if (safeNum !== null) {
                 numToCall = safeNum;
             } else if (allowWin && dangerousNum !== null) {
                 numToCall = dangerousNum;
@@ -1012,7 +1040,7 @@ async function startNumberCalling(gameId) {
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 numberCallIndex = scannedIndex;
-                const letter = getNumberLetter(numToCall);
+                var letter = getNumberLetter(numToCall);
                 speakNumberWithLetter(letter, numToCall);
                 showNumberAnnouncement(numToCall);
                 updateCalledNumbersBar(called);
@@ -1132,20 +1160,50 @@ function wouldCompleteLine(num, cartela, marked) {
 }
 
 // ==================== GAME BOARD SETUP ====================
-function setupGameBoard(stake, cartela, cartelaNumber, count) {
+var gameCountdownInterval = null;
+
+function startGameCountdown(seconds) {
+    if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
+    var countdownEl = document.getElementById('game-countdown');
+    if (!countdownEl) { startNumberCalling(currentGameId); return; }
+    countdownEl.classList.remove('hidden');
+    var remaining = seconds;
+    countdownEl.textContent = 'Game starts in ' + remaining + 's — Admin choosing winners...';
+    gameCountdownInterval = setInterval(function() {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(gameCountdownInterval);
+            gameCountdownInterval = null;
+            countdownEl.classList.add('hidden');
+            if (currentGameId) startNumberCalling(currentGameId);
+        } else {
+            countdownEl.textContent = 'Game starts in ' + remaining + 's — Admin choosing winners...';
+        }
+    }, 1000);
+}
+
+function setupGameBoard(stake, cartela, cartelaNumber, count, skipCountdown) {
     document.getElementById('game-stake').textContent = stake + ' ETB';
     document.getElementById('game-derash').textContent = '0/75';
     document.getElementById('game-called-count').textContent = '0';
     document.getElementById('game-id-display').textContent = '#' + (currentGameId ? currentGameId.substring(0, 6) : '---');
-    document.getElementById('cartela-number').textContent = cartelaNumber + (count > 1 ? ' (1/' + count + ')' : '');
+    var label = cartelaNumber;
+    if (count > 1) {
+        label = 'Cartela #' + cartelaNumber + ' (' + (currentCardIndex + 1) + '/' + count + ')';
+    }
+    document.getElementById('cartela-number').textContent = label;
     document.getElementById('called-numbers-display').innerHTML = '';
-    const prevBtn = document.getElementById('cartela-prev');
-    const nextBtn = document.getElementById('cartela-next');
+    var prevBtn = document.getElementById('cartela-prev');
+    var nextBtn = document.getElementById('cartela-next');
     if (prevBtn) prevBtn.classList.toggle('hidden', count <= 1);
     if (nextBtn) nextBtn.classList.toggle('hidden', count <= 1);
     renderMasterGrid();
     renderCartela(cartela, [], []);
-    startNumberCalling(currentGameId);
+    if (skipCountdown) {
+        startNumberCalling(currentGameId);
+    } else {
+        startGameCountdown(10);
+    }
 }
 
 // ==================== MASTER GRID (15 rows x 5 cols = 75 numbers) ====================
@@ -1339,9 +1397,15 @@ function listenToGame(gameId) {
 
         if (data.status === 'completed' && Number(data.winner) === Number(currentUser.id)) {
             stopNumberCalling();
+            if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
+            var cd = document.getElementById('game-countdown');
+            if (cd) cd.classList.add('hidden');
             showWinCelebration(data);
         } else if (data.status === 'completed') {
             stopNumberCalling();
+            if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
+            var cd2 = document.getElementById('game-countdown');
+            if (cd2) cd2.classList.add('hidden');
             if (data.winner) {
                 showToast('Game over! Better luck next time.');
             } else {
@@ -1369,8 +1433,13 @@ function updateGameDisplay(data) {
 
     if (cartelaCount > 1 && cartelaNumbers.length > 0) {
         if (currentCardIndex >= cartelaCount) currentCardIndex = 0;
-        const numEl = document.getElementById('cartela-number');
-        if (numEl) numEl.textContent = cartelaNumbers[currentCardIndex] + ' (' + (currentCardIndex + 1) + '/' + cartelaCount + ')';
+        var numEl = document.getElementById('cartela-number');
+        if (numEl) {
+            var positionLabels = ['Upper', 'Middle', 'Lower'];
+            var posLabel = cartelaCount === 2 ? (currentCardIndex === 0 ? 'Upper' : 'Lower') :
+                           cartelaCount === 3 ? (positionLabels[currentCardIndex]) : '';
+            numEl.textContent = '#' + cartelaNumbers[currentCardIndex] + ' ' + posLabel + ' (' + (currentCardIndex + 1) + '/' + cartelaCount + ')';
+        }
     }
 
     const activeCartela = cartelas[currentCardIndex] || cartelas[0];
@@ -1520,33 +1589,33 @@ function stopTimer() {
 
 // ==================== BINGO CHECK (multi-cartela) ====================
 function checkBingo(cartela, marked, data) {
-    const cartelas = reconstructCartelas(data);
-    const markedSet = new Set(marked);
-    for (const flat of cartelas) {
-        const c = unflattenCartela(flat);
+    var cartelas = reconstructCartelas(data);
+    var markedSet = new Set(marked);
+    for (var fi = 0; fi < cartelas.length; fi++) {
+        var c = unflattenCartela(cartelas[fi]);
         if (!c || marked.length < 5) continue;
-        let hasBingo = false;
-        for (let row = 0; row < 5; row++) {
-            let complete = true;
-            for (let col = 0; col < 5; col++) {
-                const num = c[col][row];
+        var hasBingo = false;
+        for (var row = 0; row < 5; row++) {
+            var complete = true;
+            for (var col = 0; col < 5; col++) {
+                var num = c[col][row];
                 if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
             }
             if (complete) { hasBingo = true; break; }
         }
         if (!hasBingo) {
-            for (let col = 0; col < 5; col++) {
-                let complete = true;
-                for (let row = 0; row < 5; row++) {
-                    const num = c[col][row];
-                    if (num !== 0 && !markedSet.has(num)) { complete = false; break; }
+            for (var col2 = 0; col2 < 5; col2++) {
+                var complete2 = true;
+                for (var row2 = 0; row2 < 5; row2++) {
+                    var num2 = c[col2][row2];
+                    if (num2 !== 0 && !markedSet.has(num2)) { complete2 = false; break; }
                 }
-                if (complete) { hasBingo = true; break; }
+                if (complete2) { hasBingo = true; break; }
             }
         }
         if (!hasBingo) {
-            let diag1 = true, diag2 = true;
-            for (let i = 0; i < 5; i++) {
+            var diag1 = true, diag2 = true;
+            for (var i = 0; i < 5; i++) {
                 if (c[i][i] !== 0 && !markedSet.has(c[i][i])) diag1 = false;
                 if (c[i][4 - i] !== 0 && !markedSet.has(c[i][4 - i])) diag2 = false;
             }
@@ -1554,6 +1623,22 @@ function checkBingo(cartela, marked, data) {
         }
         if (hasBingo && data.status === 'active' && data.winner === null) {
             if (data.allow_win === true) {
+                var winUserId = data.win_user_id || null;
+                if (winUserId === 'random') {
+                    db.collection('games').where('status', '==', 'completed')
+                        .where('win_user_id', '==', 'random').get().then(function(snap) {
+                            var randomWinners = 0;
+                            snap.forEach(function(doc) {
+                                if (doc.data().winner) randomWinners++;
+                            });
+                            if (randomWinners < 2) {
+                                endGame(data.id, data.user_id, data);
+                            }
+                        }).catch(function() {
+                            endGame(data.id, data.user_id, data);
+                        });
+                    return;
+                }
                 endGame(data.id, data.user_id, data);
                 return;
             }
@@ -1563,7 +1648,7 @@ function checkBingo(cartela, marked, data) {
 
 async function endGame(gameId, userId, data) {
     try {
-        const prize = Math.round(data.stake * 15.2 * 100) / 100;
+        const prize = Math.round(data.stake * 1.5 * 100) / 100;
         await db.collection('games').doc(gameId).update({
             status: 'completed',
             winner: Number(userId),
@@ -1630,6 +1715,9 @@ async function leaveGame() {
     if (!currentGameId) return;
     stopTimer();
     stopNumberCalling();
+    if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
+    var cd = document.getElementById('game-countdown');
+    if (cd) cd.classList.add('hidden');
     hideAnnouncement();
     stopBgMusic();
     if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
