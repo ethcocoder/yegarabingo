@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -648,6 +649,16 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Sign in anonymously so Firestore security rules allow reads
+        auth.onAuthStateChanged(function(user) {
+            if (!user) {
+                auth.signInAnonymously().catch(function(e) {
+                    console.warn('Anonymous auth failed:', e);
+                });
+            }
+        });
 
         // ==================== STATE ====================
         let currentUser = null;
@@ -667,7 +678,7 @@
         let currentCallingNumber = null;
         let announceCountdownInterval = null;
         let cardSelectTimerInterval = null;
-        let cardSelectSeconds = 24;
+        let cardSelectDeadline = 0;
         let autoMarkEnabled = false;
         let selectedCards = [];
 
@@ -1089,7 +1100,7 @@
             showCardSelection(stake);
         }
 
-        // ==================== CARD SELECTION (400 cards, 24s timer) ====================
+        // ==================== CARD SELECTION (dynamic pool, 24s deadline timer) ====================
         async function showCardSelection(stake) {
             selectedCards = [];
             updateSelectedInfo();
@@ -1102,45 +1113,36 @@
             grid.innerHTML = '<div class="text-center py-8 col-span-8"><div class="text-3xl mb-2 float-anim">&#127183;</div><p class="text-white/50 text-sm">Loading cards...</p></div>';
 
             try {
+                // Load ALL docs then filter client-side (more reliable than where query)
                 const allSnap = await db.collection('cartela_pool').get();
-                const takenNumbers = new Set();
-                const availableDocs = {};
+                console.log('Cartela pool total docs:', allSnap.size);
+                const poolDocs = [];
 
                 allSnap.forEach(doc => {
                     const d = doc.data();
-                    const num = d.number;
-                    if (num) {
-                        if (d.status === 'assigned' || d.status === 'used') {
-                            takenNumbers.add(num);
-                        } else {
-                            availableDocs[num] = doc.id;
-                        }
+                    if (d.number && d.status === 'available') {
+                        poolDocs.push({ num: d.number, docId: doc.id });
                     }
                 });
 
-                const totalCards = 400;
-                let availableCount = Object.keys(availableDocs).length;
+                poolDocs.sort((a, b) => a.num - b.num);
+                const availableCount = poolDocs.length;
+                console.log('Available cartelas:', availableCount);
 
                 if (availableCount === 0) {
-                    grid.innerHTML = '<div class="col-span-8 text-center py-12 px-4"><div class="text-4xl mb-3">&#128531;</div><p class="text-white/80 text-sm font-bold mb-1">No Cards Available</p><p class="text-white/40 text-xs">All cartelas are currently in use. Please try again later.</p></div>';
+                    grid.innerHTML = '<div class="col-span-8 text-center py-12 px-4"><div class="text-4xl mb-3">&#128531;</div><p class="text-white/80 text-sm font-bold mb-1">No Cards Available</p><p class="text-white/40 text-xs">Ask admin to generate cartelas in the dashboard.</p></div>';
                     document.getElementById('cs-derash').textContent = '0';
                     return;
                 }
 
                 grid.innerHTML = '';
-                for (let i = 1; i <= totalCards; i++) {
+                for (const item of poolDocs) {
                     const cell = document.createElement('div');
-                    const isTaken = takenNumbers.has(i);
-                    cell.className = 'card-num font-bold ';
-                    if (isTaken) {
-                        cell.className += 'taken';
-                    } else {
-                        cell.className += 'bg-white/10 text-white/80 border border-white/10';
-                        cell.onclick = () => selectCard(i, cell);
-                    }
-                    cell.textContent = i;
-                    cell.dataset.num = i;
-                    cell.dataset.docid = availableDocs[i] || '';
+                    cell.className = 'card-num font-bold bg-white/10 text-white/80 border border-white/10';
+                    cell.onclick = () => selectCard(item.num, cell);
+                    cell.textContent = item.num;
+                    cell.dataset.num = item.num;
+                    cell.dataset.docid = item.docId;
                     grid.appendChild(cell);
                 }
 
@@ -1148,29 +1150,37 @@
                 startCardSelectTimer();
             } catch (err) {
                 console.error('Error loading cards:', err);
-                grid.innerHTML = '<div class="text-center py-8"><p class="text-red-400 text-sm">Error loading cards.</p><button onclick="cancelCardSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
+                grid.innerHTML = '<div class="text-center py-8"><p class="text-red-400 text-sm">Error loading cards: ' + (err.message || err) + '</p><button onclick="cancelCardSelect()" class="mt-3 bg-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold">Go Back</button></div>';
             }
         }
 
         function startCardSelectTimer() {
             if (cardSelectTimerInterval) clearInterval(cardSelectTimerInterval);
-            cardSelectSeconds = 24;
+            const stored = sessionStorage.getItem('cardSelectDeadline');
+            if (stored && parseInt(stored) > Date.now()) {
+                cardSelectDeadline = parseInt(stored);
+            } else {
+                cardSelectDeadline = Date.now() + 24000;
+            }
+            sessionStorage.setItem('cardSelectDeadline', cardSelectDeadline);
             const timerEl = document.getElementById('cs-timer');
-            timerEl.textContent = cardSelectSeconds;
+            const remaining = Math.max(0, Math.ceil((cardSelectDeadline - Date.now()) / 1000));
+            timerEl.textContent = remaining;
             timerEl.classList.add('timer-pulse');
             cardSelectTimerInterval = setInterval(() => {
-                cardSelectSeconds--;
-                timerEl.textContent = cardSelectSeconds;
-                if (cardSelectSeconds <= 0) {
+                const rem = Math.max(0, Math.ceil((cardSelectDeadline - Date.now()) / 1000));
+                timerEl.textContent = rem;
+                if (rem <= 0) {
                     clearInterval(cardSelectTimerInterval);
                     cardSelectTimerInterval = null;
+                    sessionStorage.removeItem('cardSelectDeadline');
                     if (selectedCards.length === 0) {
                         autoSelectRandomCard();
                     } else {
                         confirmMultiCardSelection();
                     }
                 }
-            }, 1000);
+            }, 200);
         }
 
         async function autoSelectRandomCard() {
@@ -1242,6 +1252,7 @@
             const totalCost = selectedCards.length * currentStake;
             if (totalCost > (currentUser.play_wallet || 0)) { showToast('Not enough play wallet!'); return; }
             stopCardSelectTimer();
+            sessionStorage.removeItem('cardSelectDeadline');
             document.getElementById('card-select-screen').classList.add('hidden');
             showLoading('Starting ' + selectedCards.length + ' game(s)...');
             try {
@@ -1384,6 +1395,7 @@
 
         function cancelCardSelect() {
             stopCardSelectTimer();
+            sessionStorage.removeItem('cardSelectDeadline');
             document.getElementById('card-select-screen').classList.add('hidden');
             selectedCards = [];
             updateSelectedInfo();
@@ -1463,10 +1475,11 @@
 
                     let safeNum = null;
                     let dangerousNum = null;
+                    let scannedIndex = numberCallIndex;
 
-                    while (numberCallIndex < allNumbers.length) {
-                        const num = allNumbers[numberCallIndex];
-                        numberCallIndex++;
+                    while (scannedIndex < allNumbers.length) {
+                        const num = allNumbers[scannedIndex];
+                        scannedIndex++;
                         if (called.includes(num)) continue;
                         if (cartela && wouldCompleteLine(num, cartela, marked)) {
                             if (!dangerousNum) dangerousNum = num;
@@ -1480,8 +1493,10 @@
                     let numToCall = null;
                     if (safeNum !== null) {
                         numToCall = safeNum;
+                        numberCallIndex = scannedIndex;
                     } else if (allowWin && dangerousNum !== null) {
                         numToCall = dangerousNum;
+                        numberCallIndex = scannedIndex;
                     }
 
                     if (numToCall !== null) {
@@ -1495,6 +1510,9 @@
                         speakNumberWithLetter(letter, numToCall);
                         showNumberAnnouncement(numToCall);
                         updateCalledNumbersBar(called);
+                    } else if (dangerousNum && !allowWin && gameData.status === 'active') {
+                        numberCallInterval = setTimeout(callNextNumber, 4000);
+                        return;
                     }
 
                     if (!gameData.admin_notified) {
