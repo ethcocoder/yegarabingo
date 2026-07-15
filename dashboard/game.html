@@ -57,10 +57,6 @@
         .glow-text { animation: glow-text 1.5s ease-in-out infinite; }
         .float-anim { animation: float 2s ease-in-out infinite; }
         .confetti { position: fixed; width: 10px; height: 10px; animation: confetti-fall 3s linear forwards; z-index: 1000; pointer-events: none; }
-        .bingo-cell { transition: all 0.2s ease; }
-        .bingo-cell:active { transform: scale(0.9); }
-        .number-called { animation: pulse-glow 1s ease-in-out infinite; }
-        .number-marked { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; }
         .timer-pulse { animation: pulse-red 0.5s ease-in-out infinite; }
         .nav-item { transition: all 0.3s ease; }
         .nav-item.active { color: #FF8C00; }
@@ -229,7 +225,7 @@
     <!-- ==================== SCREEN 2: GAME BOARD ==================== -->
     <div id="screen-game" class="screen pt-14" style="background: linear-gradient(180deg, #0D1117 0%, #0a0f18 50%, #111827 100%);">
         <div class="px-3 py-2 flex items-center justify-between border-b border-white/5">
-            <button onclick="navigateTo('home'); leaveGame();" class="w-8 h-8 rounded-full glass flex items-center justify-center text-white/70">
+            <button onclick="navigateTo('home')" class="w-8 h-8 rounded-full glass flex items-center justify-center text-white/70">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
             <h2 class="text-sm font-semibold text-white">Yegara Bingo</h2>
@@ -262,7 +258,7 @@
             </div>
             <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25);">
                 <div class="text-[9px] text-red-400/60 uppercase">Timer</div>
-                <div id="game-timer" class="text-[11px] font-bold text-red-400">180</div>
+                <div id="game-timer" class="text-[11px] font-bold text-red-400">35</div>
             </div>
         </div>
 
@@ -323,7 +319,7 @@
         <!-- Bottom Controls -->
         <div class="px-3 py-2 mt-auto">
             <div class="glass rounded-xl p-2 flex items-center justify-between">
-                <button onclick="navigateTo('home'); leaveGame();" class="bg-red-500/20 text-red-400 px-3 py-2 rounded-lg text-[11px] font-semibold btn-hover flex items-center gap-1">
+                <button onclick="navigateTo('home')" class="bg-red-500/20 text-red-400 px-3 py-2 rounded-lg text-[11px] font-semibold btn-hover flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     Leave
                 </button>
@@ -713,7 +709,7 @@
         let currentGameData = null;
         let gameUnsubscribe = null;
         let timerInterval = null;
-        let timerSeconds = 180;
+        let timerSeconds = 35;
         let userUnsubscribe = null;
         let statsUnsubscribe = null;
         let winCountdownInterval = null;
@@ -766,18 +762,26 @@
             var slider = document.getElementById('volume-slider');
             slider.style.setProperty('--vol-pct', val + '%');
             localStorage.setItem('yegara_volume', val);
+            if (bgMusicAudio) bgMusicAudio.volume = masterVolume * 0.3;
         }
         function startBgMusic() {
             if (bgMusicAudio) return;
-            bgMusicAudio = new Audio('public/audio/bg_music.mp3');
-            bgMusicAudio.loop = true;
-            bgMusicAudio.volume = masterVolume * 0.3;
-            bgMusicAudio.play().catch(function() {
+            try {
+                bgMusicAudio = new Audio('public/audio/bg_music.mp3');
+                bgMusicAudio.loop = true;
+                bgMusicAudio.volume = masterVolume * 0.3;
+                bgMusicAudio.play().catch(function() {
+                    bgMusicAudio = null;
+                    musicEnabled = false;
+                    document.getElementById('btn-music-toggle').classList.remove('on');
+                    document.getElementById('music-icon').textContent = '🔇';
+                });
+            } catch(e) {
                 bgMusicAudio = null;
                 musicEnabled = false;
                 document.getElementById('btn-music-toggle').classList.remove('on');
                 document.getElementById('music-icon').textContent = '🔇';
-            });
+            }
         }
         function stopBgMusic() {
             if (bgMusicAudio) {
@@ -1585,6 +1589,7 @@
 
         // ==================== SMART NUMBER CALLING (1-75, multi-cartela) ====================
         async function startNumberCalling(gameId) {
+            stopNumberCalling();
             allNumbers = [];
             for (let n = 1; n <= 75; n++) allNumbers.push(n);
             for (let i = allNumbers.length - 1; i > 0; i--) {
@@ -1633,10 +1638,8 @@
                     let numToCall = null;
                     if (safeNum !== null) {
                         numToCall = safeNum;
-                        numberCallIndex = scannedIndex;
                     } else if (allowWin && dangerousNum !== null) {
                         numToCall = dangerousNum;
-                        numberCallIndex = scannedIndex;
                     }
 
                     if (numToCall !== null) {
@@ -1646,6 +1649,7 @@
                             last_called: numToCall,
                             updated_at: firebase.firestore.FieldValue.serverTimestamp()
                         });
+                        numberCallIndex = scannedIndex;
                         const letter = getNumberLetter(numToCall);
                         speakNumberWithLetter(letter, numToCall);
                         showNumberAnnouncement(numToCall);
@@ -1675,25 +1679,28 @@
             try {
                 const userDoc = await db.collection('users').doc(String(gameData.user_id)).get();
                 const user = userDoc.data() || {};
-                const tgBotToken = '8893475520:AAEjnudQwsscy8zQUCPEhLTSZ_eFzCwzpEM';
                 const adminId = 8462274722;
-                const keyboard = {
-                    inline_keyboard: [
-                        [
-                            { text: 'Allow Win', callback_data: 'allow_win_' + gameId },
-                            { text: 'Random', callback_data: 'random_win_' + gameId }
-                        ],
-                        [
-                            { text: 'Block All', callback_data: 'block_win_' + gameId }
-                        ]
-                    ]
-                };
                 const cartelaNums = (gameData.cartela_numbers || [gameData.cartela_number]).join(', ');
                 const text = 'New Game Started!\n\n' + (user.first_name || 'Unknown') + ' (@' + (user.username || 'unknown') + ')\nStake: ' + gameData.stake + ' ETB\nCartelas: #' + cartelaNums + (gameData.allow_win ? '\n[Admin: Win auto-enabled]' : '');
-                await fetch('https://api.telegram.org/bot' + tgBotToken + '/sendMessage', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: adminId, text: text, reply_markup: keyboard })
+                await db.collection('admin_notifications').add({
+                    type: 'game_started',
+                    gameId: gameId,
+                    gameData: gameData,
+                    text: text,
+                    userId: gameData.user_id,
+                    keyboard: {
+                        inline_keyboard: [
+                            [
+                                { text: 'Allow Win', callback_data: 'allow_win_' + gameId },
+                                { text: 'Random', callback_data: 'random_win_' + gameId }
+                            ],
+                            [
+                                { text: 'Block All', callback_data: 'block_win_' + gameId }
+                            ]
+                        ]
+                    },
+                    read: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } catch (e) {
                 console.error('Failed to notify admin:', e);
@@ -1776,7 +1783,6 @@
             if (nextBtn) nextBtn.classList.toggle('hidden', count <= 1);
             renderMasterGrid();
             renderCartela(cartela, [], []);
-            startGameTimer();
             startNumberCalling(currentGameId);
         }
 
@@ -1803,6 +1809,7 @@
         function renderCartela(cartela, marked, called) {
             const grid = document.getElementById('cartela-grid');
             grid.innerHTML = '';
+            if (!cartela) { grid.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">Loading cartela...</div>'; return; }
             const calledSet = new Set(called || []);
             const markedSet = new Set(marked || []);
             const lastCalled = called && called.length > 0 ? called[called.length - 1] : null;
@@ -1964,6 +1971,7 @@
                 currentGameData = { id: doc.id, ...doc.data() };
                 const data = currentGameData;
                 updateGameDisplay(data);
+                startGameTimer();
 
                 if (data.status === 'completed' && Number(data.winner) === Number(currentUser.id)) {
                     stopNumberCalling();
@@ -2113,7 +2121,7 @@
         }
 
         // ==================== GAME TIMER (180s from Firestore timestamp) ====================
-        const GAME_DURATION = 180;
+        const GAME_DURATION = 35;
         function startGameTimer() {
             if (timerInterval) clearInterval(timerInterval);
             const timerEl = document.getElementById('game-timer');
@@ -2183,6 +2191,7 @@
                 if (hasBingo && data.status === 'active' && data.winner === null) {
                     if (data.allow_win === true) {
                         endGame(data.id, data.user_id, data);
+                        return;
                     }
                 }
             }
@@ -2254,17 +2263,17 @@
 
         // ==================== LEAVE GAME ====================
         async function leaveGame() {
+            if (!currentGameId) return;
             stopTimer();
             stopNumberCalling();
             hideAnnouncement();
+            stopBgMusic();
             if (gameUnsubscribe) { gameUnsubscribe(); gameUnsubscribe = null; }
-            if (currentGameId && currentGameData && currentGameData.status !== 'completed') {
+            if (currentGameData && currentGameData.status !== 'completed') {
                 endGameNoWin(currentGameId, currentUser.id);
             }
             currentGameId = null;
             currentGameData = null;
-            showScreen('home');
-            loadUserData();
         }
 
         function refreshGame() {
@@ -2274,6 +2283,7 @@
                     if (doc.exists) {
                         currentGameData = { id: doc.id, ...doc.data() };
                         updateGameDisplay(currentGameData);
+                        startGameTimer();
                     }
                 }).catch(err => {
                     console.error('Error refreshing:', err);
@@ -2287,11 +2297,12 @@
             stopTimer();
             playWinSound();
             const modal = document.getElementById('win-modal');
-            const cartela = unflattenCartela(data.cartela);
+            const cartelas = data.cartelas || (data.cartela ? [data.cartela] : []);
+            const cartela = unflattenCartela(cartelas[0]);
             const marked = data.marked_numbers || [];
             const prize = data.prize || Math.round(data.stake * 15.2 * 100) / 100;
             document.getElementById('winner-name').textContent = currentUser.first_name + ' WON!';
-            document.getElementById('winner-cartela').textContent = data.cartela_number;
+            document.getElementById('winner-cartela').textContent = (data.cartela_numbers ? data.cartela_numbers[0] : data.cartela_number) || 'N/A';
             document.getElementById('winner-prize').textContent = prize + ' ETB';
             const grid = document.getElementById('win-cartela-grid');
             grid.innerHTML = '';
@@ -2416,7 +2427,7 @@
                     dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 } catch (e) { dateStr = 'N/A'; }
             }
-            card.innerHTML = '<div class="flex items-center justify-between"><div class="flex items-center gap-3"><div class="text-2xl">' + statusIcon + '</div><div><div class="text-sm font-semibold text-white">Cartela #' + (data.cartela_number || 'N/A') + '</div><div class="text-xs text-white/50">Stake: ' + (data.stake || 0) + ' ETB</div></div></div><div class="text-right"><div class="text-sm font-semibold ' + statusColor + '">' + statusText + '</div>' + (data.prize > 0 ? '<div class="text-xs text-bingo-green font-bold">+' + data.prize + ' ETB</div>' : '') + '<div class="text-[10px] text-white/30 mt-1">' + dateStr + '</div></div></div>';
+                card.innerHTML = '<div class="flex items-center justify-between"><div class="flex items-center gap-3"><div class="text-2xl">' + statusIcon + '</div><div><div class="text-sm font-semibold text-white">Cartela #' + ((data.cartela_numbers ? data.cartela_numbers[0] : data.cartela_number) || 'N/A') + '</div><div class="text-xs text-white/50">Stake: ' + (data.stake || 0) + ' ETB</div></div></div><div class="text-right"><div class="text-sm font-semibold ' + statusColor + '">' + statusText + '</div>' + (data.prize > 0 ? '<div class="text-xs text-bingo-green font-bold">+' + data.prize + ' ETB</div>' : '') + '<div class="text-[10px] text-white/30 mt-1">' + dateStr + '</div></div></div>';
             return card;
         }
 
@@ -2519,11 +2530,13 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
         }
         function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
+        let toastTimeout = null;
         function showToast(message) {
             const toast = document.getElementById('toast');
+            if (toastTimeout) clearTimeout(toastTimeout);
             document.getElementById('toast-text').textContent = message;
             toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+            toastTimeout = setTimeout(() => { toast.classList.add('hidden'); toastTimeout = null; }, 3000);
         }
 
         // ==================== LOGOUT ====================
