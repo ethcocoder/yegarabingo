@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN")
 
 FIREBASE_CONFIG = {
     "apiKey": os.getenv("FIREBASE_API_KEY"),

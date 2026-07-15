@@ -14,11 +14,12 @@ from telegram.ext import (
     ConversationHandler, ContextTypes, filters,
 )
 from config import (
-    db, ADMIN_CHAT_ID,
+    db, ADMIN_CHAT_ID, ADMIN_BOT_TOKEN,
     DEFAULT_STAKE_10, DEFAULT_STAKE_20,
     SUPPORT_USERNAME, REFERRAL_BONUS, BONUS_TO_ETB_RATE, MIN_WITHDRAW,
     TELEBIRR_NUMBER,
 )
+from telegram import Bot
 from handlers.user_manager import UserManager
 
 BOT_TOKEN = "8969362242:AAGuXZOrsDndXYbxfq3AMjGZ5QB-bxOxXY8"
@@ -37,16 +38,15 @@ TRANSFER_ID, TRANSFER_AMOUNT, TRANSFER_CONFIRM = 5, 6, 7
 BONUS_CONFIRM = 8
 PLAY_STAKE = 9
 
-# ─── Persistent keyboard ───
-MAIN_KEYBOARD = ReplyKeyboardMarkup(
+MAIN_KEYBOARD = ReplyKeyboardRemove()
+MAIN_INLINE_KEYBOARD = InlineKeyboardMarkup(
     [
-        [KeyboardButton("🎮 Play"), KeyboardButton("📝 Register")],
-        [KeyboardButton("💵 Check Balance"), KeyboardButton("💵 Deposit")],
-        [KeyboardButton("🎰 Withdraw"), KeyboardButton("📖 Instruction")],
-        [KeyboardButton("🎁 Transfer"), KeyboardButton("🔗 Invite")],
-        [KeyboardButton("🔄 Convert Bonus"), KeyboardButton("🆘 Contact Support")],
-    ],
-    resize_keyboard=True,
+        [InlineKeyboardButton("Play 🎮", callback_data="menu_play"), InlineKeyboardButton("Register 📝", callback_data="menu_register")],
+        [InlineKeyboardButton("Check Balance 💵", callback_data="menu_balance"), InlineKeyboardButton("Deposit 💵", callback_data="menu_deposit")],
+        [InlineKeyboardButton("Contact Support ☎️", callback_data="menu_support"), InlineKeyboardButton("Instruction 📖", callback_data="menu_instruction")],
+        [InlineKeyboardButton("Transfer 🎁", callback_data="menu_transfer"), InlineKeyboardButton("Withdraw 🤑", callback_data="menu_withdraw")],
+        [InlineKeyboardButton("Invite 🔗", callback_data="menu_invite"), InlineKeyboardButton("Convert Bonus 💸", callback_data="menu_bonus")],
+    ]
 )
 
 
@@ -73,118 +73,64 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except (ValueError, IndexError):
             pass
 
-    text = (
-        f"👋 Welcome to Yegara Bingo, {user.first_name}!\n\n"
-        f"Choose an option below to get started."
-    )
+    text = "👋 Welcome to Yegara Bingo! Choose an Option below."
     banner_path = os.path.join(ASSETS_DIR, 'welcome_banner.png')
     if os.path.exists(banner_path):
         with open(banner_path, 'rb') as photo:
-            await update.message.reply_photo(
+            await update.effective_message.reply_photo(
                 photo=photo,
                 caption=text,
-                reply_markup=MAIN_KEYBOARD,
+                reply_markup=MAIN_INLINE_KEYBOARD,
+                read_timeout=30,
+                write_timeout=30,
+                connect_timeout=30
             )
     else:
-        await update.message.reply_text(text, reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(text, reply_markup=MAIN_INLINE_KEYBOARD)
 
-    await update.message.reply_text(
-        "🎮 ጨዋታውን ለመጀመር ከታች ያለውን Play የሚለውን ይጫኑ\n"
+    await update.effective_message.reply_text(
+        "🎮 ጨዋታውን ለመጀመር ከታች ያለውን Play የሚለውን ይጫኑ::\n"
         "(Click Play below to start the game)"
     )
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 🎮 Play
+# 🎮 Play — Opens the Mini App directly
 # ═══════════════════════════════════════════════════════════════════
+WEBAPP_URL = "https://yegarabingo.onrender.com/game"
+
 async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
-        return ConversationHandler.END
-
-    if u.get('is_playing'):
-        await update.message.reply_text(
-            "⚠️ You already have an active game!\nOpen it from the WebApp.",
-            reply_markup=MAIN_KEYBOARD,
-        )
-        return ConversationHandler.END
+        await update.effective_message.reply_text("Please /start first.")
+        return
 
     pw = u.get('play_wallet', 0)
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"10 ETB", callback_data="play_10"),
-         InlineKeyboardButton(f"20 ETB", callback_data="play_20")],
-        [InlineKeyboardButton("Cancel", callback_data="play_cancel")],
+        [InlineKeyboardButton("🎮 Play Now — 10 ETB", web_app=WebAppInfo(url=WEBAPP_URL))],
     ])
-    await update.message.reply_text(
-        f"💰 Your Play Wallet: *{pw} ETB*\n\nChoose your stake:",
+    await update.effective_message.reply_text(
+        f"💰 Your Play Wallet: *{pw} ETB*\n\n"
+        f"🎯 Stake: *10 ETB* per cartela (max 2)\n"
+        f"🏆 Prize: *Stake × 7.5* per player\n\n"
+        f"Tap below to open the game:",
         reply_markup=kb, parse_mode='Markdown',
     )
-    return PLAY_STAKE
-
-
-async def handle_play_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-
-    if data == "play_cancel":
-        await query.edit_message_text("Cancelled.")
-        return ConversationHandler.END
-
-    stake = DEFAULT_STAKE_10 if data == "play_10" else DEFAULT_STAKE_20
-    uid = query.from_user.id
-    u = await user_manager.get_user(uid)
-
-    if not u or u.get('play_wallet', 0) < stake:
-        await query.edit_message_text("❌ Not enough play wallet balance!")
-        return ConversationHandler.END
-
-    # Create game in Firestore
-    game_data = {
-        'user_id': uid,
-        'stake': stake,
-        'status': 'active',
-        'called_numbers': [],
-        'marked_numbers': [],
-        'cartelas': [],
-        'cartela_numbers': [],
-        'cartela_count': 0,
-        'cartela_cols': 5,
-        'cartela_rows': 5,
-        'allow_win': False,
-        'win_user_id': None,
-        'admin_notified': False,
-        'winner': None,
-        'prize': 0,
-        'game_started_at': None,
-        'created_at': datetime.utcnow(),
-        'updated_at': datetime.utcnow(),
-    }
-    game_ref = db.collection('games').document()
-    game_ref.set(game_data)
-    game_id = game_ref.id
-
-    webapp_url = f"https://t.me/yegarabingobot/game?startapp={game_id}"
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎮 Open Game", web_app=WebAppInfo(url=webapp_url))],
-    ])
-    await query.edit_message_text(
-        f"✅ Game created!\n💰 Stake: *{stake} ETB*\n\nTap below to open the game board:",
-        reply_markup=kb, parse_mode='Markdown',
-    )
-    return ConversationHandler.END
 
 
 # ═══════════════════════════════════════════════════════════════════
 # 📝 Register
 # ═══════════════════════════════════════════════════════════════════
 async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     uid = update.effective_user.id
     if await user_manager.is_registered(uid):
         u = await user_manager.get_user(uid)
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"✅ You are already registered!\n\n"
             f"Name: {u.get('first_name', '')}\n"
             f"Phone: {u.get('phone', '')}",
@@ -192,7 +138,7 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "📝 Please enter your full name:", reply_markup=ReplyKeyboardRemove()
     )
     return REG_NAME
@@ -200,19 +146,19 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def reg_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['reg_name'] = update.message.text.strip()
-    await update.message.reply_text("📱 Please enter your TeleBirr phone number\n(format: +2519XXXXXXXX)")
+    await update.effective_message.reply_text("📱 Please enter your TeleBirr phone number\n(format: +2519XXXXXXXX)")
     return REG_PHONE
 
 
 async def reg_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = update.message.text.strip()
     if not re.match(r'^\+251\d{9}$', phone):
-        await update.message.reply_text("❌ Invalid phone format.\nPlease use: +2519XXXXXXXX")
+        await update.effective_message.reply_text("❌ Invalid phone format.\nPlease use: +2519XXXXXXXX")
         return REG_PHONE
 
     name = context.user_data.get('reg_name', update.effective_user.first_name)
     await user_manager.register_user(update.effective_user.id, name, phone)
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"✅ Registration complete!\n\nName: {name}\nPhone: {phone}",
         reply_markup=MAIN_KEYBOARD,
     )
@@ -223,29 +169,36 @@ async def reg_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 💵 Check Balance
 # ═══════════════════════════════════════════════════════════════════
 async def handle_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     uid = update.effective_user.id
     info = await user_manager.get_balance_info(uid)
     if not info:
-        await update.message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
         return
 
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("💵 Deposit", callback_data="bal_deposit"),
-         InlineKeyboardButton("🎰 Withdraw", callback_data="bal_withdraw")],
+         InlineKeyboardButton("🤑 Withdraw", callback_data="bal_withdraw")],
     ])
-    await update.message.reply_text(
+    
+    text = (
         f"💼 *Account Info*\n\n"
-        f"Name: {info['first_name']}\n"
-        f"Main wallet: {info['balance']} ETB\n"
-        f"Play wallet: {info['play_wallet']} ETB\n"
-        f"Bonus: {info['bonus']} coins",
+        f"Name:       {info['first_name']}\n"
+        f"Main wallet: {info['balance']:.1f}\n"
+        f"Play wallet: {info['play_wallet']:.1f}\n"
+        f"Coin:        {info['bonus']}"
+    )
+
+    await update.effective_message.reply_text(
+        text,
         reply_markup=kb, parse_mode='Markdown',
     )
     # Auto support follow-up
-    await update.message.reply_text(
-        f"🆘 Need support?\n"
-        f"👇 For any question or feedback:\n"
-        f"👉 @{SUPPORT_USERNAME}"
+    await update.effective_message.reply_text(
+        f"🆘 ድጋፍ ይፈልጋሉ?\n\n"
+        f"👇 ለማንኛውም ጥያቄ ወይም አስተያየት 👇\n\n"
+        f"👤 @{SUPPORT_USERNAME}"
     )
 
 
@@ -262,27 +215,29 @@ async def balance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 💵 Deposit
 # ═══════════════════════════════════════════════════════════════════
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await _show_deposit_flow_msg(update, context)
+    if update.callback_query:
+        await update.callback_query.answer()
+    return await _show_deposit_flow_msg(update, context)
 
 
 async def _show_deposit_flow_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
         return AWAIT_PHOTO
 
     # Check pending deposits limit
     pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "⚠️ You have too many pending deposits.\nWait for them to be processed.",
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
     await user_manager.set_awaiting_screenshot(uid, True)
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"💵 *Deposit via TeleBirr*\n\n"
         f"1. Send *{TELEBIRR_NUMBER}* via TeleBirr\n"
         f"2. Take a screenshot of the confirmation\n"
@@ -320,7 +275,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check admin online
     admin_online = await _is_admin_online()
     if not admin_online:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "⚠️ Admin is offline. Please try again later.",
             reply_markup=MAIN_KEYBOARD,
         )
@@ -329,10 +284,10 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     photo = update.message.photo
     if not photo:
-        await update.message.reply_text("Please send a photo (screenshot).")
+        await update.effective_message.reply_text("Please send a photo (screenshot).")
         return AWAIT_PHOTO
 
-    await update.message.reply_text("⏳ Processing your deposit...")
+    await update.effective_message.reply_text("⏳ Processing your deposit...")
 
     # Download and hash image
     file = await photo[-1].get_file()
@@ -342,7 +297,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check duplicate image
     existing = db.collection('deposits').where('imageHash', '==', image_hash).limit(1).get()
     if not existing.empty:
-        await update.message.reply_text("❌ This screenshot was already submitted.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("❌ This screenshot was already submitted.", reply_markup=MAIN_KEYBOARD)
         await user_manager.set_awaiting_screenshot(uid, False)
         return ConversationHandler.END
 
@@ -357,7 +312,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if txn_id and not txn_id.startswith("IMG-"):
         dup = db.collection('deposits').where('transactionId', '==', txn_id).limit(1).get()
         if not dup.empty:
-            await update.message.reply_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
+            await update.effective_message.reply_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
             await user_manager.set_awaiting_screenshot(uid, False)
             return ConversationHandler.END
 
@@ -383,7 +338,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await user_manager.set_awaiting_screenshot(uid, False)
 
     amount_text = f"{amount} ETB" if amount else "not detected"
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"✅ Deposit request submitted!\n\n"
         f"Amount: {amount_text}\n"
         f"Sender: {sender_name}\n"
@@ -400,25 +355,27 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🎰 Withdraw
 # ═══════════════════════════════════════════════════════════════════
 async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await _show_withdraw_flow_msg(update, context)
+    if update.callback_query:
+        await update.callback_query.answer()
+    return await _show_withdraw_flow_msg(update, context)
 
 
 async def _show_withdraw_flow_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     bal = u.get('balance', 0)
     if bal < MIN_WITHDRAW:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ Minimum withdrawal is {MIN_WITHDRAW} ETB.\nYour balance: {bal} ETB",
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🎰 *Withdraw*\n\nYour balance: *{bal} ETB*\nMinimum: {MIN_WITHDRAW} ETB\n\nEnter amount:",
         reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown',
     )
@@ -443,7 +400,7 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = float(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("❌ Enter a valid number.")
+        await update.effective_message.reply_text("❌ Enter a valid number.")
         return WITHDRAW_AMOUNT
 
     uid = update.effective_user.id
@@ -451,7 +408,7 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bal = u.get('balance', 0) if u else 0
 
     if amount < MIN_WITHDRAW or amount > bal:
-        await update.message.reply_text(f"❌ Enter amount between {MIN_WITHDRAW} and {bal} ETB.")
+        await update.effective_message.reply_text(f"❌ Enter amount between {MIN_WITHDRAW} and {bal} ETB.")
         return WITHDRAW_AMOUNT
 
     context.user_data['withdraw_amount'] = amount
@@ -459,14 +416,14 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if u.get('phone'):
         return await _process_withdraw(update, context, uid, amount, u['phone'])
 
-    await update.message.reply_text("📱 Enter your TeleBirr phone number (+251...):")
+    await update.effective_message.reply_text("📱 Enter your TeleBirr phone number (+251...):")
     return WITHDRAW_PHONE
 
 
 async def withdraw_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = update.message.text.strip()
     if not re.match(r'^\+251\d{9}$', phone):
-        await update.message.reply_text("❌ Invalid format. Use: +2519XXXXXXXX")
+        await update.effective_message.reply_text("❌ Invalid format. Use: +2519XXXXXXXX")
         return WITHDRAW_PHONE
 
     uid = update.effective_user.id
@@ -492,7 +449,7 @@ async def _process_withdraw(update, context, uid, amount, phone):
 
     await user_manager.deduct_balance(uid, amount)
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"✅ Withdrawal request submitted!\n\n"
         f"Amount: {amount} ETB\n"
         f"Phone: {phone}\n"
@@ -509,21 +466,23 @@ async def _process_withdraw(update, context, uid, amount, phone):
 # 🎁 Transfer
 # ═══════════════════════════════════════════════════════════════════
 async def handle_transfer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     bal = u.get('balance', 0)
     if bal < 1:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ No balance to transfer.\nYour balance: {bal} ETB",
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🎁 *Transfer*\nYour balance: *{bal} ETB*\n\nEnter recipient's Telegram User ID:",
         reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown',
     )
@@ -534,22 +493,22 @@ async def transfer_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         recipient_id = int(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("❌ Enter a valid numeric User ID.")
+        await update.effective_message.reply_text("❌ Enter a valid numeric User ID.")
         return TRANSFER_ID
 
     if recipient_id == update.effective_user.id:
-        await update.message.reply_text("❌ You cannot transfer to yourself.")
+        await update.effective_message.reply_text("❌ You cannot transfer to yourself.")
         return TRANSFER_ID
 
     recipient = await user_manager.get_user(recipient_id)
     if not recipient:
-        await update.message.reply_text("❌ User not found. Check the ID and try again.")
+        await update.effective_message.reply_text("❌ User not found. Check the ID and try again.")
         return TRANSFER_ID
 
     context.user_data['transfer_to'] = recipient_id
     context.user_data['transfer_to_name'] = recipient.get('first_name', 'Unknown')
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"👤 Recipient: {recipient.get('first_name', 'Unknown')}\n"
         f"Enter amount to send (ETB):"
     )
@@ -560,7 +519,7 @@ async def transfer_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = float(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("❌ Enter a valid number.")
+        await update.effective_message.reply_text("❌ Enter a valid number.")
         return TRANSFER_AMOUNT
 
     uid = update.effective_user.id
@@ -568,7 +527,7 @@ async def transfer_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bal = u.get('balance', 0) if u else 0
 
     if amount < 1 or amount > bal:
-        await update.message.reply_text(f"❌ Enter amount between 1 and {bal} ETB.")
+        await update.effective_message.reply_text(f"❌ Enter amount between 1 and {bal} ETB.")
         return TRANSFER_AMOUNT
 
     context.user_data['transfer_amount'] = amount
@@ -578,7 +537,7 @@ async def transfer_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✅ Confirm", callback_data="tf_yes"),
          InlineKeyboardButton("❌ Cancel", callback_data="tf_no")],
     ])
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🎁 Send *{amount} ETB* to *{to_name}*?",
         reply_markup=kb, parse_mode='Markdown',
     )
@@ -613,15 +572,17 @@ async def transfer_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🔄 Convert Bonus
 # ═══════════════════════════════════════════════════════════════════
 async def handle_convert_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     coins = u.get('bonus', 0)
     if coins <= 0:
-        await update.message.reply_text("❌ No bonus coins to convert.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text("❌ No bonus coins to convert.", reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     etb = coins / BONUS_TO_ETB_RATE
@@ -632,7 +593,7 @@ async def handle_convert_bonus(update: Update, context: ContextTypes.DEFAULT_TYP
         [InlineKeyboardButton(f"✅ Convert {coins} coins → {etb} ETB", callback_data="bonus_yes"),
          InlineKeyboardButton("❌ Cancel", callback_data="bonus_no")],
     ])
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🔄 *Convert Bonus*\n\n"
         f"You have: *{coins} coins*\n"
         f"Rate: {BONUS_TO_ETB_RATE} coins = 1 ETB\n"
@@ -663,9 +624,11 @@ async def bonus_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🔗 Invite
 # ═══════════════════════════════════════════════════════════════════
 async def handle_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     uid = update.effective_user.id
     link = f"https://t.me/yegarabingobot?start=ref_{uid}"
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🔗 *Your Referral Link*\n\n"
         f"{link}\n\n"
         f"📤 Share this link with friends!\n"
@@ -678,7 +641,9 @@ async def handle_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 📖 Instruction
 # ═══════════════════════════════════════════════════════════════════
 async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+    if update.callback_query:
+        await update.callback_query.answer()
+    await update.effective_message.reply_text(
         "📖 *How to Play Yegara Bingo*\n\n"
         "1️⃣ Click *Play* and choose your stake (10 or 20 ETB)\n"
         "2️⃣ Select up to *3 cartelas* (bingo cards)\n"
@@ -702,11 +667,12 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # 🆘 Contact Support
 # ═══════════════════════════════════════════════════════════════════
 async def handle_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"🆘 *Support*\n\n"
-        f"👤 Contact: @{SUPPORT_USERNAME}\n\n"
-        f"For any question, feedback, or issue — reach out to our support team.",
-        reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
+    if update.callback_query:
+        await update.callback_query.answer()
+    await update.effective_message.reply_text(
+        f"🆘 ድጋፍ ይፈልጋሉ?\n\n"
+        f"👇 ለማንኛውም ጥያቄ ወይም አስተያየት 👇\n\n"
+        f"👤 @{SUPPORT_USERNAME}"
     )
 
 
@@ -728,14 +694,15 @@ async def _notify_admin_deposit(deposit_data, deposit_id, context):
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{deposit_id}"),
              InlineKeyboardButton("❌ Reject", callback_data=f"reject_{deposit_id}")],
         ])
+        bot = Bot(token=ADMIN_BOT_TOKEN) if ADMIN_BOT_TOKEN else context.bot
         file_id = deposit_data.get('imageFileId')
         if file_id:
-            await context.bot.send_photo(
+            await bot.send_photo(
                 chat_id=_admin_id(), photo=file_id,
                 caption=text, reply_markup=kb, parse_mode='Markdown',
             )
         else:
-            await context.bot.send_message(
+            await bot.send_message(
                 chat_id=_admin_id(), text=text,
                 reply_markup=kb, parse_mode='Markdown',
             )
@@ -757,7 +724,8 @@ async def _notify_admin_withdrawal(withdrawal_data, withdrawal_id, context):
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_withdraw_{withdrawal_id}"),
              InlineKeyboardButton("❌ Reject", callback_data=f"reject_withdraw_{withdrawal_id}")],
         ])
-        await context.bot.send_message(
+        bot = Bot(token=ADMIN_BOT_TOKEN) if ADMIN_BOT_TOKEN else context.bot
+        await bot.send_message(
             chat_id=_admin_id(), text=text,
             reply_markup=kb, parse_mode='Markdown',
         )
@@ -827,7 +795,7 @@ def _extract_text_from_image(image_bytes: bytes) -> dict:
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Cancelled.", reply_markup=MAIN_KEYBOARD)
+    await update.effective_message.reply_text("Cancelled.", reply_markup=MAIN_KEYBOARD)
     return ConversationHandler.END
 
 
@@ -835,7 +803,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Main
 # ═══════════════════════════════════════════════════════════════════
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).read_timeout(30).write_timeout(30).connect_timeout(30).pool_timeout(30).build()
 
     # ─── /start ───
     app.add_handler(CommandHandler("start", start))
@@ -846,20 +814,13 @@ def main():
     app.add_handler(MessageHandler(filters.Regex("^📖 Instruction$"), handle_instruction))
     app.add_handler(MessageHandler(filters.Regex("^🆘 Contact Support$"), handle_support))
 
-    # ─── ConversationHandler: Play ───
-    play_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🎮 Play$"), handle_play)],
-        states={
-            PLAY_STAKE: [CallbackQueryHandler(handle_play_callback, pattern="^play_")],
-        },
-        fallbacks=[CommandHandler("start", start)],
-    )
-    # Replace the simple handler with conversation handler
-    app.add_handler(play_conv, group=1)
+    # ─── Play handler (no conversation — just opens webapp) ───
+    app.add_handler(MessageHandler(filters.Regex("^🎮 Play$"), handle_play))
+    app.add_handler(CallbackQueryHandler(handle_play, pattern="^menu_play$"))
 
     # ─── ConversationHandler: Register ───
     reg_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^📝 Register$"), handle_register)],
+        entry_points=[MessageHandler(filters.Regex("^📝 Register$"), handle_register), CallbackQueryHandler(handle_register, pattern="^menu_register$")],
         states={
             REG_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_name)],
             REG_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_phone)],
@@ -870,7 +831,7 @@ def main():
 
     # ─── ConversationHandler: Deposit ───
     deposit_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^💵 Deposit$"), handle_deposit)],
+        entry_points=[MessageHandler(filters.Regex("^💵 Deposit$"), handle_deposit), CallbackQueryHandler(handle_deposit, pattern="^menu_deposit$")],
         states={
             AWAIT_PHOTO: [MessageHandler(filters.PHOTO, handle_screenshot)],
         },
@@ -880,7 +841,7 @@ def main():
 
     # ─── ConversationHandler: Withdraw ───
     withdraw_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🎰 Withdraw$"), handle_withdraw)],
+        entry_points=[MessageHandler(filters.Regex("^🎰 Withdraw$"), handle_withdraw), CallbackQueryHandler(handle_withdraw, pattern="^menu_withdraw$")],
         states={
             WITHDRAW_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_amount)],
             WITHDRAW_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_phone)],
@@ -891,7 +852,7 @@ def main():
 
     # ─── ConversationHandler: Transfer ───
     transfer_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🎁 Transfer$"), handle_transfer)],
+        entry_points=[MessageHandler(filters.Regex("^🎁 Transfer$"), handle_transfer), CallbackQueryHandler(handle_transfer, pattern="^menu_transfer$")],
         states={
             TRANSFER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, transfer_id)],
             TRANSFER_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, transfer_amount)],
@@ -903,7 +864,7 @@ def main():
 
     # ─── ConversationHandler: Convert Bonus ───
     bonus_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🔄 Convert Bonus$"), handle_convert_bonus)],
+        entry_points=[MessageHandler(filters.Regex("^🔄 Convert Bonus$"), handle_convert_bonus), CallbackQueryHandler(handle_convert_bonus, pattern="^menu_bonus$")],
         states={
             BONUS_CONFIRM: [CallbackQueryHandler(bonus_confirm, pattern="^bonus_")],
         },
@@ -916,6 +877,13 @@ def main():
 
     # ─── Screenshot handler (non-conversation fallback) ───
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_screenshot))
+
+    
+    # ─── New Inline Menu Callbacks ───
+    app.add_handler(CallbackQueryHandler(handle_balance, pattern="^menu_balance$"))
+    app.add_handler(CallbackQueryHandler(handle_invite, pattern="^menu_invite$"))
+    app.add_handler(CallbackQueryHandler(handle_instruction, pattern="^menu_instruction$"))
+    app.add_handler(CallbackQueryHandler(handle_support, pattern="^menu_support$"))
 
     logger.info("🎯 Yegara Bingo Bot starting...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

@@ -1,140 +1,209 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from config import db
-from game.engine import GameEngine
-from game.prediction import PredictionAlgorithm
+from game.round_engine import RoundEngine
 from handlers.user_manager import UserManager
 from datetime import datetime
-import secrets
 
-app = FastAPI(title="Yegara Bingo Admin API", version="1.0.0")
+app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
 
-# Simple API key authentication
-API_KEY = secrets.token_urlsafe(32)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-game_engine = GameEngine(db)
-prediction = PredictionAlgorithm(db)
+engine = RoundEngine(db)
 user_manager = UserManager(db)
 
-class AdminAuth:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-    
-    def verify(self, key: str = Header(...)):
-        if key != self.api_key:
-            raise HTTPException(status_code=401, detail="Invalid API key")
-        return True
 
-admin_auth = AdminAuth(API_KEY)
-
-# Models
-class GameCreate(BaseModel):
-    stake: int
-    max_players: int = 500
-
-class PlayerSelect(BaseModel):
+# ─── Models ───
+class JoinRoundRequest(BaseModel):
     user_id: int
-    force_win: bool = True
+    cartela_numbers: List[int]
+    user_name: str = "Player"
 
-class GameControl(BaseModel):
-    game_id: str
-    action: str
 
-# Endpoints
+class BingoCheckRequest(BaseModel):
+    user_id: int
+
+
+class EndRoundRequest(BaseModel):
+    winner_ids: List[int]
+
+
+# ═══════════════════════════════════════════════════════════════
+# Cartela Management
+# ═══════════════════════════════════════════════════════════════
+@app.post("/api/cartelas/generate")
+async def generate_cartelas():
+    """Generate 500 fixed cartelas (idempotent)."""
+    result = await engine.generate_all_cartelas()
+    return result
+
+
+@app.get("/api/cartelas")
+async def get_cartelas():
+    """Get all 500 master cartelas."""
+    cartelas = await engine.get_all_cartelas()
+    return {"cartelas": cartelas, "count": len(cartelas)}
+
+
+@app.get("/api/cartelas/{number}")
+async def get_cartela(number: int):
+    """Get a single cartela by number."""
+    if number < 1 or number > 500:
+        raise HTTPException(status_code=400, detail="Cartela number must be 1-500")
+    cartela = await engine.get_cartela(number)
+    if not cartela:
+        raise HTTPException(status_code=404, detail="Cartela not found")
+    return {"cartela": cartela}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Round Management
+# ═══════════════════════════════════════════════════════════════
+@app.get("/api/rounds/active")
+async def get_active_round():
+    """Get the current active round."""
+    round_data = await engine.get_active_round()
+    if not round_data:
+        return {"round": None}
+    return {"round": round_data}
+
+
+@app.post("/api/rounds/create")
+async def create_round():
+    """Create a new round (or return existing active one)."""
+    result = await engine.create_round()
+    return {"round": result}
+
+
+@app.post("/api/rounds/{round_id}/join")
+async def join_round(round_id: str, req: JoinRoundRequest):
+    """Player joins a round with chosen cartelas."""
+    result = await engine.join_round(
+        round_id, req.user_id, req.cartela_numbers, req.user_name
+    )
+    if 'error' in result:
+        raise HTTPException(status_code=400, detail=result['error'])
+    return result
+
+
+@app.post("/api/rounds/{round_id}/start")
+async def start_round(round_id: str):
+    """Start the round (transition from selecting to playing)."""
+    result = await engine.start_round(round_id)
+    if 'error' in result:
+        raise HTTPException(status_code=400, detail=result['error'])
+    return result
+
+
+@app.post("/api/rounds/{round_id}/call")
+async def call_number(round_id: str):
+    """Call the next random number."""
+    number = await engine.call_number(round_id)
+    if number is None:
+        raise HTTPException(status_code=400, detail="No more numbers to call or round not playing")
+    return {"number": number}
+
+
+@app.post("/api/rounds/{round_id}/check-bingo")
+async def check_bingo(round_id: str, req: BingoCheckRequest):
+    """Check if a player has bingo."""
+    result = await engine.check_bingo(round_id, req.user_id)
+    return result
+
+
+@app.post("/api/rounds/{round_id}/end")
+async def end_round(round_id: str, req: EndRoundRequest):
+    """End the round and distribute prizes."""
+    result = await engine.end_round(round_id, req.winner_ids)
+    if 'error' in result:
+        raise HTTPException(status_code=400, detail=result['error'])
+    return result
+
+
+@app.get("/api/rounds/{round_id}")
+async def get_round(round_id: str):
+    """Get round details."""
+    round_data = await engine.get_round(round_id)
+    if not round_data:
+        raise HTTPException(status_code=404, detail="Round not found")
+    return {"round": round_data}
+
+
+@app.get("/api/rounds")
+async def get_rounds(limit: int = 20):
+    """Get recent rounds."""
+    rounds = await engine.get_recent_rounds(limit)
+    return {"rounds": rounds, "count": len(rounds)}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Dashboard / Stats
+# ═══════════════════════════════════════════════════════════════
 @app.get("/api/dashboard")
 async def get_dashboard():
-    """Get dashboard overview"""
-    stats = await game_engine.get_stats()
+    """Get dashboard overview."""
     users = await user_manager.get_all_users()
-    
-    total_balance = sum(user.get('balance', 0) for user in users)
-    total_wins = sum(user.get('wins', 0) for user in users)
-    
+    total_balance = sum(u.get('balance', 0) for u in users)
+    total_play = sum(u.get('play_wallet', 0) for u in users)
+    total_wins = sum(u.get('wins', 0) for u in users)
+    active_playing = sum(1 for u in users if u.get('is_playing'))
+
+    # Count rounds
+    try:
+        all_rounds = list(db.collection('rounds').get())
+        completed = sum(1 for r in all_rounds if r.to_dict().get('status') == 'completed')
+        total_admin_profit = sum(r.to_dict().get('admin_profit', 0) for r in all_rounds if r.to_dict().get('status') == 'completed')
+    except Exception:
+        completed = 0
+        total_admin_profit = 0
+
+    # Count cartelas
+    try:
+        cartela_count = len(list(db.collection('cartelas_master').limit(501).get()))
+    except Exception:
+        cartela_count = 0
+
     return {
-        "stats": stats,
         "total_users": len(users),
         "total_balance": total_balance,
+        "total_play_wallets": total_play,
         "total_wins": total_wins,
-        "api_key": API_KEY
+        "active_players": active_playing,
+        "completed_rounds": completed,
+        "total_admin_profit": total_admin_profit,
+        "cartela_count": cartela_count,
     }
+
 
 @app.get("/api/users")
 async def get_users(limit: int = 100):
-    """Get all users"""
+    """Get all users."""
     users = await user_manager.get_all_users(limit)
     return {"users": users}
 
+
 @app.get("/api/users/{user_id}")
 async def get_user(user_id: int):
-    """Get specific user"""
+    """Get specific user."""
     user = await user_manager.get_user(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"user": user}
 
-@app.get("/api/games")
-async def get_games(limit: int = 50):
-    """Get recent games"""
-    games = await db.collection('games').order_by('created_at', direction='DESCENDING').limit(limit).get()
-    return {"games": [game.to_dict() for game in games]}
-
-@app.post("/api/games/create")
-async def create_game(game: GameCreate):
-    """Create a new game"""
-    game_data = await game_engine.create_game(0, game.stake)
-    return {"game": game_data}
-
-@app.post("/api/games/control")
-async def control_game(control: GameControl):
-    """Control game (start/pause/end)"""
-    if control.action == "end":
-        await game_engine.end_game(control.game_id)
-        return {"message": "Game ended"}
-    return {"message": f"Action {control.action} performed"}
-
-@app.post("/api/prediction/enable")
-async def enable_prediction():
-    """Enable prediction algorithm"""
-    return {"message": "Prediction algorithm enabled", "mode": "automatic"}
-
-@app.post("/api/prediction/select_winner")
-async def select_winner(player: PlayerSelect):
-    """Select player for guaranteed win"""
-    # Update game with target player
-    games = await db.collection('games').where('status', '==', 'waiting').get()
-    
-    for game in games:
-        game_ref = db.collection('games').document(game.id)
-        game_ref.update({
-            'admin_target': player.user_id,
-            'updated_at': datetime.utcnow()
-        })
-    
-    return {"message": f"Player {player.user_id} selected for guaranteed win"}
-
-@app.get("/api/reports/summary")
-async def get_reports():
-    """Get reports summary"""
-    games = await db.collection('games').get()
-    users = await user_manager.get_all_users()
-    
-    total_games = len(games)
-    completed_games = sum(1 for g in games if g.to_dict().get('status') == 'completed')
-    total_prizes = sum(g.to_dict().get('prize', 0) for g in games)
-    
-    return {
-        "total_games": total_games,
-        "completed_games": completed_games,
-        "active_games": total_games - completed_games,
-        "total_prizes_distributed": total_prizes,
-        "average_prize": total_prizes / completed_games if completed_games > 0 else 0
-    }
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    """Health check."""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
 
 if __name__ == "__main__":
     import uvicorn

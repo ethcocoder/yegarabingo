@@ -1697,70 +1697,40 @@ function generateOneCartela() {
     return cartela;
 }
 
-function generateCartelaPool() {
-    var batchSize = parseInt(prompt('How many cartelas to generate?', '400'));
-    if (!batchSize || batchSize <= 0) return;
-    if (batchSize > 500) { alert('Max 500 at a time.'); return; }
-
-    // Find next available number
-    db.collection('cartela_pool').orderBy('number', 'desc').limit(1).get().then(function(snap) {
-        var nextNum = 1;
-        if (!snap.empty) {
-            nextNum = (snap.docs[0].data().number || 0) + 1;
-        }
-        var batch = db.batch();
-        for (var i = 0; i < batchSize; i++) {
-            var cartela = generateOneCartela();
-            var flat = [];
-            for (var c = 0; c < 5; c++) {
-                for (var r = 0; r < 5; r++) flat.push(cartela[c][r]);
-            }
-            var ref = db.collection('cartela_pool').doc();
-            batch.set(ref, {
-                cartela: flat,
-                status: 'available',
-                number: nextNum + i,
-                generated_at: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-        batch.commit().then(function() {
-            alert('Generated ' + batchSize + ' cartelas! (Numbers ' + nextNum + '-' + (nextNum + batchSize - 1) + ')');
-            loadCartelaPool();
-        }).catch(function(e) {
-            console.error(e);
-            alert('Error generating cartelas.');
-        });
-    });
+async function generateCartelaPool() {
+    if (!confirm('Generate the 500 fixed cartelas? This will call the API.')) return;
+    try {
+        const res = await fetch('http://127.0.0.1:8000/api/cartelas/generate', { method: 'POST' });
+        const data = await res.json();
+        alert(data.status === 'already_exists' ? 'Cartelas already exist.' : 'Generated 500 cartelas successfully!');
+        loadCartelaPool();
+    } catch (e) {
+        console.error(e);
+        alert('Error generating cartelas: ' + e.message);
+    }
 }
 
 function loadCartelaPool() {
-    db.collection('cartela_pool').orderBy('generated_at', 'desc').get().then(function(snap) {
-        var available = 0, assigned = 0, used = 0;
+    db.collection('cartelas_master').orderBy('number').get().then(function(snap) {
         var list = document.getElementById('cartelaPoolList');
         var empty = document.getElementById('cartelaPoolEmpty');
         var items = [];
         snap.forEach(function(doc) {
-            var d = doc.data();
-            var st = d.status || 'available';
-            if (st === 'available') available++;
-            else if (st === 'assigned') assigned++;
-            else if (st === 'used') used++;
-            items.push({id: doc.id, data: d});
+            items.push({id: doc.id, data: doc.data()});
         });
-        document.getElementById('cartelaAvailableCount').textContent = available;
-        document.getElementById('cartelaAssignedCount').textContent = assigned;
-        document.getElementById('cartelaUsedCount').textContent = used;
-        var availItems = items.filter(function(x){ return x.data.status === 'available'; });
-        if (availItems.length === 0) {
+        document.getElementById('cartelaAvailableCount').textContent = items.length;
+        document.getElementById('cartelaAssignedCount').textContent = 0; // Not tracked this way anymore
+        document.getElementById('cartelaUsedCount').textContent = 0; // Not tracked this way anymore
+        
+        if (items.length === 0) {
             list.innerHTML = '';
             empty.classList.remove('hidden');
             return;
         }
         empty.classList.add('hidden');
-        list.innerHTML = availItems.map(function(item) {
+        list.innerHTML = items.map(function(item) {
             var d = item.data;
-            var id = item.id;
-            var num = d.number || '????';
+            var num = d.number || item.id;
             var flat = d.cartela || [];
             var mini = '<div class="grid grid-cols-5 gap-0.5 max-w-[120px]">';
             var hdrs = ['B','I','N','G','O'];
@@ -1768,8 +1738,8 @@ function loadCartelaPool() {
             for (var i = 0; i < 5; i++) mini += '<div class="'+hcls[i]+' text-center text-[7px] font-bold">'+hdrs[i]+'</div>';
             for (var r = 0; r < 5; r++) {
                 for (var c = 0; c < 5; c++) {
-                    var v = flat[c*5+r];
-                    if (c===2 && r===2) mini += '<div class="bg-[#FF8C00]/20 text-[#FF8C00] text-center text-[7px] font-bold rounded">⭐</div>';
+                    var v = flat[r*5+c]; // In master it's formatted row by row usually, or flat 25?
+                    if (r===2 && c===2) mini += '<div class="bg-[#FF8C00]/20 text-[#FF8C00] text-center text-[7px] font-bold rounded">⭐</div>';
                     else mini += '<div class="bg-white/5 text-white/60 text-center text-[7px] font-bold rounded">'+v+'</div>';
                 }
             }
@@ -1780,8 +1750,7 @@ function loadCartelaPool() {
                     mini +
                 '</div>' +
                 '<div class="flex items-center gap-2">' +
-                    '<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#10B981]/10 text-[#10B981] font-semibold">Available</span>' +
-                    '<button onclick="deleteCartela(\'' + id + '\')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1">Delete</button>' +
+                    '<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#10B981]/10 text-[#10B981] font-semibold">Master</span>' +
                 '</div>' +
             '</div>';
         }).join('');
