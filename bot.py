@@ -74,17 +74,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = "👋 Welcome to Yegara Bingo! Choose an Option below."
     banner_path = os.path.join(ASSETS_DIR, 'welcome_banner.png')
-    if os.path.exists(banner_path):
-        with open(banner_path, 'rb') as photo:
-            await update.effective_message.reply_photo(
-                photo=photo,
-                caption=text,
-                reply_markup=MAIN_INLINE_KEYBOARD,
-                read_timeout=30,
-                write_timeout=30,
-                connect_timeout=30
-            )
-    else:
+    try:
+        if os.path.exists(banner_path):
+            with open(banner_path, 'rb') as photo:
+                await update.effective_message.reply_photo(
+                    photo=photo,
+                    caption=text,
+                    reply_markup=MAIN_INLINE_KEYBOARD,
+                    read_timeout=30,
+                    write_timeout=60,
+                    connect_timeout=30
+                )
+        else:
+            await update.effective_message.reply_text(text, reply_markup=MAIN_INLINE_KEYBOARD)
+    except Exception as e:
+        logger.warning(f"Banner upload failed, sending text only: {e}")
         await update.effective_message.reply_text(text, reply_markup=MAIN_INLINE_KEYBOARD)
 
     await update.effective_message.reply_text(
@@ -865,7 +869,10 @@ def main():
 
     # ─── ConversationHandler: Register ───
     reg_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^📝 Register$"), handle_register)],
+        entry_points=[
+            MessageHandler(filters.Regex("^📝 Register$"), handle_register),
+            CallbackQueryHandler(handle_register, pattern="^menu_register$"),
+        ],
         states={
             REG_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_name)],
             REG_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_phone)],
@@ -883,6 +890,7 @@ def main():
             AWAIT_PHOTO: [MessageHandler(filters.PHOTO, handle_screenshot)],
         },
         fallbacks=[CommandHandler("start", start), MessageHandler(filters.Regex("^Cancel$"), cancel)],
+        per_message=True,
     )
     app.add_handler(deposit_conv, group=3)
 
@@ -894,6 +902,7 @@ def main():
             WITHDRAW_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_phone)],
         },
         fallbacks=[CommandHandler("start", start), MessageHandler(filters.Regex("^Cancel$"), cancel)],
+        per_message=True,
     )
     app.add_handler(withdraw_conv, group=4)
 
@@ -906,6 +915,7 @@ def main():
             TRANSFER_CONFIRM: [CallbackQueryHandler(transfer_confirm, pattern="^tf_")],
         },
         fallbacks=[CommandHandler("start", start), MessageHandler(filters.Regex("^Cancel$"), cancel)],
+        per_message=True,
     )
     app.add_handler(transfer_conv, group=5)
 
@@ -916,6 +926,7 @@ def main():
             BONUS_CONFIRM: [CallbackQueryHandler(bonus_confirm, pattern="^bonus_")],
         },
         fallbacks=[CommandHandler("start", start)],
+        per_message=True,
     )
     app.add_handler(bonus_conv, group=6)
 
@@ -925,7 +936,6 @@ def main():
     # ─── Screenshot handler (non-conversation fallback) ───
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_screenshot))
 
-    
     # ─── New Inline Menu Callbacks ───
     app.add_handler(CallbackQueryHandler(handle_balance, pattern="^menu_balance$"))
     app.add_handler(CallbackQueryHandler(handle_invite, pattern="^menu_invite$"))
@@ -933,7 +943,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_support, pattern="^menu_support$"))
 
     logger.info("🎯 Yegara Bingo Bot starting...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':

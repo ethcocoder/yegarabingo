@@ -273,7 +273,7 @@ def main():
     app.add_handler(CommandHandler("withdrawals", withdrawals))
     app.add_handler(CallbackQueryHandler(handle_callback))
     logger.info("🔧 Admin Bot starting...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':
