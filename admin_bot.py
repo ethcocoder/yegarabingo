@@ -264,9 +264,17 @@ async def process_withdrawal(wid, status, query, context):
 # Main
 # ═══════════════════════════════════════════════════════════════════
 def main():
-    if not ADMIN_BOT_TOKEN:
-        logger.error("ADMIN_BOT_TOKEN not set!")
-        return
+    import asyncio as _asyncio
+
+    async def _pre_start():
+        from telegram import Bot
+        b = Bot(token=ADMIN_BOT_TOKEN)
+        await b.delete_webhook(drop_pending_updates=True)
+        me = await b.get_me()
+        logger.info(f"✅ Admin bot connected: @{me.username}")
+
+    _asyncio.get_event_loop().run_until_complete(_pre_start())
+
     app = Application.builder().token(ADMIN_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("deposits", deposits))
