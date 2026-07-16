@@ -49,13 +49,25 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for doc in pending:
         d = doc.to_dict()
         did = doc.id
+        ocr = d.get('ocr', {})
+        status_icon = "✅" if ocr.get('status') == 'success' else "❌" if ocr.get('status') == 'failed' else "❓"
+        date_text = ocr.get('transactionDate') or 'N/A'
+        receiver_text = ocr.get('receiverName') or d.get('senderName', 'N/A')
+        type_text = ocr.get('transactionType') or 'N/A'
+        confidence = ocr.get('confidence', 0)
+
         text = (
             f"💵 *Deposit #{did[:8]}*\n\n"
             f"👤 {d.get('firstName', '?')} (@{d.get('username', '?')})\n"
             f"💰 TeleBirr Name: {d.get('telebirrName', 'N/A')}\n"
-            f"💵 {d.get('amount', 0)} ETB\n"
-            f"🔖 TXN: {d.get('transactionId', 'N/A')}\n"
-            f"👤 Sender: {d.get('senderName', 'N/A')}\n"
+            f"━━━ *Screenshot Parsed* ━━━\n"
+            f"{status_icon} *Status:* {ocr.get('status', 'unknown')}\n"
+            f"💵 *Amount:* {d.get('amount', 0)} ETB\n"
+            f"📅 *Date:* {date_text}\n"
+            f"🔖 *Reference:* {d.get('transactionId', 'N/A')}\n"
+            f"👤 *Receiver:* {receiver_text}\n"
+            f"📋 *Type:* {type_text}\n"
+            f"📊 *Confidence:* {int(confidence * 100)}%\n"
             f"🕐 {d.get('createdAt', 'N/A')}"
         )
         kb = InlineKeyboardMarkup([

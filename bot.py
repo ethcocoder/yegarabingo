@@ -336,9 +336,9 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # OCR extraction
     extracted = await asyncio.to_thread(_extract_text_from_image, bytes(image_bytes))
 
-    txn_id = extracted.get('transaction_id') or f"IMG-{image_hash[:12]}"
+    txn_id = extracted.get('transaction_ref') or f"IMG-{image_hash[:12]}"
     amount = context.user_data.get('deposit_amount', extracted.get('amount') or 0)
-    sender_name = extracted.get('sender_name') or u.get('first_name', 'Unknown')
+    sender_name = extracted.get('receiver_name') or extracted.get('sender_name') or u.get('first_name', 'Unknown')
 
     # Check duplicate transaction ID
     if txn_id and not txn_id.startswith("IMG-"):
@@ -359,7 +359,17 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'status': 'pending',
         'imageHash': image_hash,
         'imageFileId': photo[-1].file_id,
-        'extractedText': extracted.get('raw_text', ''),
+        'ocr': {
+            'status': extracted.get('status', 'unknown'),
+            'amount': extracted.get('amount', 0),
+            'transactionDate': extracted.get('transaction_date'),
+            'transactionType': extracted.get('transaction_type'),
+            'receiverName': extracted.get('receiver_name'),
+            'transactionRef': extracted.get('transaction_ref'),
+            'senderName': extracted.get('sender_name'),
+            'rawText': extracted.get('raw_text', ''),
+            'confidence': extracted.get('confidence', 0.0),
+        },
         'createdAt': datetime.now(tz=timezone.utc),
         'processedAt': None,
         'adminNote': '',
@@ -370,13 +380,20 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await user_manager.set_awaiting_screenshot(uid, False)
 
+    ocr = deposit_data['ocr']
     amount_text = f"{amount} ETB" if amount else "not detected"
+    status_icon = "✅" if ocr['status'] == 'success' else "❌" if ocr['status'] == 'failed' else "❓"
+    date_text = ocr['transactionDate'] or "not detected"
+    ref_text = txn_id if not txn_id.startswith("IMG-") else "not detected"
+
     await update.effective_message.reply_text(
         f"✅ Deposit request submitted!\n\n"
-        f"Amount: {amount_text}\n"
-        f"Sender: {sender_name}\n"
-        f"Transaction: {txn_id}\n"
-        f"ID: `{deposit_id}`",
+        f"💵 Amount: {amount_text}\n"
+        f"{status_icon} Status: {ocr['status']}\n"
+        f"👤 Receiver: {sender_name}\n"
+        f"🔖 Reference: {ref_text}\n"
+        f"📅 Date: {date_text}\n"
+        f"🆔 `{deposit_id}`",
         reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
     )
 
@@ -714,14 +731,27 @@ async def handle_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════
 async def _notify_admin_deposit(deposit_data, deposit_id, context):
     try:
+        ocr = deposit_data.get('ocr', {})
+        status_icon = "✅" if ocr.get('status') == 'success' else "❌" if ocr.get('status') == 'failed' else "❓"
+        date_text = ocr.get('transactionDate') or 'N/A'
+        ref_text = deposit_data.get('transactionId', 'N/A')
+        receiver_text = ocr.get('receiverName') or deposit_data.get('senderName', 'N/A')
+        type_text = ocr.get('transactionType') or 'N/A'
+        confidence = ocr.get('confidence', 0)
+
         text = (
             f"💵 *New Deposit Request*\n\n"
-            f"👤 {deposit_data.get('firstName', 'Unknown')} (@{deposit_data.get('username', '')})\n"
-            f"💰 TeleBirr Name: {deposit_data.get('telebirrName', 'N/A')}\n"
-            f"💵 Amount: {deposit_data.get('amount', 0)} ETB\n"
-            f"🔖 TXN: {deposit_data.get('transactionId', 'N/A')}\n"
-            f"👤 Sender: {deposit_data.get('senderName', 'N/A')}\n"
-            f"🆔 {deposit_id}\n"
+            f"👤 *User:* {deposit_data.get('firstName', 'Unknown')} (@{deposit_data.get('username', '')})\n"
+            f"📱 *TeleBirr Name:* {deposit_data.get('telebirrName', 'N/A')}\n\n"
+            f"━━━ *Screenshot Parsed* ━━━\n"
+            f"{status_icon} *Status:* {ocr.get('status', 'unknown')}\n"
+            f"💵 *Amount:* {deposit_data.get('amount', 0)} ETB\n"
+            f"📅 *Date:* {date_text}\n"
+            f"🔖 *Reference:* {ref_text}\n"
+            f"👤 *Receiver:* {receiver_text}\n"
+            f"📋 *Type:* {type_text}\n"
+            f"📊 *Confidence:* {int(confidence * 100)}%\n\n"
+            f"🆔 `{deposit_id}`\n"
             f"🕐 {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
         )
         kb = InlineKeyboardMarkup([
@@ -784,6 +814,7 @@ async def _is_admin_online() -> bool:
 
 
 def _extract_text_from_image(image_bytes: bytes) -> dict:
+    """Parse TeleBirr payment screenshot via OCR. Extracts all 6 fields."""
     try:
         from PIL import Image
         import pytesseract
@@ -791,42 +822,110 @@ def _extract_text_from_image(image_bytes: bytes) -> dict:
         img = Image.open(io.BytesIO(image_bytes))
         raw_text = pytesseract.image_to_string(img)
     except ImportError:
-        return {"raw_text": "OCR not available", "transaction_id": None, "amount": 0, "sender_name": None}
+        return {
+            "raw_text": "OCR not available",
+            "status": "unknown",
+            "amount": 0,
+            "transaction_date": None,
+            "transaction_type": None,
+            "receiver_name": None,
+            "transaction_ref": None,
+            "sender_name": None,
+            "confidence": 0.0,
+        }
 
-    txn_id = None
-    for pattern in [
-        r'(?:Transaction\s*ID|TXN|Ref|Reference)[:\s]*([A-Za-z0-9]{8,})',
-        r'([A-Za-z0-9]{12,})',
-    ]:
-        m = re.search(pattern, raw_text, re.IGNORECASE)
-        if m:
-            txn_id = m.group(1)
-            break
+    result = {
+        "raw_text": raw_text,
+        "status": "unknown",
+        "amount": 0,
+        "transaction_date": None,
+        "transaction_type": None,
+        "receiver_name": None,
+        "transaction_ref": None,
+        "sender_name": None,
+        "confidence": 0.0,
+    }
 
-    amount = 0
+    # ── 1. Status (success/failure) ──
+    if re.search(r'ተሳክቷል|Success|Completed|✅', raw_text, re.IGNORECASE):
+        result["status"] = "success"
+    elif re.search(r'አልተሳካም|Failed|Rejected|❌', raw_text, re.IGNORECASE):
+        result["status"] = "failed"
+
+    # ── 2. Amount ──
     for pattern in [
-        r'(?:Amount|Total|ETB)[:\s]*([\d,]+\.?\d*)',
-        r'([\d,]+\.?\d*)\s*ETB',
+        r'(-?[\d,]+\.?\d*)\s*(?:ETB|ብር)',
+        r'(?:Amount|Total|ETB|መጠን|ብር)[:\s]*(-?[\d,]+\.?\d*)',
+        r'(-[\d,]+\.?\d*)',
     ]:
         m = re.search(pattern, raw_text, re.IGNORECASE)
         if m:
             try:
-                amount = float(m.group(1).replace(',', ''))
+                result["amount"] = abs(float(m.group(1).replace(',', '')))
                 break
             except ValueError:
                 continue
 
-    sender = None
+    # ── 3. Transaction Date (የግብይቱ ቀን) ──
+    for pattern in [
+        r'የግብይቱ\s*ቀን[:\s]*(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',
+        r'(?:Date|Time|Transaction\s*Date)[:\s]*(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',
+        r'(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',
+    ]:
+        m = re.search(pattern, raw_text, re.IGNORECASE)
+        if m:
+            result["transaction_date"] = m.group(1).strip()
+            break
+
+    # ── 4. Transaction Type (የግብይቱ ዓይነት) ──
+    for pattern in [
+        r'የግብይቱ\s*ዓይነት[:\s]*([\w\s\u1200-\u137F]+)',
+        r'(?:Type|Transaction\s*Type)[:\s]*([\w\s]+)',
+    ]:
+        m = re.search(pattern, raw_text, re.IGNORECASE)
+        if m:
+            result["transaction_type"] = m.group(1).strip()
+            break
+
+    # ── 5. Receiver Name (ለምፅብ ስም / ለ接收方) ──
+    for pattern in [
+        r'ለምፅብ\s*ስም[:\s]*([A-Za-z\s]+)',
+        r'ለ接收方\s*ስም[:\s]*([A-Za-z\s]+)',
+        r'(?:Receiver|To|Beneficiary)[:\s]*([A-Za-z\s]+)',
+    ]:
+        m = re.search(pattern, raw_text, re.IGNORECASE)
+        if m:
+            name = m.group(1).strip()
+            if len(name) >= 2:
+                result["receiver_name"] = name
+                break
+
+    # ── 6. Transaction Reference (የግብይት ማጣቀሻ) ──
+    for pattern in [
+        r'የግብይት\s*ማጣቀሻ[:\s]*([A-Za-z0-9]{8,12})',
+        r'(?:Transaction\s*Ref|TXN|Ref|Reference)[:\s]*([A-Za-z0-9]{8,12})',
+        r'\b([A-Z0-9]{8,12})\b',
+    ]:
+        m = re.search(pattern, raw_text, re.IGNORECASE)
+        if m:
+            result["transaction_ref"] = m.group(1).strip()
+            break
+
+    # ── Sender (legacy fallback) ──
     m = re.search(r'(?:From|Sender|Payer)[:\s]*([A-Za-z\s]+)', raw_text, re.IGNORECASE)
     if m:
-        sender = m.group(1).strip()
+        result["sender_name"] = m.group(1).strip()
 
-    return {
-        "raw_text": raw_text,
-        "transaction_id": txn_id,
-        "amount": amount,
-        "sender_name": sender,
-    }
+    # ── Confidence score ──
+    fields_found = sum(1 for v in [
+        result["status"] != "unknown",
+        result["amount"] > 0,
+        result["transaction_date"] is not None,
+        result["transaction_ref"] is not None,
+    ] if v)
+    result["confidence"] = round(fields_found / 4.0, 2)
+
+    return result
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
