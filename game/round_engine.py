@@ -218,19 +218,17 @@ class RoundEngine:
             return {'error': 'Round already started or completed'}
 
         player_count = data.get('player_count', 0)
-        pool = player_count * STAKE
-        derash = pool * (1 - ADMIN_CUT_RATIO)  # 75% to winner(s)
+        derash = STAKE * PRIZE_MULTIPLIER
 
         now = datetime.now(tz=timezone.utc)
         self.rounds_ref.document(round_id).update({
             'status': 'playing',
             'game_started_at': now,
-            'pool': pool,
             'derash': derash,
             'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
         })
 
-        return {'status': 'playing', 'player_count': player_count, 'pool': pool, 'derash': derash}
+        return {'status': 'playing', 'player_count': player_count, 'derash': derash}
 
     async def call_number(self, round_id: str) -> Optional[int]:
         """Call the next random number for the round."""
@@ -326,13 +324,12 @@ class RoundEngine:
             return {'error': 'Round not in playing state'}
 
         player_count = data.get('player_count', 0)
-        pool = player_count * STAKE
-        admin_profit = pool * ADMIN_CUT_RATIO
-        winner_pool = pool - admin_profit
+        prize_per_winner = STAKE * PRIZE_MULTIPLIER
+        admin_profit = 0
 
         prize_per_winner = 0
         if winner_ids:
-            prize_per_winner = winner_pool / len(winner_ids)
+            prize_per_winner = STAKE * PRIZE_MULTIPLIER
             # Credit each winner
             for wid in winner_ids:
                 user_ref = self.db.collection('users').document(str(wid))
@@ -382,7 +379,6 @@ class RoundEngine:
             'winners': winner_ids,
             'prize_per_winner': prize_per_winner,
             'admin_profit': admin_profit,
-            'pool': pool,
         }
 
     async def get_round(self, round_id: str) -> Optional[dict]:

@@ -58,7 +58,7 @@ body { background: #0D1117; color: white; overflow-x: hidden; }
 .bingo-cell { transition: all 0.2s ease; position: relative; overflow: hidden; }
 .bingo-cell:active { transform: scale(0.9); }
 .number-called { animation: pulse-glow 1s ease-in-out infinite; }
-.number-marked { background: linear-gradient(135deg, #FF8C00, #FF6B00) !important; box-shadow: 0 0 12px rgba(255,140,0,0.4); }
+.number-marked { background: linear-gradient(135deg, #10B981, #059669) !important; box-shadow: 0 0 12px rgba(16,185,129,0.4); }
 .master-cell { transition: all 0.3s ease; font-size: 9px; }
 .auto-toggle { position: relative; width: 44px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s; }
 .auto-toggle.on { background: #10B981; }
@@ -79,6 +79,55 @@ body { background: #0D1117; color: white; overflow-x: hidden; }
 .col-o-light { background: rgba(20,184,166,0.08); }
 @keyframes pop-in { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
 .pop-in { animation: pop-in 0.3s ease-out; }
+
+/* Number announcement circle — golden ring */
+@keyframes circle-pulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,215,0,0.4), 0 0 30px rgba(255,140,0,0.2); }
+    50% { box-shadow: 0 0 25px rgba(255,215,0,0.7), 0 0 50px rgba(255,140,0,0.4); }
+}
+.number-circle-outer { animation: circle-pulse 1.5s ease-in-out infinite; }
+
+/* Cartela header gradient */
+.cartela-header {
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Called tag styling */
+.called-tag {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 6px;
+    padding: 2px 5px;
+    flex-shrink: 0;
+}
+.called-tag .tag-letter { font-size: 7px; font-weight: 700; }
+.called-tag .tag-number { font-size: 10px; font-weight: 900; color: white; }
+
+/* Cartela cell — marked = green */
+.cartela-cell.marked {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    color: white !important;
+    box-shadow: 0 0 8px rgba(16,185,129,0.3);
+}
+
+/* Master cell — called coloring */
+.master-cell.called {
+    color: white !important;
+    font-weight: 900;
+}
+.master-cell.last-called {
+    animation: last-called-glow 1s ease-in-out infinite;
+}
+@keyframes last-called-glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+    50% { box-shadow: 0 0 15px rgba(255,215,0,0.8); }
+}
+
+/* Voice toggle button */
+#voice-icon.muted { opacity: 0.3; }
+
 #btn-music-toggle.on, #btn-voice-toggle.on {
     background: rgba(16,185,129,0.15) !important;
     border-color: rgba(16,185,129,0.4) !important;

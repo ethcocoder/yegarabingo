@@ -94,7 +94,7 @@ async function showCardSelection(roundId, roundData) {
 
         const takenSet = new Set(roundData.taken_cartelas || []);
         const playerCount = roundData.player_count || 0;
-        const derash = (playerCount + 1) * STAKE * (1 - ADMIN_CUT);
+        const derash = STAKE * PRIZE_MULTIPLIER;
         document.getElementById('cs-derash').textContent = Math.round(derash);
 
         grid.innerHTML = '';
@@ -147,7 +147,7 @@ async function showCardSelection(roundId, roundData) {
                 }
             });
             const pc = rd.player_count || 0;
-            document.getElementById('cs-derash').textContent = Math.round((pc + 1) * STAKE * (1 - ADMIN_CUT));
+            document.getElementById('cs-derash').textContent = Math.round(STAKE * PRIZE_MULTIPLIER);
 
             if (!listenerReady) {
                 listenerReady = true;

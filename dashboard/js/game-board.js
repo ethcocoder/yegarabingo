@@ -12,18 +12,39 @@ function setupGameBoard() {
     document.getElementById('game-derash').textContent = '...';
     document.getElementById('game-countdown').classList.add('hidden');
 
+    // Show/hide spectator message vs cartela area
+    const spectatorMsg = document.getElementById('spectator-message');
+    const cartelaArea = document.getElementById('cartela-area');
+    const wrap1 = document.getElementById('cartela-wrap-1');
+    const wrap2 = document.getElementById('cartela-wrap-2');
+
+    if (nums.length === 0 || isSpectator) {
+        spectatorMsg.classList.remove('hidden');
+        cartelaArea.classList.add('hidden');
+    } else {
+        spectatorMsg.classList.add('hidden');
+        cartelaArea.classList.remove('hidden');
+    }
+
     buildMasterGrid();
 
+    // Reset number announce
+    document.getElementById('number-announce').classList.add('hidden');
+    document.getElementById('number-waiting').classList.remove('hidden');
+
     if (nums.length > 0) {
+        wrap1.classList.remove('hidden');
         document.getElementById('cartela-number-1').textContent = nums[0];
         buildCartelaGrid('cartela-grid-1', myCartelas[nums[0]]);
+    } else {
+        wrap1.classList.add('hidden');
     }
     if (nums.length >= 2) {
-        document.getElementById('cartela-container-2').classList.remove('hidden');
+        wrap2.classList.remove('hidden');
         document.getElementById('cartela-number-2').textContent = nums[1];
         buildCartelaGrid('cartela-grid-2', myCartelas[nums[1]]);
     } else {
-        document.getElementById('cartela-container-2').classList.add('hidden');
+        wrap2.classList.add('hidden');
     }
 
     document.getElementById('called-tags').innerHTML = '';
@@ -32,11 +53,14 @@ function setupGameBoard() {
 function buildMasterGrid() {
     const grid = document.getElementById('master-grid');
     grid.innerHTML = '';
+    const colColors = ['#10B981', '#3B82F6', '#8B5CF6', '#FF8C00', '#14B8A6'];
     for (let num = 1; num <= 75; num++) {
+        const col = Math.floor((num - 1) / 15);
         const cell = document.createElement('div');
-        cell.className = 'master-cell text-[9px] font-bold text-center py-1 rounded-sm';
-        cell.style.background = 'rgba(255,255,255,0.04)';
-        cell.style.color = 'rgba(255,255,255,0.5)';
+        cell.className = 'master-cell text-center py-0.5 rounded-sm font-bold';
+        cell.style.background = 'rgba(255,255,255,0.03)';
+        cell.style.color = colColors[col] + '88';
+        cell.style.fontSize = '9px';
         cell.textContent = num;
         cell.id = 'master-' + num;
         grid.appendChild(cell);
@@ -72,11 +96,10 @@ function buildCartelaGrid(gridId, flat) {
 
 function markCartelaCell(cell, num) {
     cell.classList.add('marked');
-    const letter = getNumberLetter(num);
-    const color = getLetterColor(letter);
-    cell.style.background = color;
+    cell.style.background = 'linear-gradient(135deg, #10B981, #059669)';
     cell.style.color = '#fff';
     cell.style.transform = 'scale(1.05)';
+    cell.style.boxShadow = '0 0 8px rgba(16,185,129,0.3)';
     setTimeout(() => { cell.style.transform = ''; }, 200);
 }
 
@@ -95,8 +118,9 @@ function highlightMasterNumber(num) {
     if (!cell) return;
     const letter = getNumberLetter(num);
     const color = getLetterColor(letter);
-    cell.style.background = color;
+    cell.style.background = color + '33';
     cell.style.color = '#fff';
+    cell.style.fontWeight = '900';
     cell.classList.add('called');
 }
 
@@ -105,11 +129,11 @@ function addCalledNumberTag(num) {
     const letter = getNumberLetter(num);
     const color = getLetterColor(letter);
     const el = document.createElement('span');
-    el.className = 'inline-flex flex-col items-center rounded-md px-1.5 py-0.5';
+    el.className = 'called-tag';
     el.style.background = color + '22';
     el.style.border = '1px solid ' + color + '44';
-    el.innerHTML = '<div class="text-[7px] font-bold" style="color:' + color + '">' + letter + '</div>' +
-                   '<div class="text-[10px] font-black text-white">' + num + '</div>';
+    el.innerHTML = '<div class="tag-letter" style="color:' + color + '">' + letter + '</div>' +
+                   '<div class="tag-number">' + num + '</div>';
     strip.appendChild(el);
 }
 
@@ -147,9 +171,7 @@ function listenToRound(roundId) {
         const data = snap.data();
 
         document.getElementById('game-players').textContent = data.player_count || 0;
-        const pool = (data.player_count || 0) * STAKE;
-        const derash = Math.round(pool * (1 - ADMIN_CUT));
-        document.getElementById('game-derash').textContent = derash;
+        document.getElementById('game-derash').textContent = Math.round(STAKE * PRIZE_MULTIPLIER);
         document.getElementById('game-called-count').textContent = (data.called_numbers || []).length;
 
         if (data.status === 'selecting') {
@@ -180,7 +202,7 @@ function listenToRound(roundId) {
                     autoMarkAllCartelas(num);
                     if (i === called.length - 1) {
                         showNumberAnnouncement(num);
-                        playNumberSound();
+                        playNumberSound(num);
                     }
                 }
             }
@@ -202,9 +224,11 @@ function showNumberAnnouncement(num) {
     document.getElementById('announce-letter').style.color = color;
     document.getElementById('announce-number').textContent = num;
     document.getElementById('number-announce').classList.remove('hidden');
+    document.getElementById('number-waiting').classList.add('hidden');
     setTimeout(() => {
         document.getElementById('number-announce').classList.add('hidden');
-    }, 2000);
+        document.getElementById('number-waiting').classList.remove('hidden');
+    }, 3500);
 }
 
 // ==================== BINGO CHECK ====================
@@ -223,10 +247,7 @@ async function checkMyBingo() {
                     if (rd.status !== 'playing') return;
                     if (rd.winners && rd.winners.length > 0) return;
 
-                    const playerCount = rd.player_count || 0;
-                    const pool = playerCount * STAKE;
-                    const adminProfit = pool * ADMIN_CUT;
-                    const prizePerWinner = (pool - adminProfit);
+                    const prizePerWinner = STAKE * PRIZE_MULTIPLIER;
 
                     const userRef = db.collection('users').doc(uidStr);
                     const userDoc = await txn.get(userRef);
@@ -259,7 +280,7 @@ async function checkMyBingo() {
                         winners: [uidStr],
                         winner_name: currentUser.first_name || 'Player',
                         prize_per_winner: prizePerWinner,
-                        admin_profit: adminProfit,
+                        admin_profit: 0,
                         winning_cartela: parseInt(cartelaNum),
                         completed_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -360,7 +381,10 @@ function showWinModal(data) {
 function loadMyCartelas(roundData) {
     const uidStr = String(currentUser.id);
     const playerInfo = roundData.players ? roundData.players[uidStr] : null;
-    if (!playerInfo) return Promise.resolve();
+    if (!playerInfo) {
+        isSpectator = true;
+        return Promise.resolve();
+    }
     myCartelas = {};
     const promises = (playerInfo.cartelas || []).map(num =>
         db.collection('cartelas_master').doc(String(num)).get().then(doc => {

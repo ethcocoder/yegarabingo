@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
 from config import db, BOT_TOKEN
-from game.round_engine import RoundEngine
+from game.round_engine import RoundEngine, STAKE, PRIZE_MULTIPLIER
 from handlers.user_manager import UserManager
 from datetime import datetime, timedelta, timezone
 from telegram import Bot
@@ -82,8 +82,7 @@ async def _game_loop(round_id: str):
                     now = datetime.now(tz=timezone.utc)
                     db.collection('rounds').document(round_id).update({
                         'status': 'playing',
-                        'pool': 0,
-                        'derash': 0,
+                        'derash': STAKE * PRIZE_MULTIPLIER,
                         'game_started_at': now,
                         'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
                     })
