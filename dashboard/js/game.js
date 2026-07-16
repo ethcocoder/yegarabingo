@@ -654,6 +654,23 @@ function stopGameCountdown() {
     if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
 }
 
+function startSelectionCountdownOnGame(dlMs) {
+    if (gameCountdownInterval) clearInterval(gameCountdownInterval);
+    const banner = document.getElementById('game-countdown');
+    const timerEl = document.getElementById('game-timer');
+    gameCountdownInterval = setInterval(() => {
+        const rem = Math.max(0, Math.ceil((dlMs - Date.now()) / 1000));
+        banner.textContent = 'Game starts in ' + rem + 's';
+        timerEl.textContent = rem + 's';
+        if (rem <= 0) {
+            banner.textContent = 'Game starting...';
+            timerEl.textContent = '...';
+            clearInterval(gameCountdownInterval);
+            gameCountdownInterval = null;
+        }
+    }, 200);
+}
+
 function cancelCardSelect() {
     stopSelectionTimer();
     selectedCartelas = [];
@@ -913,7 +930,13 @@ function listenToRound(roundId) {
         // Handle status changes
         if (data.status === 'selecting') {
             document.getElementById('game-countdown').classList.remove('hidden');
-            document.getElementById('game-countdown').textContent = 'Waiting for players...';
+            const deadline = data.selection_deadline;
+            if (deadline) {
+                const dlMs = deadline.toDate ? deadline.toDate().getTime() : new Date(deadline).getTime();
+                startSelectionCountdownOnGame(dlMs);
+            } else {
+                document.getElementById('game-countdown').textContent = 'Waiting for players...';
+            }
         } else if (data.status === 'playing') {
             document.getElementById('game-countdown').classList.add('hidden');
 
