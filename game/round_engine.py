@@ -354,10 +354,19 @@ class RoundEngine:
                         'updated_at': datetime.utcnow(),
                     })
 
+        # Get winner name for spectator display
+        winner_name = 'Unknown'
+        if winner_ids:
+            first_winner_ref = self.db.collection('users').document(str(winner_ids[0]))
+            first_winner_doc = first_winner_ref.get()
+            if first_winner_doc.exists:
+                winner_name = first_winner_doc.to_dict().get('first_name', 'Unknown')
+
         # Update round
         self.rounds_ref.document(round_id).update({
             'status': 'completed',
             'winners': [str(w) for w in winner_ids],
+            'winner_name': winner_name,
             'prize_per_winner': prize_per_winner,
             'admin_profit': admin_profit,
             'completed_at': datetime.utcnow(),

@@ -56,6 +56,7 @@ let autoMarkEnabled = false;
 let calledNumbers = new Set();
 let numberCallInterval = null;
 let winCountdownInterval = null;
+let selectionHandled = false;
 
 // Audio state
 let musicEnabled = false;
@@ -383,7 +384,7 @@ async function playNow() {
                 showToast('You already joined this round!');
                 currentRoundId = roundId;
                 navigateTo('game');
-                loadMyCartelas(roundData);
+                await loadMyCartelas(roundData);
                 listenToRound(roundId);
                 return;
             }
@@ -508,16 +509,19 @@ async function showCardSelection(roundId, roundData) {
                 if (rd.players && rd.players[uid]) {
                     // Already joined, go to game
                     stopSelectionTimer();
+                    selectionHandled = true;
                     document.getElementById('card-select-screen').classList.add('hidden');
                     navigateTo('game');
                     loadMyCartelas(rd);
                     listenToRound(roundId);
-                } else if (selectedCartelas.length > 0) {
-                    confirmSelection();
-                } else {
+                } else if (!selectionHandled && selectedCartelas.length > 0) {
                     stopSelectionTimer();
-                    document.getElementById('card-select-screen').classList.add('hidden');
-                    showToast('Round started without you.');
+                    selectionHandled = true;
+                    confirmSelection();
+                } else if (!selectionHandled) {
+                    stopSelectionTimer();
+                    selectionHandled = true;
+                    enterSpectatorMode();
                 }
             }
         });
@@ -568,18 +572,21 @@ function updateSelectedInfo() {
 
 function startSelectionTimer() {
     stopSelectionTimer();
+    selectionHandled = false;
     const timerEl = document.getElementById('cs-timer');
+    timerEl.classList.remove('text-red-400');
     selectionTimer = setInterval(() => {
         const rem = Math.max(0, Math.ceil((selectionDeadline - Date.now()) / 1000));
         timerEl.textContent = rem;
         if (rem <= 5) timerEl.classList.add('text-red-400');
         if (rem <= 0) {
             stopSelectionTimer();
+            if (selectionHandled) return;
+            selectionHandled = true;
             if (selectedCartelas.length > 0) {
                 confirmSelection();
             } else {
-                document.getElementById('card-select-screen').classList.add('hidden');
-                showToast('Time expired! Select faster next time.');
+                enterSpectatorMode();
             }
         }
     }, 200);
@@ -594,6 +601,19 @@ function cancelCardSelect() {
     selectedCartelas = [];
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     document.getElementById('card-select-screen').classList.add('hidden');
+}
+
+let isSpectator = false;
+
+function enterSpectatorMode() {
+    isSpectator = true;
+    stopSelectionTimer();
+    selectionHandled = true;
+    document.getElementById('card-select-screen').classList.add('hidden');
+    navigateTo('game');
+    setupGameBoard();
+    listenToRound(currentRoundId);
+    showToast('Spectating...');
 }
 
 function refreshCardSelect() {
@@ -613,38 +633,40 @@ async function confirmSelection() {
     try {
         const totalCost = selectedCartelas.length * STAKE;
         const uidStr = String(currentUser.id);
-
-        // Deduct play wallet
-        const userRef = db.collection('users').doc(uidStr);
-        const userSnap = await userRef.get();
-        const pw = userSnap.data().play_wallet || 0;
-        if (pw < totalCost) {
-            hideLoading();
-            showToast('Not enough balance!');
-            return;
-        }
-        await userRef.update({
-            play_wallet: pw - totalCost,
-            is_playing: true,
-            updated_at: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Add to round
         const roundRef = db.collection('rounds').doc(currentRoundId);
-        const roundSnap = await roundRef.get();
-        const rd = roundSnap.data();
-        const players = rd.players || {};
-        players[uidStr] = {
-            cartelas: selectedCartelas,
-            name: currentUser.first_name || 'Player',
-            joined_at: new Date().toISOString()
-        };
-        const newTaken = (rd.taken_cartelas || []).concat(selectedCartelas);
+        const userRef = db.collection('users').doc(uidStr);
 
-        await roundRef.update({
-            players: players,
-            player_count: Object.keys(players).length,
-            taken_cartelas: newTaken,
+        // Atomic transaction: check balance + check round status + deduct + join
+        await db.runTransaction(async (txn) => {
+            const roundSnap = await txn.get(roundRef);
+            const userSnap = await txn.get(userRef);
+            if (!roundSnap.exists) throw new Error('Round not found.');
+            const rd = roundSnap.data();
+            if (rd.status !== 'selecting') throw new Error('Round already started.');
+            if (rd.players && rd.players[uidStr]) throw new Error('Already joined.');
+            const pw = userSnap.data().play_wallet || 0;
+            if (pw < totalCost) throw new Error('Not enough balance.');
+
+            txn.update(userRef, {
+                play_wallet: pw - totalCost,
+                is_playing: true,
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const players = rd.players || {};
+            players[uidStr] = {
+                cartelas: selectedCartelas,
+                name: currentUser.first_name || 'Player',
+                joined_at: new Date().toISOString()
+            };
+            const takenSet = new Set(rd.taken_cartelas || []);
+            selectedCartelas.forEach(n => takenSet.add(n));
+
+            txn.update(roundRef, {
+                players: players,
+                player_count: Object.keys(players).length,
+                taken_cartelas: Array.from(takenSet),
+            });
         });
 
         // Load cartela data for my cards
@@ -861,7 +883,7 @@ function listenToRound(roundId) {
             prevCalledCount = called.length;
 
             // Check for bingo after each number
-            if (called.length >= 4) {
+            if (called.length >= 4 && !isSpectator) {
                 checkMyBingo();
             }
         } else if (data.status === 'completed') {
@@ -886,57 +908,58 @@ async function checkMyBingo() {
     const calledArr = Array.from(calledNumbers);
     for (const [cartelaNum, flat] of Object.entries(myCartelas)) {
         if (checkBingoLocal(flat, calledArr)) {
-            // BINGO! Notify server
             try {
                 const roundRef = db.collection('rounds').doc(currentRoundId);
-                const roundSnap = await roundRef.get();
-                const rd = roundSnap.data();
-                if (rd.status !== 'playing') return;
-                if (rd.winners && rd.winners.length > 0) return; // already has winner
-
                 const uidStr = String(currentUser.id);
-                const winners = [uidStr];
-                const playerCount = rd.player_count || 0;
-                const pool = playerCount * STAKE;
-                const adminProfit = pool * ADMIN_CUT;
-                const prizePerWinner = (pool - adminProfit) / winners.length;
 
-                // Credit winner
-                const userRef = db.collection('users').doc(uidStr);
-                const userDoc = await userRef.get();
-                const ud = userDoc.data();
-                await userRef.update({
-                    play_wallet: (ud.play_wallet || 0) + prizePerWinner,
-                    wins: (ud.wins || 0) + 1,
-                    total_games: (ud.total_games || 0) + 1,
-                    is_playing: false,
-                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                // Use transaction to prevent double bingo claims
+                await db.runTransaction(async (txn) => {
+                    const roundSnap = await txn.get(roundRef);
+                    if (!roundSnap.exists) return;
+                    const rd = roundSnap.data();
+                    if (rd.status !== 'playing') return;
+                    if (rd.winners && rd.winners.length > 0) return;
 
-                // Mark losers
-                for (const pid of Object.keys(rd.players || {})) {
-                    if (pid !== uidStr) {
-                        const ref2 = db.collection('users').doc(pid);
-                        const d2 = await ref2.get();
-                        if (d2.exists) {
-                            await ref2.update({
-                                losses: (d2.data().losses || 0) + 1,
-                                total_games: (d2.data().total_games || 0) + 1,
-                                is_playing: false,
-                                updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                            });
+                    const playerCount = rd.player_count || 0;
+                    const pool = playerCount * STAKE;
+                    const adminProfit = pool * ADMIN_CUT;
+                    const prizePerWinner = (pool - adminProfit);
+
+                    const userRef = db.collection('users').doc(uidStr);
+                    const userDoc = await txn.get(userRef);
+                    const ud = userDoc.data();
+                    txn.update(userRef, {
+                        play_wallet: (ud.play_wallet || 0) + prizePerWinner,
+                        wins: (ud.wins || 0) + 1,
+                        total_games: (ud.total_games || 0) + 1,
+                        is_playing: false,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    for (const pid of Object.keys(rd.players || {})) {
+                        if (pid !== uidStr) {
+                            const ref2 = db.collection('users').doc(pid);
+                            const d2 = await txn.get(ref2);
+                            if (d2.exists) {
+                                txn.update(ref2, {
+                                    losses: (d2.data().losses || 0) + 1,
+                                    total_games: (d2.data().total_games || 0) + 1,
+                                    is_playing: false,
+                                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                            }
                         }
                     }
-                }
 
-                // End round
-                await roundRef.update({
-                    status: 'completed',
-                    winners: winners,
-                    prize_per_winner: prizePerWinner,
-                    admin_profit: adminProfit,
-                    winning_cartela: parseInt(cartelaNum),
-                    completed_at: firebase.firestore.FieldValue.serverTimestamp()
+                    txn.update(roundRef, {
+                        status: 'completed',
+                        winners: [uidStr],
+                        winner_name: currentUser.first_name || 'Player',
+                        prize_per_winner: prizePerWinner,
+                        admin_profit: adminProfit,
+                        winning_cartela: parseInt(cartelaNum),
+                        completed_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
                 });
             } catch (err) {
                 console.error('Error claiming bingo:', err);
@@ -969,6 +992,11 @@ function handleRoundCompleted(data) {
     if (isWinner) {
         playWinSound();
         showWinModal(data);
+    } else if (isSpectator) {
+        const winnerName = data.winner_name || 'Unknown';
+        const prize = Math.round(data.prize_per_winner || 0);
+        showToast(`${winnerName} won ${prize} ETB!`);
+        setTimeout(() => { isSpectator = false; navigateTo('home'); }, 5000);
     } else {
         showToast('Game over! Better luck next time.');
         setTimeout(() => navigateTo('home'), 3000);
@@ -1027,17 +1055,15 @@ function showWinModal(data) {
 function loadMyCartelas(roundData) {
     const uidStr = String(currentUser.id);
     const playerInfo = roundData.players ? roundData.players[uidStr] : null;
-    if (!playerInfo) return;
-    // Load cartela data
+    if (!playerInfo) return Promise.resolve();
     myCartelas = {};
     const promises = (playerInfo.cartelas || []).map(num =>
         db.collection('cartelas_master').doc(String(num)).get().then(doc => {
             if (doc.exists) myCartelas[num] = doc.data().cartela;
         })
     );
-    Promise.all(promises).then(() => {
+    return Promise.all(promises).then(() => {
         setupGameBoard();
-        // Replay already-called numbers
         const called = roundData.called_numbers || [];
         called.forEach(num => {
             calledNumbers.add(num);
@@ -1045,12 +1071,22 @@ function loadMyCartelas(roundData) {
             addCalledNumberStrip(num);
             autoMarkAllCartelas(num);
         });
+    }).catch(err => {
+        console.error('Error loading cartelas:', err);
+        showToast('Error loading cartela data');
     });
 }
 
 function leaveGame() {
+    isSpectator = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     if (numberCallInterval) { clearInterval(numberCallInterval); numberCallInterval = null; }
+    if (winCountdownInterval) { clearInterval(winCountdownInterval); winCountdownInterval = null; }
+    if (selectionTimer) { stopSelectionTimer(); }
+    myCartelas = {};
+    calledNumbers = new Set();
+    selectedCartelas = [];
+    autoMarkEnabled = false;
     stopBgMusic();
 }
 

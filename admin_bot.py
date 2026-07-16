@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from config import db
+from firebase_admin import firestore
 
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
@@ -142,45 +143,48 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_deposit(deposit_id, status, query):
     try:
         ref = db.collection('deposits').document(deposit_id)
-        doc = ref.get()
-        if not doc.exists:
-            await query.edit_message_text("❌ Deposit not found.")
-            return
+        result = {}
 
-        data = doc.to_dict()
-        if data.get('status') != 'pending':
-            await query.edit_message_text(f"⚠️ Already {data.get('status')}.")
-            return
-
-        ref.update({
-            'status': status,
-            'processedAt': datetime.utcnow(),
-        })
-
-        user_id = data.get('userId')
-        amount = data.get('amount', 0)
-
-        if status == "approved" and user_id and amount > 0:
-            user_ref = db.collection('users').document(str(user_id))
-            user_doc = user_ref.get()
-            if user_doc.exists:
-                old_bal = user_doc.to_dict().get('balance', 0)
-                user_ref.update({
-                    'balance': old_bal + amount,
+        @firestore.transactional
+        def _txn(transaction, ref, status):
+            doc = ref.get(transaction=transaction)
+            if not doc.exists:
+                raise Exception("Deposit not found.")
+            data = doc.to_dict()
+            if data.get('status') != 'pending':
+                raise Exception(f"Already {data.get('status')}.")
+            transaction.update(ref, {
+                'status': status,
+                'processedAt': datetime.utcnow(),
+            })
+            user_id = data.get('userId')
+            amount = data.get('amount', 0)
+            if status == "approved" and user_id and amount > 0:
+                user_ref = db.collection('users').document(str(user_id))
+                transaction.update(user_ref, {
+                    'balance': firestore.Increment(amount),
                     'updated_at': datetime.utcnow(),
                 })
+            result['user_id'] = user_id
+            result['amount'] = amount
+            return data
+
+        transaction = db.transaction()
+        data = _txn(transaction, ref, status)
+        user_id = result.get('user_id')
+        amount = result.get('amount', 0)
 
         # Notify user via game bot
         try:
             from telegram import Bot
             from config import BOT_TOKEN
             bot = Bot(token=BOT_TOKEN)
-            if status == "approved":
+            if status == "approved" and user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
                     text=f"✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.",
                 )
-            else:
+            elif user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
                     text=f"❌ Deposit rejected.\nPlease contact support if you need help.",
@@ -204,45 +208,48 @@ async def process_deposit(deposit_id, status, query):
 async def process_withdrawal(wid, status, query, context):
     try:
         ref = db.collection('withdrawals').document(wid)
-        doc = ref.get()
-        if not doc.exists:
-            await query.edit_message_text("❌ Withdrawal not found.")
-            return
+        result = {}
 
-        data = doc.to_dict()
-        if data.get('status') != 'pending':
-            await query.edit_message_text(f"⚠️ Already {data.get('status')}.")
-            return
-
-        ref.update({
-            'status': status,
-            'processedAt': datetime.utcnow(),
-        })
-
-        user_id = data.get('userId')
-        amount = data.get('amount', 0)
-
-        if status == "rejected" and user_id and amount > 0:
-            user_ref = db.collection('users').document(str(user_id))
-            user_doc = user_ref.get()
-            if user_doc.exists:
-                old_bal = user_doc.to_dict().get('balance', 0)
-                user_ref.update({
-                    'balance': old_bal + amount,
+        @firestore.transactional
+        def _txn(transaction, ref, status):
+            doc = ref.get(transaction=transaction)
+            if not doc.exists:
+                raise Exception("Withdrawal not found.")
+            data = doc.to_dict()
+            if data.get('status') != 'pending':
+                raise Exception(f"Already {data.get('status')}.")
+            transaction.update(ref, {
+                'status': status,
+                'processedAt': datetime.utcnow(),
+            })
+            user_id = data.get('userId')
+            amount = data.get('amount', 0)
+            if status == "rejected" and user_id and amount > 0:
+                user_ref = db.collection('users').document(str(user_id))
+                transaction.update(user_ref, {
+                    'balance': firestore.Increment(amount),
                     'updated_at': datetime.utcnow(),
                 })
+            result['user_id'] = user_id
+            result['amount'] = amount
+            return data
+
+        transaction = db.transaction()
+        data = _txn(transaction, ref, status)
+        user_id = result.get('user_id')
+        amount = result.get('amount', 0)
 
         # Notify user
         try:
             from telegram import Bot
             from config import BOT_TOKEN
             bot = Bot(token=BOT_TOKEN)
-            if status == "approved":
+            if status == "approved" and user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
                     text=f"✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.",
                 )
-            else:
+            elif user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
                     text=f"❌ Withdrawal rejected.\n💰 {amount} ETB has been refunded to your balance.",

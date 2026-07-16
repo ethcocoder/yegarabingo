@@ -571,15 +571,41 @@
             </div>
         </div>
 
+        <!-- Pending Withdrawals -->
+        <div class="glass rounded-2xl p-5 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-sm">💸</span>
+                    Pending Withdrawals
+                </h4>
+            </div>
+            <div id="withdrawPendingList">
+                <div class="text-center py-8 text-gray-600 text-sm">Loading...</div>
+            </div>
+        </div>
+
         <!-- Processed Deposits -->
-        <div class="glass rounded-2xl p-5">
+        <div class="glass rounded-2xl p-5 mb-6">
             <div class="flex items-center justify-between mb-4">
                 <h4 class="text-lg font-bold flex items-center gap-2">
                     <span class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center text-sm">📋</span>
-                    Recent Processed
+                    Recent Processed Deposits
                 </h4>
             </div>
             <div id="payProcessedList">
+                <div class="text-center py-8 text-gray-600 text-sm">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Processed Withdrawals -->
+        <div class="glass rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-sm">📋</span>
+                    Recent Processed Withdrawals
+                </h4>
+            </div>
+            <div id="withdrawProcessedList">
                 <div class="text-center py-8 text-gray-600 text-sm">Loading...</div>
             </div>
         </div>
@@ -917,7 +943,6 @@ var sectionTitles = {
     users: 'User Management',
     games: 'Games',
     cartelas: 'Cartela Pool',
-    prediction: 'Prediction Control',
     reports: 'Reports',
     payments: 'Payments',
     settings: 'Settings'
@@ -1801,11 +1826,7 @@ db.collection('users').onSnapshot(function(snap){
     processDashboardData();
     renderUsersTable();
     renderGames();
-    updatePredCurrentGame();
     updateReports();
-    if(currentPredMode === 'admin' && !document.getElementById('adminSelectPanel').classList.contains('hidden')){
-        renderAdminPlayers();
-    }
 }, function(err){
     console.error('Users snapshot error:', err);
 });
@@ -1821,7 +1842,6 @@ db.collection('games').onSnapshot(function(snap){
     processDashboardData();
     enrichGamePlayerNames();
     renderGames();
-    updatePredCurrentGame();
     updateReports();
 }, function(err){
     console.error('Games snapshot error:', err);
@@ -1843,21 +1863,6 @@ function enrichGamePlayerNames(){
     });
 }
 
-// Load prediction settings
-db.collection('settings').doc('prediction').get()
-.then(function(doc){
-    if(doc.exists){
-        var data = doc.data();
-        currentPredMode = data.mode || 'automatic';
-        selectedAdminPlayer = data.selectedAdminPlayer || null;
-        setPredictionMode(currentPredMode);
-        if(data.algorithmEnabled === false){
-            document.getElementById('predAlgoToggle').classList.remove('on');
-        }
-    }
-})
-.catch(function(e){console.error('Error loading prediction settings:', e);});
-
 // Handle responsive margin on load
 window.addEventListener('resize', function(){
     if(window.innerWidth >= 768 && !sidebarCollapsed){
@@ -1868,6 +1873,29 @@ window.addEventListener('resize', function(){
         document.getElementById('mainContent').style.marginLeft = '0';
     }
 });
+
+// ==================== UTILITIES ====================
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function saveSettings() {
+    var stake = 10;
+    var inputs = document.querySelectorAll('#section-settings input[type="number"]');
+    if (inputs.length > 0) stake = parseInt(inputs[0].value) || 10;
+    var maintenance = document.getElementById('maintenanceToggle') && document.getElementById('maintenanceToggle').classList.contains('on');
+    db.collection('settings').doc('game').set({
+        stake: stake,
+        maintenance: maintenance,
+        updatedAt: new Date()
+    }).then(function() {
+        alert('Settings saved!');
+    }).catch(function(e) {
+        console.error(e);
+        alert('Error saving settings.');
+    });
+}
 
 // ==================== PAYMENTS ====================
 var adminOnline = false;
@@ -1910,6 +1938,7 @@ function loadPayments() {
         updateAdminStatusUI();
     });
 
+    // Pending deposits
     db.collection('deposits').where('status', '==', 'pending').orderBy('createdAt', 'desc').get().then(function(snap) {
         var list = document.getElementById('payPendingList');
         document.getElementById('pay-pending-count').textContent = snap.size;
@@ -1937,9 +1966,10 @@ function loadPayments() {
                             '<span class="text-yellow-400 text-lg font-black">' + amt + ' ETB</span>' +
                             '<span class="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 font-bold">PENDING</span>' +
                         '</div>' +
-                        '<p class="text-xs text-gray-400">👤 ' + (d.firstName || 'Unknown') + ' (@' + (d.username || 'unknown') + ')</p>' +
-                        '<p class="text-xs text-gray-500">TXN: <code class="text-gray-400">' + (d.transactionId || 'N/A') + '</code></p>' +
-                        '<p class="text-xs text-gray-500">Sender: ' + (d.senderName || 'Unknown') + '</p>' +
+                        '<p class="text-xs text-gray-400">👤 ' + escHtml(d.firstName || 'Unknown') + ' (@' + escHtml(d.username || 'unknown') + ')</p>' +
+                        '<p class="text-xs text-gray-500">TXN: <code class="text-gray-400">' + escHtml(d.transactionId || 'N/A') + '</code></p>' +
+                        '<p class="text-xs text-gray-500">Sender: ' + escHtml(d.senderName || 'Unknown') + '</p>' +
+                        '<p class="text-xs text-gray-500">TeleBirr Name: ' + escHtml(d.telebirrName || 'N/A') + '</p>' +
                         '<p class="text-[10px] text-gray-600 mt-1">🕐 ' + time + '</p>' +
                         '<p class="text-[10px] text-gray-600">ID: <code class="text-gray-500">' + id.substring(0, 8) + '</code></p>' +
                         imgHtml +
@@ -1954,17 +1984,20 @@ function loadPayments() {
         list.innerHTML = html;
     });
 
-    db.collection('deposits').where('status', '==', 'approved').orderBy('createdAt', 'desc').limit(20).get().then(function(snap) {
+    // Approved count (all, no limit)
+    db.collection('deposits').where('status', '==', 'approved').get().then(function(snap) {
         document.getElementById('pay-approved-count').textContent = snap.size;
         var total = 0;
         snap.forEach(function(d) { total += (d.data().amount || 0); });
         document.getElementById('pay-total-amount').textContent = total.toFixed(0);
     });
 
-    db.collection('deposits').where('status', '==', 'rejected').orderBy('createdAt', 'desc').limit(20).get().then(function(snap) {
+    // Rejected count (all, no limit)
+    db.collection('deposits').where('status', '==', 'rejected').get().then(function(snap) {
         document.getElementById('pay-rejected-count').textContent = snap.size;
     });
 
+    // Processed deposits (recent 10)
     db.collection('deposits').orderBy('createdAt', 'desc').limit(10).get().then(function(snap) {
         var list = document.getElementById('payProcessedList');
         var items = [];
@@ -1989,42 +2022,109 @@ function loadPayments() {
         });
         list.innerHTML = items.length > 0 ? items.join('') : '<div class="text-center py-4 text-gray-600 text-sm">No processed deposits</div>';
     });
+
+    // Pending withdrawals
+    db.collection('withdrawals').where('status', '==', 'pending').orderBy('createdAt', 'desc').get().then(function(snap) {
+        var list = document.getElementById('withdrawPendingList');
+        if (snap.empty) {
+            list.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2">📭</div><p class="text-gray-500 text-sm">No pending withdrawals</p></div>';
+            return;
+        }
+        var html = '';
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            var id = doc.id;
+            var amt = d.amount || 0;
+            var time = d.createdAt ? (d.createdAt.toDate ? d.createdAt.toDate().toLocaleString() : new Date(d.createdAt).toLocaleString()) : 'Unknown';
+            html += '<div class="glass rounded-xl p-4 mb-3 anim-slide border border-orange-500/20">' +
+                '<div class="flex flex-col sm:flex-row sm:items-start gap-3">' +
+                    '<div class="flex-1">' +
+                        '<div class="flex items-center gap-2 mb-1">' +
+                            '<span class="text-orange-400 text-lg font-black">' + amt + ' ETB</span>' +
+                            '<span class="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 font-bold">PENDING</span>' +
+                        '</div>' +
+                        '<p class="text-xs text-gray-400">👤 ' + escHtml(d.firstName || 'Unknown') + ' (@' + escHtml(d.username || 'unknown') + ')</p>' +
+                        '<p class="text-xs text-gray-500">Phone: <code class="text-gray-400">' + escHtml(d.phone || 'N/A') + '</code></p>' +
+                        '<p class="text-xs text-gray-500">TeleBirr Name: ' + escHtml(d.telebirrName || 'N/A') + '</p>' +
+                        '<p class="text-[10px] text-gray-600 mt-1">🕐 ' + time + '</p>' +
+                        '<p class="text-[10px] text-gray-600">ID: <code class="text-gray-500">' + id.substring(0, 8) + '</code></p>' +
+                    '</div>' +
+                    '<div class="flex sm:flex-col gap-2">' +
+                        '<button onclick="approveWithdrawal(\'' + id + '\')" class="btn-green-g px-4 py-2 rounded-lg text-xs font-bold text-white flex-1 sm:flex-none">✅ Approve</button>' +
+                        '<button onclick="rejectWithdrawal(\'' + id + '\')" class="btn-red-g px-4 py-2 rounded-lg text-xs font-bold text-white flex-1 sm:flex-none">❌ Reject</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        });
+        list.innerHTML = html;
+    });
+
+    // Processed withdrawals (recent 10)
+    db.collection('withdrawals').orderBy('createdAt', 'desc').limit(10).get().then(function(snap) {
+        var list = document.getElementById('withdrawProcessedList');
+        var items = [];
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (d.status === 'pending') return;
+            var emoji = d.status === 'approved' ? '✅' : '❌';
+            var color = d.status === 'approved' ? 'text-green-400' : 'text-red-400';
+            var bgColor = d.status === 'approved' ? 'border-green-500/20' : 'border-red-500/20';
+            var time = d.createdAt ? (d.createdAt.toDate ? d.createdAt.toDate().toLocaleString() : new Date(d.createdAt).toLocaleString()) : 'Unknown';
+            items.push(
+                '<div class="glass rounded-xl p-3 mb-2 border ' + bgColor + '">' +
+                    '<div class="flex items-center justify-between">' +
+                        '<div>' +
+                            '<span class="' + color + ' font-bold">' + emoji + ' ' + (d.amount || 0) + ' ETB</span>' +
+                            '<span class="text-[10px] text-gray-500 ml-2">' + (d.firstName || 'Unknown') + '</span>' +
+                            '<span class="text-[10px] text-gray-600 ml-2">📞 ' + (d.phone || 'N/A') + '</span>' +
+                        '</div>' +
+                        '<span class="text-[10px] text-gray-600">' + time + '</span>' +
+                    '</div>' +
+                '</div>'
+            );
+        });
+        list.innerHTML = items.length > 0 ? items.join('') : '<div class="text-center py-4 text-gray-600 text-sm">No processed withdrawals</div>';
+    });
 }
 
 function approveDeposit(id) {
-    db.collection('deposits').doc(id).get().then(function(doc) {
-        if (!doc.exists) return alert('Deposit not found.');
-        var d = doc.data();
-        if (d.status !== 'pending') return alert('Deposit already ' + d.status + '.');
-        var userId = String(d.userId);
-        var amount = d.amount || 0;
-
-        db.collection('deposits').doc(id).update({
-            status: 'approved',
-            processedAt: new Date(),
-            adminNote: 'Approved by admin'
-        }).then(function() {
-            return db.collection('users').doc(userId).update({
-                balance: firebase.firestore.FieldValue.increment(amount),
-                updated_at: firebase.firestore.FieldValue.serverTimestamp()
+    var depRef = db.collection('deposits').doc(id);
+    db.runTransaction(function(transaction) {
+        return transaction.get(depRef).then(function(doc) {
+            if (!doc.exists) throw new Error('Deposit not found.');
+            var d = doc.data();
+            if (d.status !== 'pending') throw new Error('Deposit already ' + d.status + '.');
+            var userId = String(d.userId);
+            var amount = d.amount || 0;
+            var userRef = db.collection('users').doc(userId);
+            return transaction.get(userRef).then(function(userDoc) {
+                if (!userDoc.exists) throw new Error('User not found.');
+                transaction.update(depRef, {
+                    status: 'approved',
+                    processedAt: new Date(),
+                    adminNote: 'Approved by admin'
+                });
+                transaction.update(userRef, {
+                    balance: firebase.firestore.FieldValue.increment(amount),
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return { userId: userId, amount: amount };
             });
-        }).then(function() {
-            // Notify user
-            fetch(API_BASE + '/api/notify', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    user_id: parseInt(userId),
-                    text: '✅ Deposit approved!\n💰 ' + amount + ' ETB has been added to your wallet.'
-                })
-            }).catch(console.error);
-
-            loadPayments();
-            alert('Deposit approved! ' + amount + ' ETB added to user balance.');
-        }).catch(function(e) {
-            console.error(e);
-            alert('Error approving deposit.');
         });
+    }).then(function(result) {
+        fetch(API_BASE + '/api/notify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_id: parseInt(result.userId),
+                text: '✅ Deposit approved!\n💰 ' + result.amount + ' ETB has been added to your wallet.'
+            })
+        }).catch(console.error);
+        loadPayments();
+        alert('Deposit approved! ' + result.amount + ' ETB added to user balance.');
+    }).catch(function(e) {
+        console.error(e);
+        alert('Error: ' + e.message);
     });
 }
 
@@ -2055,6 +2155,93 @@ function rejectDeposit(id) {
         }).catch(function(e) {
             console.error(e);
             alert('Error rejecting deposit.');
+        });
+    });
+}
+
+function approveWithdrawal(id) {
+    db.collection('withdrawals').doc(id).get().then(function(doc) {
+        if (!doc.exists) return alert('Withdrawal not found.');
+        var d = doc.data();
+        if (d.status !== 'pending') return alert('Withdrawal already ' + d.status + '.');
+        var userId = String(d.userId);
+        var amount = d.amount || 0;
+
+        // Use transaction for atomic balance check and deduction
+        var userRef = db.collection('users').doc(userId);
+        db.runTransaction(function(transaction) {
+            return transaction.get(userRef).then(function(userDoc) {
+                if (!userDoc.exists) throw new Error('User not found');
+                var bal = userDoc.data().balance || 0;
+                if (bal < amount) throw new Error('Insufficient balance: ' + bal + ' ETB');
+                transaction.update(userRef, {
+                    balance: firebase.firestore.FieldValue.increment(-amount),
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                transaction.update(doc.ref, {
+                    status: 'approved',
+                    processedAt: new Date(),
+                    adminNote: 'Approved by admin'
+                });
+            });
+        }).then(function() {
+            fetch(API_BASE + '/api/notify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: parseInt(userId),
+                    text: '✅ Withdrawal approved!\n💸 ' + amount + ' ETB will be sent to your TeleBirr account.'
+                })
+            }).catch(console.error);
+
+            loadPayments();
+            alert('Withdrawal approved! ' + amount + ' ETB deducted from user.');
+        }).catch(function(e) {
+            console.error(e);
+            alert('Error: ' + e.message);
+        });
+    });
+}
+
+function rejectWithdrawal(id) {
+    db.collection('withdrawals').doc(id).get().then(function(doc) {
+        if (!doc.exists) return alert('Withdrawal not found.');
+        var d = doc.data();
+        if (d.status !== 'pending') return alert('Withdrawal already ' + d.status + '.');
+        var userId = String(d.userId);
+        var amount = d.amount || 0;
+        var note = prompt('Reason for rejection (optional):', '');
+        if (note === null) return;
+
+        // Refund balance using transaction
+        var userRef = db.collection('users').doc(userId);
+        db.runTransaction(function(transaction) {
+            return transaction.get(userRef).then(function(userDoc) {
+                transaction.update(userRef, {
+                    balance: firebase.firestore.FieldValue.increment(amount),
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                transaction.update(doc.ref, {
+                    status: 'rejected',
+                    processedAt: new Date(),
+                    adminNote: note || 'Rejected by admin'
+                });
+            });
+        }).then(function() {
+            fetch(API_BASE + '/api/notify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: parseInt(userId),
+                    text: '❌ Withdrawal rejected.\nAmount ' + amount + ' ETB has been refunded to your wallet.\nReason: ' + (note || 'Rejected by admin')
+                })
+            }).catch(console.error);
+
+            loadPayments();
+            alert('Withdrawal rejected. ' + amount + ' ETB refunded.');
+        }).catch(function(e) {
+            console.error(e);
+            alert('Error rejecting withdrawal.');
         });
     });
 }
