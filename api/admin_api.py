@@ -4,15 +4,16 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
 from config import db, BOT_TOKEN
 from game.round_engine import RoundEngine
 from handlers.user_manager import UserManager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from telegram import Bot
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
 
@@ -76,9 +77,9 @@ async def _game_loop(round_id: str):
             deadline = data.get('selection_deadline')
             if deadline:
                 dl_dt = deadline if isinstance(deadline, datetime) else deadline.to_datetime()
-                if datetime.utcnow() >= dl_dt:
+                if datetime.now(tz=timezone.utc) >= dl_dt:
                     # Auto-start the round (even with 0 players)
-                    now = datetime.utcnow()
+                    now = datetime.now(tz=timezone.utc)
                     db.collection('rounds').document(round_id).update({
                         'status': 'playing',
                         'pool': 0,
@@ -116,7 +117,7 @@ async def _game_loop(round_id: str):
                         user_ref.update({
                             'losses': ud.get('losses', 0) + 1,
                             'is_playing': False,
-                            'updated_at': datetime.utcnow(),
+                            'updated_at': datetime.now(tz=timezone.utc),
                         })
 
                 db.collection('rounds').document(round_id).update({
@@ -125,7 +126,7 @@ async def _game_loop(round_id: str):
                     'winner_name': 'No winner',
                     'prize_per_winner': 0,
                     'admin_profit': 0,
-                    'completed_at': datetime.utcnow(),
+                    'completed_at': datetime.now(tz=timezone.utc),
                 })
                 return
 
@@ -133,7 +134,7 @@ async def _game_loop(round_id: str):
             number = random.choice(available)
             called.append(number)
 
-            now = datetime.utcnow()
+            now = datetime.now(tz=timezone.utc)
             next_at = now + timedelta(seconds=NUMBER_CALL_INTERVAL)
             db.collection('rounds').document(round_id).update({
                 'called_numbers': firestore.ArrayUnion([number]),
@@ -168,7 +169,7 @@ async def start_background_monitor():
             try:
                 # Find rounds in 'selecting' that need a game loop
                 docs = list(db.collection('rounds')
-                           .where('status', '==', 'selecting')
+                           .where(filter=FieldFilter('status', '==', 'selecting'))
                            .get())
                 for doc in docs:
                     rid = doc.id
@@ -365,7 +366,12 @@ async def notify_user(req: NotifyRequest):
 @app.get("/api/health")
 async def health_check():
     """Health check."""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.now(tz=timezone.utc).isoformat()}
+
+
+@app.head("/")
+async def head_root():
+    return Response(status_code=200)
 
 
 # ─── Dashboard & game (served from same service as API + bots) ───

@@ -7,9 +7,10 @@ and prize distribution.
 
 import random
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 # ─── Constants ───
@@ -72,7 +73,7 @@ class RoundEngine:
                 batch.set(doc_ref, {
                     'number': num,
                     'cartela': cartela,
-                    'generated_at': datetime.utcnow(),
+                    'generated_at': datetime.now(tz=timezone.utc),
                 })
                 generated += 1
             batch.commit()
@@ -98,7 +99,7 @@ class RoundEngine:
         """Find the current active round (selecting or playing)."""
         for status in ['selecting', 'playing']:
             docs = list(self.rounds_ref
-                       .where('status', '==', status)
+                       .where(filter=FieldFilter('status', '==', status))
                        .order_by('created_at', direction=firestore.Query.DESCENDING)
                        .limit(1)
                        .get())
@@ -114,7 +115,7 @@ class RoundEngine:
         if active:
             return active
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         round_data = {
             'status': 'selecting',
             'stake': STAKE,
@@ -181,7 +182,7 @@ class RoundEngine:
         user_ref.update({
             'play_wallet': pw - total_cost,
             'is_playing': True,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
 
         # Add to round
@@ -189,7 +190,7 @@ class RoundEngine:
         players[uid_str] = {
             'cartelas': cartela_numbers,
             'name': user_name,
-            'joined_at': datetime.utcnow().isoformat(),
+            'joined_at': datetime.now(tz=timezone.utc).isoformat(),
         }
         new_taken = taken + cartela_numbers
 
@@ -220,7 +221,7 @@ class RoundEngine:
         pool = player_count * STAKE
         derash = pool * (1 - ADMIN_CUT_RATIO)  # 75% to winner(s)
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         self.rounds_ref.document(round_id).update({
             'status': 'playing',
             'game_started_at': now,
@@ -249,7 +250,7 @@ class RoundEngine:
         number = random.choice(available)
         called.append(number)
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         self.rounds_ref.document(round_id).update({
             'called_numbers': called,
             'last_called_number': number,
@@ -342,7 +343,7 @@ class RoundEngine:
                         'play_wallet': ud.get('play_wallet', 0) + prize_per_winner,
                         'wins': ud.get('wins', 0) + 1,
                         'is_playing': False,
-                        'updated_at': datetime.utcnow(),
+                        'updated_at': datetime.now(tz=timezone.utc),
                     })
 
         # Mark all players as not playing
@@ -355,7 +356,7 @@ class RoundEngine:
                     user_ref.update({
                         'losses': ud.get('losses', 0) + 1,
                         'is_playing': False,
-                        'updated_at': datetime.utcnow(),
+                        'updated_at': datetime.now(tz=timezone.utc),
                     })
 
         # Get winner name for spectator display
@@ -373,7 +374,7 @@ class RoundEngine:
             'winner_name': winner_name,
             'prize_per_winner': prize_per_winner,
             'admin_profit': admin_profit,
-            'completed_at': datetime.utcnow(),
+            'completed_at': datetime.now(tz=timezone.utc),
         })
 
         return {

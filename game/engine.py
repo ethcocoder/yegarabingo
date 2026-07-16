@@ -1,6 +1,7 @@
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 TOTAL_CARTELAS = 500
 
@@ -49,7 +50,7 @@ class GameEngine:
                 batch.set(doc_ref, {
                     'number': num,
                     'cartela': cartela,
-                    'generated_at': datetime.utcnow(),
+                    'generated_at': datetime.now(tz=timezone.utc),
                 })
                 generated += 1
             batch.commit()
@@ -59,12 +60,12 @@ class GameEngine:
     def get_stats(self):
         """Get game statistics (synchronous)"""
         try:
-            active_players = len(list(self.db.collection('users').where('is_playing', '==', True).get()))
+            active_players = len(list(self.db.collection('users').where(filter=FieldFilter('is_playing', '==', True)).get()))
             games = self.db.collection('games').get()
             games_played = len(list(games))
 
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            winners_today = len(list(self.db.collection('games').where('winner', '!=', None).where('created_at', '>=', today).get()))
+            today = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            winners_today = len(list(self.db.collection('games').where(filter=FieldFilter('winner', '!=', None)).where(filter=FieldFilter('created_at', '>=', today)).get()))
 
             return {
                 'active_players': active_players,
@@ -84,8 +85,8 @@ class GameEngine:
             'marked_numbers': [],
             'winner': None,
             'prize': 0,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'created_at': datetime.now(tz=timezone.utc),
+            'updated_at': datetime.now(tz=timezone.utc)
         }
 
         doc_ref = self.games_ref.document()
@@ -127,7 +128,7 @@ class GameEngine:
             'user_id': user_id,
             'cartela': flat,
             'marked': [],
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(tz=timezone.utc)
         }
 
         doc_ref = self.cartelas_ref.document()
@@ -150,14 +151,14 @@ class GameEngine:
 
         self.games_ref.document(game_id).update({
             'called_numbers': called,
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(tz=timezone.utc)
         })
 
         return number
 
     async def mark_number(self, game_id, user_id, number):
         """Mark a number on player's cartela using transaction"""
-        cartelas = self.cartelas_ref.where('game_id', '==', game_id).where('user_id', '==', user_id).get()
+        cartelas = self.cartelas_ref.where(filter=FieldFilter('game_id', '==', game_id)).where(filter=FieldFilter('user_id', '==', user_id)).get()
 
         for cartela_doc in cartelas:
             @firestore.transactional
@@ -175,7 +176,7 @@ class GameEngine:
 
     async def check_bingo(self, game_id, user_id):
         """Check if player has Bingo"""
-        cartelas = self.cartelas_ref.where('game_id', '==', game_id).where('user_id', '==', user_id).get()
+        cartelas = self.cartelas_ref.where(filter=FieldFilter('game_id', '==', game_id)).where(filter=FieldFilter('user_id', '==', user_id)).get()
 
         for cartela_doc in cartelas:
             flat = cartela_doc.to_dict().get('cartela', [])
@@ -211,7 +212,7 @@ class GameEngine:
             'status': 'completed',
             'winner': winner_id,
             'prize': prize,
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(tz=timezone.utc)
         })
 
         return prize

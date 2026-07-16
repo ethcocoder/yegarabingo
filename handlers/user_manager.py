@@ -1,5 +1,6 @@
 from firebase_admin import firestore
-from datetime import datetime
+from google.cloud.firestore_v1.base_query import FieldFilter
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 
@@ -27,8 +28,8 @@ class UserManager:
             'is_playing': False,
             'awaiting_screenshot': False,
             'referred_by': None,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
+            'created_at': datetime.now(tz=timezone.utc),
+            'updated_at': datetime.now(tz=timezone.utc),
         }
         self.users_ref.document(str(user_id)).set(user_data)
         return user_data
@@ -46,7 +47,7 @@ class UserManager:
             return False
         self.users_ref.document(str(user_id)).update({
             'balance': new_balance,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
@@ -56,7 +57,7 @@ class UserManager:
             return False
         self.users_ref.document(str(user_id)).update({
             'balance': user['balance'] - amount,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
@@ -67,7 +68,7 @@ class UserManager:
         self.users_ref.document(str(user_id)).update({
             'balance': user['balance'] - amount,
             'play_wallet': user.get('play_wallet', 0) + amount,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
@@ -78,7 +79,7 @@ class UserManager:
         self.users_ref.document(str(user_id)).update({
             'play_wallet': user.get('play_wallet', 0) + amount,
             'wins': user.get('wins', 0) + 1,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
@@ -88,7 +89,7 @@ class UserManager:
             return False
         update_data = {
             'total_games': user.get('total_games', 0) + 1,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         }
         if won:
             update_data['wins'] = user.get('wins', 0) + 1
@@ -100,12 +101,12 @@ class UserManager:
     async def set_playing_status(self, user_id: int, is_playing: bool) -> bool:
         self.users_ref.document(str(user_id)).update({
             'is_playing': is_playing,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
     async def get_user_history(self, user_id: int, limit: int = 10) -> list:
-        games = self.db.collection('games').where('user_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit).get()
+        games = self.db.collection('games').where(filter=FieldFilter('user_id', '==', user_id)).order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit).get()
         return [game.to_dict() for game in games]
 
     async def get_all_users(self, limit: int = 100) -> list:
@@ -125,7 +126,7 @@ class UserManager:
             'phone': phone,
             'telebirr_name': telebirr_name,
             'registered': True,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
@@ -164,12 +165,12 @@ class UserManager:
                 return False
             txn.update(sender_ref, {
                 'balance': sender_data['balance'] - amount,
-                'updated_at': datetime.utcnow(),
+                'updated_at': datetime.now(tz=timezone.utc),
             })
             recipient_data = recipient_snap.to_dict()
             txn.update(recipient_ref, {
                 'balance': recipient_data.get('balance', 0) + amount,
-                'updated_at': datetime.utcnow(),
+                'updated_at': datetime.now(tz=timezone.utc),
             })
             return True
 
@@ -186,7 +187,7 @@ class UserManager:
         self.users_ref.document(str(user_id)).update({
             'bonus': 0,
             'play_wallet': user.get('play_wallet', 0) + etb,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return etb
 
@@ -196,19 +197,19 @@ class UserManager:
             return False
         self.users_ref.document(str(referrer_id)).update({
             'balance': user.get('balance', 0) + bonus_amount,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
     async def set_referred_by(self, new_user_id: int, referrer_id: int) -> bool:
         self.users_ref.document(str(new_user_id)).update({
             'referred_by': referrer_id,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })
         return True
 
     async def set_awaiting_screenshot(self, user_id: int, awaiting: bool) -> None:
         self.users_ref.document(str(user_id)).update({
             'awaiting_screenshot': awaiting,
-            'updated_at': datetime.utcnow(),
+            'updated_at': datetime.now(tz=timezone.utc),
         })

@@ -1,6 +1,7 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler, ConversationHandler
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 class AdminHandlers:
     def __init__(self, db, game_engine, prediction):
@@ -86,7 +87,7 @@ Select action: """
         query = update.callback_query
         await query.answer()
 
-        users = self.db.collection('users').where('is_playing', '==', True).get()
+        users = self.db.collection('users').where(filter=FieldFilter('is_playing', '==', True)).get()
 
         keyboard = []
         for user in users[:10]:

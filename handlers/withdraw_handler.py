@@ -1,6 +1,6 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -98,7 +98,7 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
 
     user_ref.update({
         "balance": current_balance - amount,
-        "updatedAt": datetime.utcnow()
+        "updatedAt": datetime.now(tz=timezone.utc)
     })
 
     withdrawal_data = {
@@ -108,7 +108,7 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
         "amount": amount,
         "telebirrNumber": telebirr,
         "status": "pending",
-        "createdAt": datetime.utcnow(),
+        "createdAt": datetime.now(tz=timezone.utc),
         "processedAt": None,
         "adminNote": ""
     }

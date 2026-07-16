@@ -1,6 +1,6 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 from config import db
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
@@ -40,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
-    pending = list(db.collection('deposits').where('status', '==', 'pending').order_by('createdAt').limit(20).stream())
+    pending = list(db.collection('deposits').where(filter=FieldFilter('status', '==', 'pending')).order_by('createdAt').limit(20).stream())
     if not pending:
         await update.message.reply_text("✅ No pending deposits.")
         return
@@ -83,7 +84,7 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def withdrawals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
-    pending = list(db.collection('withdrawals').where('status', '==', 'pending').order_by('createdAt').limit(20).stream())
+    pending = list(db.collection('withdrawals').where(filter=FieldFilter('status', '==', 'pending')).order_by('createdAt').limit(20).stream())
     if not pending:
         await update.message.reply_text("✅ No pending withdrawals.")
         return
@@ -155,7 +156,7 @@ async def process_deposit(deposit_id, status, query):
                 raise Exception(f"Already {data.get('status')}.")
             transaction.update(ref, {
                 'status': status,
-                'processedAt': datetime.utcnow(),
+                'processedAt': datetime.now(tz=timezone.utc),
             })
             user_id = data.get('userId')
             amount = data.get('amount', 0)
@@ -163,7 +164,7 @@ async def process_deposit(deposit_id, status, query):
                 user_ref = db.collection('users').document(str(user_id))
                 transaction.update(user_ref, {
                     'balance': firestore.Increment(amount),
-                    'updated_at': datetime.utcnow(),
+                    'updated_at': datetime.now(tz=timezone.utc),
                 })
             result['user_id'] = user_id
             result['amount'] = amount
@@ -192,14 +193,27 @@ async def process_deposit(deposit_id, status, query):
         except Exception as e:
             logger.error(f"Failed to notify user {user_id}: {e}")
 
-        await query.edit_message_text(
+        new_text = (
             f"{'✅' if status == 'approved' else '❌'} Deposit {status}\n"
             f"User: {data.get('firstName', '?')} | {amount} ETB"
         )
+        try:
+            await query.edit_message_text(new_text)
+        except Exception:
+            try:
+                await query.edit_message_caption(caption=new_text)
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"Error processing deposit: {e}")
-        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+        try:
+            await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+        except Exception:
+            try:
+                await query.edit_message_caption(caption=f"❌ Error: {str(e)[:100]}")
+            except Exception:
+                pass
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -220,7 +234,7 @@ async def process_withdrawal(wid, status, query, context):
                 raise Exception(f"Already {data.get('status')}.")
             transaction.update(ref, {
                 'status': status,
-                'processedAt': datetime.utcnow(),
+                'processedAt': datetime.now(tz=timezone.utc),
             })
             user_id = data.get('userId')
             amount = data.get('amount', 0)
@@ -228,7 +242,7 @@ async def process_withdrawal(wid, status, query, context):
                 user_ref = db.collection('users').document(str(user_id))
                 transaction.update(user_ref, {
                     'balance': firestore.Increment(amount),
-                    'updated_at': datetime.utcnow(),
+                    'updated_at': datetime.now(tz=timezone.utc),
                 })
             result['user_id'] = user_id
             result['amount'] = amount
@@ -275,8 +289,10 @@ def main():
 
     async def _pre_start():
         from telegram import Bot
+        import asyncio as _aio
         b = Bot(token=ADMIN_BOT_TOKEN)
         await b.delete_webhook(drop_pending_updates=True)
+        await _aio.sleep(5)
         me = await b.get_me()
         logger.info(f"✅ Admin bot connected: @{me.username}")
 

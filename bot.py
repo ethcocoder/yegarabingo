@@ -3,7 +3,7 @@ import os
 import re
 import hashlib
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from telegram import (
     Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove,
@@ -21,6 +21,7 @@ from config import (
 )
 from telegram import Bot
 from handlers.user_manager import UserManager
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -233,7 +234,7 @@ async def _show_deposit_flow_msg(update: Update, context: ContextTypes.DEFAULT_T
         return AWAIT_PHOTO
 
     # Check pending deposits limit
-    pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
+    pending = db.collection('deposits').where(filter=FieldFilter('userId', '==', str(uid))).where(filter=FieldFilter('status', '==', 'pending')).get()
     if len(list(pending)) >= 3:
         await update.effective_message.reply_text(
             "⚠️ You have too many pending deposits.\nWait for them to be processed.",
@@ -250,7 +251,7 @@ async def _show_deposit_flow_msg(update: Update, context: ContextTypes.DEFAULT_T
 
 async def _show_deposit_flow(query, context):
     uid = query.from_user.id
-    pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
+    pending = db.collection('deposits').where(filter=FieldFilter('userId', '==', str(uid))).where(filter=FieldFilter('status', '==', 'pending')).get()
     if len(list(pending)) >= 3:
         await query.edit_message_text("⚠️ Too many pending deposits. Wait for processing.")
         return ConversationHandler.END
@@ -326,7 +327,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     image_hash = hashlib.sha256(bytes(image_bytes)).hexdigest()
 
     # Check duplicate image
-    existing = db.collection('deposits').where('imageHash', '==', image_hash).limit(1).get()
+    existing = db.collection('deposits').where(filter=FieldFilter('imageHash', '==', image_hash)).limit(1).get()
     if existing:
         await update.effective_message.reply_text("❌ This screenshot was already submitted.", reply_markup=MAIN_KEYBOARD)
         await user_manager.set_awaiting_screenshot(uid, False)
@@ -341,7 +342,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check duplicate transaction ID
     if txn_id and not txn_id.startswith("IMG-"):
-        dup = db.collection('deposits').where('transactionId', '==', txn_id).limit(1).get()
+        dup = db.collection('deposits').where(filter=FieldFilter('transactionId', '==', txn_id)).limit(1).get()
         if dup:
             await update.effective_message.reply_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
             await user_manager.set_awaiting_screenshot(uid, False)
@@ -359,7 +360,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'imageHash': image_hash,
         'imageFileId': photo[-1].file_id,
         'extractedText': extracted.get('raw_text', ''),
-        'createdAt': datetime.utcnow(),
+        'createdAt': datetime.now(tz=timezone.utc),
         'processedAt': None,
         'adminNote': '',
     }
@@ -472,7 +473,7 @@ async def _process_withdraw(update, context, uid, amount, phone):
         'amount': amount,
         'phone': phone,
         'status': 'pending',
-        'createdAt': datetime.utcnow(),
+        'createdAt': datetime.now(tz=timezone.utc),
         'processedAt': None,
         'adminNote': '',
     }
@@ -721,7 +722,7 @@ async def _notify_admin_deposit(deposit_data, deposit_id, context):
             f"🔖 TXN: {deposit_data.get('transactionId', 'N/A')}\n"
             f"👤 Sender: {deposit_data.get('senderName', 'N/A')}\n"
             f"🆔 {deposit_id}\n"
-            f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            f"🕐 {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
         )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{deposit_id}"),
@@ -752,7 +753,7 @@ async def _notify_admin_withdrawal(withdrawal_data, withdrawal_id, context):
             f"💵 Amount: {withdrawal_data.get('amount', 0)} ETB\n"
             f"📱 Phone: {withdrawal_data.get('phone', 'N/A')}\n"
             f"🆔 {withdrawal_id}\n"
-            f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            f"🕐 {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
         )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_withdraw_{withdrawal_id}"),
@@ -841,8 +842,10 @@ def main():
 
     async def _pre_start():
         from telegram import Bot
+        import asyncio as _aio
         b = Bot(token=BOT_TOKEN)
         await b.delete_webhook(drop_pending_updates=True)
+        await _aio.sleep(5)
         me = await b.get_me()
         logger.info(f"✅ Game bot connected: @{me.username}")
 
@@ -869,6 +872,7 @@ def main():
             MessageHandler(filters.Regex("^📝 Register$"), handle_register),
             CallbackQueryHandler(handle_register, pattern="^menu_register$"),
         ],
+        per_message=True,
         states={
             REG_CONTACT: [MessageHandler(filters.CONTACT, reg_contact),
                           MessageHandler(filters.TEXT & ~filters.COMMAND, reg_contact)],
@@ -884,6 +888,7 @@ def main():
             CallbackQueryHandler(handle_deposit, pattern="^menu_deposit$"),
             CallbackQueryHandler(handle_deposit, pattern="^bal_deposit$"),
         ],
+        per_message=True,
         states={
             DEPOSIT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_amount)],
             DEPOSIT_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_telebirr_name)],
@@ -905,6 +910,7 @@ def main():
             CallbackQueryHandler(handle_withdraw, pattern="^menu_withdraw$"),
             CallbackQueryHandler(handle_withdraw, pattern="^bal_withdraw$"),
         ],
+        per_message=True,
         states={
             WITHDRAW_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_amount)],
             WITHDRAW_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_telebirr_name)],
@@ -921,6 +927,7 @@ def main():
     # ─── ConversationHandler: Transfer ───
     transfer_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^🎁 Transfer$"), handle_transfer), CallbackQueryHandler(handle_transfer, pattern="^menu_transfer$")],
+        per_message=True,
         states={
             TRANSFER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, transfer_id)],
             TRANSFER_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, transfer_amount)],
@@ -933,6 +940,7 @@ def main():
     # ─── ConversationHandler: Convert Bonus ───
     bonus_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^🔄 Convert Bonus$"), handle_convert_bonus), CallbackQueryHandler(handle_convert_bonus, pattern="^menu_bonus$")],
+        per_message=True,
         states={
             BONUS_CONFIRM: [CallbackQueryHandler(bonus_confirm, pattern="^bonus_")],
         },

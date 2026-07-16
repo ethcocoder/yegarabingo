@@ -1,6 +1,7 @@
 import random
 from typing import List, Dict, Optional
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 class PredictionAlgorithm:
@@ -29,7 +30,7 @@ class PredictionAlgorithm:
 
     def _get_active_cartelas(self, game_id):
         """Get all active cartelas for a game"""
-        docs = self.cartelas_ref.where('game_id', '==', game_id).get()
+        docs = self.cartelas_ref.where(filter=FieldFilter('game_id', '==', game_id)).get()
         return [doc.to_dict() for doc in docs]
 
     def _generate_for_target(self, cartelas, available, called, target_user_id):
