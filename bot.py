@@ -156,21 +156,7 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         one_time_keyboard=True, resize_keyboard=True,
     )
     await update.effective_message.reply_text(
-        "📝 Please enter your full name:",
-        reply_markup=kb,
-    )
-    return REG_NAME
-
-
-async def reg_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['reg_name'] = update.message.text.strip()
-    kb = ReplyKeyboardMarkup(
-        [[KeyboardButton("📱 Share Contact", request_contact=True)]],
-        one_time_keyboard=True, resize_keyboard=True,
-    )
-    await update.message.reply_text(
-        "📱 Now share your contact so we can get your phone number automatically.\n"
-        "Tap the button below:",
+        "📱 Tap the button below to share your contact:",
         reply_markup=kb,
     )
     return REG_CONTACT
@@ -186,7 +172,7 @@ async def reg_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not phone.startswith('+'):
         phone = '+' + phone
 
-    name = context.user_data.get('reg_name', update.effective_user.first_name)
+    name = update.effective_user.first_name or ''
     await user_manager.register_user(update.effective_user.id, name, phone, '')
     await update.message.reply_text(
         f"✅ Registration complete!\n\n"
@@ -884,7 +870,6 @@ def main():
             CallbackQueryHandler(handle_register, pattern="^menu_register$"),
         ],
         states={
-            REG_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_name)],
             REG_CONTACT: [MessageHandler(filters.CONTACT, reg_contact),
                           MessageHandler(filters.TEXT & ~filters.COMMAND, reg_contact)],
         },
