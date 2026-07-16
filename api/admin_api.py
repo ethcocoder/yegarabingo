@@ -10,7 +10,7 @@ from typing import List, Optional
 from config import db, BOT_TOKEN
 from game.round_engine import RoundEngine
 from handlers.user_manager import UserManager
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Bot
 from firebase_admin import firestore
 
@@ -78,10 +78,13 @@ async def _game_loop(round_id: str):
                 dl_dt = deadline if isinstance(deadline, datetime) else deadline.to_datetime()
                 if datetime.utcnow() >= dl_dt:
                     # Auto-start the round (even with 0 players)
+                    now = datetime.utcnow()
                     db.collection('rounds').document(round_id).update({
                         'status': 'playing',
                         'pool': 0,
                         'derash': 0,
+                        'game_started_at': now,
+                        'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
                     })
                     break
 
@@ -130,8 +133,13 @@ async def _game_loop(round_id: str):
             number = random.choice(available)
             called.append(number)
 
+            now = datetime.utcnow()
+            next_at = now + timedelta(seconds=NUMBER_CALL_INTERVAL)
             db.collection('rounds').document(round_id).update({
                 'called_numbers': firestore.ArrayUnion([number]),
+                'last_called_number': number,
+                'last_called_at': now,
+                'next_number_at': next_at,
             })
 
             await asyncio.sleep(NUMBER_CALL_INTERVAL)

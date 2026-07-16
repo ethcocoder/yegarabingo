@@ -220,11 +220,13 @@ class RoundEngine:
         pool = player_count * STAKE
         derash = pool * (1 - ADMIN_CUT_RATIO)  # 75% to winner(s)
 
+        now = datetime.utcnow()
         self.rounds_ref.document(round_id).update({
             'status': 'playing',
-            'game_started_at': datetime.utcnow(),
+            'game_started_at': now,
             'pool': pool,
             'derash': derash,
+            'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
         })
 
         return {'status': 'playing', 'player_count': player_count, 'pool': pool, 'derash': derash}
@@ -247,8 +249,12 @@ class RoundEngine:
         number = random.choice(available)
         called.append(number)
 
+        now = datetime.utcnow()
         self.rounds_ref.document(round_id).update({
             'called_numbers': called,
+            'last_called_number': number,
+            'last_called_at': now,
+            'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
         })
 
         return number

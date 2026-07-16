@@ -54,6 +54,7 @@ let myCartelas = {};       // { cartelaNum: [flat 25 ints] }
 let autoMarkEnabled = false;
 let calledNumbers = new Set();
 let numberCallInterval = null;
+let gameCountdownInterval = null;
 let winCountdownInterval = null;
 let selectionHandled = false;
 let listenerReady = false;
@@ -634,6 +635,25 @@ function stopSelectionTimer() {
     if (selectionTimer) { clearInterval(selectionTimer); selectionTimer = null; }
 }
 
+function startGameCountdown(nextMs) {
+    if (gameCountdownInterval) clearInterval(gameCountdownInterval);
+    const timerEl = document.getElementById('game-timer');
+    gameCountdownInterval = setInterval(() => {
+        const rem = Math.max(0, Math.ceil((nextMs - Date.now()) / 1000));
+        timerEl.textContent = rem + 's';
+        if (rem <= 1) timerEl.textContent = '...';
+        if (rem <= 0) {
+            timerEl.textContent = '...';
+            clearInterval(gameCountdownInterval);
+            gameCountdownInterval = null;
+        }
+    }, 200);
+}
+
+function stopGameCountdown() {
+    if (gameCountdownInterval) { clearInterval(gameCountdownInterval); gameCountdownInterval = null; }
+}
+
 function cancelCardSelect() {
     stopSelectionTimer();
     selectedCartelas = [];
@@ -733,6 +753,7 @@ async function confirmSelection() {
 function setupGameBoard() {
     const nums = Object.keys(myCartelas).map(Number);
     calledNumbers = new Set();
+    stopGameCountdown();
 
     // Info bar
     document.getElementById('game-id-display').textContent = '#' + (currentRoundId || '---').substring(0, 6);
@@ -896,6 +917,13 @@ function listenToRound(roundId) {
         } else if (data.status === 'playing') {
             document.getElementById('game-countdown').classList.add('hidden');
 
+            // Drive game timer from server timestamp
+            const nextAt = data.next_number_at;
+            if (nextAt) {
+                const nextMs = nextAt.toDate ? nextAt.toDate().getTime() : new Date(nextAt).getTime();
+                startGameCountdown(nextMs);
+            }
+
             // Process new called numbers
             const called = data.called_numbers || [];
             for (let i = prevCalledCount; i < called.length; i++) {
@@ -1017,6 +1045,7 @@ function checkBingoLocal(flat, called) {
 
 function handleRoundCompleted(data) {
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+    stopGameCountdown();
     listenerReady = false;
     const uidStr = String(currentUser.id);
     const isWinner = (data.winners || []).includes(uidStr);
@@ -1118,6 +1147,7 @@ function leaveGame() {
     listenerReady = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     if (numberCallInterval) { clearInterval(numberCallInterval); numberCallInterval = null; }
+    stopGameCountdown();
     if (winCountdownInterval) { clearInterval(winCountdownInterval); winCountdownInterval = null; }
     if (selectionTimer) { stopSelectionTimer(); }
     myCartelas = {};
