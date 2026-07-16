@@ -280,7 +280,7 @@ def main():
         me = await b.get_me()
         logger.info(f"✅ Admin bot connected: @{me.username}")
 
-    _asyncio.get_event_loop().run_until_complete(_pre_start())
+    _asyncio.run(_pre_start())
 
     app = Application.builder().token(ADMIN_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
