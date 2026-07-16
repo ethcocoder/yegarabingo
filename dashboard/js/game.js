@@ -988,10 +988,14 @@ function handleRoundCompleted(data) {
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     const uidStr = String(currentUser.id);
     const isWinner = (data.winners || []).includes(uidStr);
+    const noWinner = !data.winners || data.winners.length === 0;
 
     if (isWinner) {
         playWinSound();
         showWinModal(data);
+    } else if (noWinner) {
+        showToast('All numbers called! No winner this round.');
+        setTimeout(() => { isSpectator = false; navigateTo('home'); }, 4000);
     } else if (isSpectator) {
         const winnerName = data.winner_name || 'Unknown';
         const prize = Math.round(data.prize_per_winner || 0);

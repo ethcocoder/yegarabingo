@@ -217,14 +217,12 @@ class RoundEngine:
             return {'error': 'Round already started or completed'}
 
         player_count = data.get('player_count', 0)
-        if player_count < 1:
-            return {'error': 'Need at least 1 player'}
-
         pool = player_count * STAKE
         derash = pool * (1 - ADMIN_CUT_RATIO)  # 75% to winner(s)
 
         self.rounds_ref.document(round_id).update({
             'status': 'playing',
+            'game_started_at': datetime.utcnow(),
             'pool': pool,
             'derash': derash,
         })

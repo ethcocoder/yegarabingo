@@ -1,4 +1,6 @@
 import os
+import random
+import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +12,7 @@ from game.round_engine import RoundEngine
 from handlers.user_manager import UserManager
 from datetime import datetime
 from telegram import Bot
-import asyncio
+from firebase_admin import firestore
 
 app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
 
@@ -24,6 +26,11 @@ app.add_middleware(
 
 engine = RoundEngine(db)
 user_manager = UserManager(db)
+
+# ─── Background game loop state ───
+_active_game_tasks = {}  # round_id -> asyncio.Task
+BINGO_NUMBERS = list(range(1, 76))
+NUMBER_CALL_INTERVAL = 4  # seconds
 
 
 # ─── Models ───
@@ -43,6 +50,131 @@ class EndRoundRequest(BaseModel):
 class NotifyRequest(BaseModel):
     user_id: int
     text: str
+
+
+# ═══════════════════════════════════════════════════════════════
+# Server-Side Game Loop
+# ═══════════════════════════════════════════════════════════════
+async def _game_loop(round_id: str):
+    """Background task: auto-start round after selection deadline, then call numbers."""
+    try:
+        # Wait for selection deadline to pass
+        while True:
+            round_doc = db.collection('rounds').document(round_id).get()
+            if not round_doc.exists:
+                return
+            data = round_doc.to_dict()
+            status = data.get('status')
+
+            if status == 'completed' or status is None:
+                return  # round was cancelled/completed externally
+
+            if status == 'playing':
+                break  # already started (e.g. by client)
+
+            # Check if selection deadline has passed
+            deadline = data.get('selection_deadline')
+            if deadline:
+                dl_dt = deadline if isinstance(deadline, datetime) else deadline.to_datetime()
+                if datetime.utcnow() >= dl_dt:
+                    # Auto-start the round (even with 0 players)
+                    db.collection('rounds').document(round_id).update({
+                        'status': 'playing',
+                        'pool': 0,
+                        'derash': 0,
+                    })
+                    break
+
+            await asyncio.sleep(1)
+
+        # Now call numbers every 4 seconds
+        called = []
+        while True:
+            round_doc = db.collection('rounds').document(round_id).get()
+            if not round_doc.exists:
+                return
+            data = round_doc.to_dict()
+
+            if data.get('status') != 'playing':
+                return  # round ended (bingo claimed or admin ended)
+
+            already_called = set(data.get('called_numbers', []))
+            available = [n for n in BINGO_NUMBERS if n not in already_called]
+
+            if not available:
+                # All 75 numbers called, no winner — complete the round
+                player_count = data.get('player_count', 0)
+                # Mark all players as not playing and count as losses
+                for uid_str in data.get('players', {}):
+                    user_ref = db.collection('users').document(uid_str)
+                    user_doc = user_ref.get()
+                    if user_doc.exists:
+                        ud = user_doc.to_dict()
+                        user_ref.update({
+                            'losses': ud.get('losses', 0) + 1,
+                            'is_playing': False,
+                            'updated_at': datetime.utcnow(),
+                        })
+
+                db.collection('rounds').document(round_id).update({
+                    'status': 'completed',
+                    'winners': [],
+                    'winner_name': 'No winner',
+                    'prize_per_winner': 0,
+                    'admin_profit': 0,
+                    'completed_at': datetime.utcnow(),
+                })
+                return
+
+            # Pick a random number
+            number = random.choice(available)
+            called.append(number)
+
+            db.collection('rounds').document(round_id).update({
+                'called_numbers': firestore.ArrayUnion([number]),
+            })
+
+            await asyncio.sleep(NUMBER_CALL_INTERVAL)
+
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"[GameLoop] Error for round {round_id}: {e}")
+    finally:
+        _active_game_tasks.pop(round_id, None)
+
+
+def _start_game_loop(round_id: str):
+    """Start a background game loop for a round if one isn't already running."""
+    if round_id in _active_game_tasks:
+        return  # already running
+    task = asyncio.create_task(_game_loop(round_id))
+    _active_game_tasks[round_id] = task
+
+
+@app.on_event("startup")
+async def start_background_monitor():
+    """Periodically check for rounds that need a game loop."""
+    async def _monitor():
+        while True:
+            try:
+                # Find rounds in 'selecting' that have passed their deadline
+                docs = list(db.collection('rounds')
+                           .where('status', '==', 'selecting')
+                           .get())
+                for doc in docs:
+                    rid = doc.id
+                    if rid not in _active_game_tasks:
+                        data = doc.to_dict()
+                        deadline = data.get('selection_deadline')
+                        if deadline:
+                            dl_dt = deadline if isinstance(deadline, datetime) else deadline.to_datetime()
+                            if datetime.utcnow() >= dl_dt:
+                                _start_game_loop(rid)
+            except Exception as e:
+                print(f"[Monitor] Error: {e}")
+            await asyncio.sleep(5)
+    asyncio.create_task(_monitor())
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -92,6 +224,8 @@ async def get_active_round():
 async def create_round():
     """Create a new round (or return existing active one)."""
     result = await engine.create_round()
+    if 'id' in result:
+        _start_game_loop(result['id'])
     return {"round": result}
 
 
@@ -112,6 +246,7 @@ async def start_round(round_id: str):
     result = await engine.start_round(round_id)
     if 'error' in result:
         raise HTTPException(status_code=400, detail=result['error'])
+    _start_game_loop(round_id)
     return result
 
 
@@ -134,6 +269,10 @@ async def check_bingo(round_id: str, req: BingoCheckRequest):
 @app.post("/api/rounds/{round_id}/end")
 async def end_round(round_id: str, req: EndRoundRequest):
     """End the round and distribute prizes."""
+    # Cancel game loop if running
+    task = _active_game_tasks.pop(round_id, None)
+    if task:
+        task.cancel()
     result = await engine.end_round(round_id, req.winner_ids)
     if 'error' in result:
         raise HTTPException(status_code=400, detail=result['error'])
