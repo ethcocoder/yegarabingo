@@ -846,7 +846,7 @@ def main():
         me = await b.get_me()
         logger.info(f"✅ Game bot connected: @{me.username}")
 
-    _asyncio.get_event_loop().run_until_complete(_pre_start())
+    _asyncio.run(_pre_start())
 
     app = Application.builder().token(BOT_TOKEN).read_timeout(30).write_timeout(30).connect_timeout(30).pool_timeout(30).build()
 
