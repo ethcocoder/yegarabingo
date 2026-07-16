@@ -133,7 +133,7 @@ class UserManager:
         user = await self.get_user(user_id)
         if not user:
             return False
-        return bool(user.get('registered')) and bool(user.get('phone')) and bool(user.get('telebirr_name'))
+        return bool(user.get('registered')) and bool(user.get('phone'))
 
     async def get_balance_info(self, user_id: int) -> Optional[Dict]:
         user = await self.get_user(user_id)

@@ -51,7 +51,6 @@ let selectionTimer = null;
 let selectionDeadline = 0;
 let selectedCartelas = [];
 let myCartelas = {};       // { cartelaNum: [flat 25 ints] }
-let currentCardIndex = 0;
 let autoMarkEnabled = false;
 let calledNumbers = new Set();
 let numberCallInterval = null;
@@ -147,18 +146,21 @@ function playWinSound() {
 }
 function toggleMusic() {
     musicEnabled = !musicEnabled;
-    document.getElementById('music-icon').textContent = musicEnabled ? '🎵' : '🔇';
+    var el = document.getElementById('music-icon');
+    if (el) el.textContent = musicEnabled ? '🎵' : '🔇';
     if (musicEnabled) startBgMusic(); else stopBgMusic();
     localStorage.setItem('yegara_music', musicEnabled ? '1' : '0');
 }
 function toggleVoice() {
     voiceEnabled = !voiceEnabled;
-    document.getElementById('voice-icon').textContent = voiceEnabled ? '🔊' : '🔇';
+    var el = document.getElementById('voice-icon');
+    if (el) el.textContent = voiceEnabled ? '🔊' : '🔇';
     localStorage.setItem('yegara_voice', voiceEnabled ? '1' : '0');
 }
 function setVolume(val) {
     masterVolume = val / 100;
-    document.getElementById('volume-slider').style.setProperty('--vol-pct', val + '%');
+    var slider = document.getElementById('volume-slider');
+    if (slider) slider.style.setProperty('--vol-pct', val + '%');
     localStorage.setItem('yegara_volume', val);
     if (bgMusicAudio) bgMusicAudio.volume = masterVolume * 0.3;
 }
@@ -175,10 +177,10 @@ function stopBgMusic() {
     if (bgMusicAudio) { bgMusicAudio.pause(); bgMusicAudio.currentTime = 0; bgMusicAudio = null; }
 }
 function restoreAudioSettings() {
-    if (localStorage.getItem('yegara_music') === '1') { musicEnabled = true; document.getElementById('music-icon').textContent = '🎵'; }
-    if (localStorage.getItem('yegara_voice') === '0') { voiceEnabled = false; document.getElementById('voice-icon').textContent = '🔇'; }
+    if (localStorage.getItem('yegara_music') === '1') { musicEnabled = true; var m = document.getElementById('music-icon'); if (m) m.textContent = '🎵'; }
+    if (localStorage.getItem('yegara_voice') === '0') { voiceEnabled = false; var v = document.getElementById('voice-icon'); if (v) v.textContent = '🔇'; }
     var vol = localStorage.getItem('yegara_volume');
-    if (vol) { masterVolume = parseInt(vol) / 100; document.getElementById('volume-slider').value = vol; document.getElementById('volume-slider').style.setProperty('--vol-pct', vol + '%'); }
+    if (vol) { masterVolume = parseInt(vol) / 100; var s = document.getElementById('volume-slider'); if (s) { s.value = vol; s.style.setProperty('--vol-pct', vol + '%'); } }
 }
 
 // ==================== HELPERS ====================
@@ -730,7 +732,6 @@ async function confirmSelection() {
 // ==================== GAME BOARD ====================
 function setupGameBoard() {
     const nums = Object.keys(myCartelas).map(Number);
-    currentCardIndex = 0;
     calledNumbers = new Set();
 
     // Info bar
@@ -745,17 +746,22 @@ function setupGameBoard() {
     // Build master grid (75 numbers)
     buildMasterGrid();
 
-    // Build cartela display
+    // Build cartela 1
     if (nums.length > 0) {
-        document.getElementById('cartela-number').textContent = nums[0];
-        buildCartelaGrid(myCartelas[nums[0]]);
+        document.getElementById('cartela-number-1').textContent = nums[0];
+        buildCartelaGrid('cartela-grid-1', myCartelas[nums[0]]);
     }
-    // Show/hide prev/next buttons
-    document.getElementById('cartela-prev').classList.toggle('hidden', nums.length <= 1);
-    document.getElementById('cartela-next').classList.toggle('hidden', nums.length <= 1);
+    // Build cartela 2 (or hide)
+    if (nums.length >= 2) {
+        document.getElementById('cartela-container-2').classList.remove('hidden');
+        document.getElementById('cartela-number-2').textContent = nums[1];
+        buildCartelaGrid('cartela-grid-2', myCartelas[nums[1]]);
+    } else {
+        document.getElementById('cartela-container-2').classList.add('hidden');
+    }
 
-    // Called numbers strip
-    document.getElementById('called-numbers-display').innerHTML = '';
+    // Called tags
+    document.getElementById('called-tags').innerHTML = '';
 }
 
 function buildMasterGrid() {
@@ -772,15 +778,14 @@ function buildMasterGrid() {
     }
 }
 
-function buildCartelaGrid(flat) {
-    const grid = document.getElementById('cartela-grid');
+function buildCartelaGrid(gridId, flat) {
+    const grid = document.getElementById(gridId);
     grid.innerHTML = '';
     if (!flat || flat.length < 25) return;
     for (let i = 0; i < 25; i++) {
         const num = flat[i];
         const cell = document.createElement('div');
         cell.className = 'cartela-cell text-[10px] font-bold text-center py-1.5 rounded-sm cursor-pointer transition-all';
-        cell.id = 'cartela-cell-' + i;
         cell.dataset.num = num;
         if (num === 0) {
             cell.textContent = '★';
@@ -798,14 +803,6 @@ function buildCartelaGrid(flat) {
         }
         grid.appendChild(cell);
     }
-}
-
-function switchCartela(dir) {
-    const nums = Object.keys(myCartelas).map(Number);
-    if (nums.length <= 1) return;
-    currentCardIndex = (currentCardIndex + dir + nums.length) % nums.length;
-    document.getElementById('cartela-number').textContent = nums[currentCardIndex];
-    buildCartelaGrid(myCartelas[nums[currentCardIndex]]);
 }
 
 function markCartelaCell(cell, num) {
@@ -838,33 +835,30 @@ function highlightMasterNumber(num) {
     cell.classList.add('called');
 }
 
-function addCalledNumberStrip(num) {
-    const strip = document.getElementById('called-numbers-display');
+function addCalledNumberTag(num) {
+    const strip = document.getElementById('called-tags');
     const letter = getNumberLetter(num);
     const color = getLetterColor(letter);
-    const el = document.createElement('div');
-    el.className = 'flex-shrink-0 rounded-lg px-2 py-1 text-center';
+    const el = document.createElement('span');
+    el.className = 'inline-flex flex-col items-center rounded-md px-1.5 py-0.5';
     el.style.background = color + '22';
     el.style.border = '1px solid ' + color + '44';
-    el.innerHTML = '<div class="text-[8px] font-bold" style="color:' + color + '">' + letter + '</div><div class="text-[11px] font-black text-white">' + num + '</div>';
-    strip.insertBefore(el, strip.firstChild);
-    strip.scrollLeft = 0;
+    el.innerHTML = '<div class="text-[7px] font-bold" style="color:' + color + '">' + letter + '</div>' +
+                   '<div class="text-[10px] font-black text-white">' + num + '</div>';
+    strip.appendChild(el);
 }
 
 function autoMarkAllCartelas(num) {
     if (!autoMarkEnabled) return;
-    for (const [cartelaNum, flat] of Object.entries(myCartelas)) {
-        for (let i = 0; i < flat.length; i++) {
-            if (flat[i] === num) {
-                const nums = Object.keys(myCartelas).map(Number);
-                if (nums[currentCardIndex] === parseInt(cartelaNum)) {
-                    const cell = document.getElementById('cartela-cell-' + i);
-                    if (cell && !cell.classList.contains('marked')) {
-                        markCartelaCell(cell, num);
-                    }
-                }
+    const gridIds = ['cartela-grid-1', 'cartela-grid-2'];
+    for (const gridId of gridIds) {
+        const grid = document.getElementById(gridId);
+        if (!grid) continue;
+        grid.querySelectorAll('.cartela-cell').forEach(cell => {
+            if (parseInt(cell.dataset.num) === num && !cell.classList.contains('marked')) {
+                markCartelaCell(cell, num);
             }
-        }
+        });
     }
 }
 
@@ -909,7 +903,7 @@ function listenToRound(roundId) {
                 if (!calledNumbers.has(num)) {
                     calledNumbers.add(num);
                     highlightMasterNumber(num);
-                    addCalledNumberStrip(num);
+                    addCalledNumberTag(num);
                     autoMarkAllCartelas(num);
                     if (i === called.length - 1) {
                         showNumberAnnouncement(num);
@@ -1108,9 +1102,9 @@ function loadMyCartelas(roundData) {
         setupGameBoard();
         const called = roundData.called_numbers || [];
         called.forEach(num => {
-            calledNumbers.add(num);
-            highlightMasterNumber(num);
-            addCalledNumberStrip(num);
+                    calledNumbers.add(num);
+                    highlightMasterNumber(num);
+                    addCalledNumberTag(num);
             autoMarkAllCartelas(num);
         });
     }).catch(err => {
@@ -1143,7 +1137,7 @@ function refreshGame() {
                 (data.called_numbers || []).forEach(num => {
                     calledNumbers.add(num);
                     highlightMasterNumber(num);
-                    addCalledNumberStrip(num);
+                    addCalledNumberTag(num);
                     autoMarkAllCartelas(num);
                 });
                 document.getElementById('game-called-count').textContent = (data.called_numbers || []).length;

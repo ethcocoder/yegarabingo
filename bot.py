@@ -29,10 +29,10 @@ user_manager = UserManager(db)
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
 
 # ─── Conversation states ───
-REG_NAME, REG_PHONE, REG_TELEBIRR_NAME = range(3)
+REG_NAME, REG_CONTACT = 0, 1
 AWAIT_PHOTO = 3
-DEPOSIT_AMOUNT = 11
-WITHDRAW_AMOUNT, WITHDRAW_PHONE = 4, 5
+DEPOSIT_AMOUNT, DEPOSIT_TELEBIRR_NAME = 11, 12
+WITHDRAW_AMOUNT, WITHDRAW_TELEBIRR_NAME = 4, 13
 TRANSFER_ID, TRANSFER_AMOUNT, TRANSFER_CONFIRM = 6, 7, 8
 BONUS_CONFIRM = 9
 PLAY_STAKE = 10
@@ -146,48 +146,52 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(
             f"✅ You are already registered!\n\n"
             f"Name: {u.get('first_name', '')}\n"
-            f"Phone: {u.get('phone', '')}\n"
-            f"TeleBirr Name: {u.get('telebirr_name', 'N/A')}",
+            f"Phone: {u.get('phone', '')}",
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
+    kb = ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 Share Contact", request_contact=True)]],
+        one_time_keyboard=True, resize_keyboard=True,
+    )
     await update.effective_message.reply_text(
-        "📝 Please enter your full name:", reply_markup=ReplyKeyboardRemove()
+        "📝 Please enter your full name:",
+        reply_markup=kb,
     )
     return REG_NAME
 
 
 async def reg_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['reg_name'] = update.message.text.strip()
-    await update.message.reply_text("📱 Please enter your TeleBirr phone number\n(format: +2519XXXXXXXX)")
-    return REG_PHONE
-
-
-async def reg_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    phone = update.message.text.strip()
-    if not re.match(r'^\+251\d{9}$', phone):
-        await update.message.reply_text("❌ Invalid phone format.\nPlease use: +2519XXXXXXXX")
-        return REG_PHONE
-
-    context.user_data['reg_phone'] = phone
-    await update.message.reply_text(
-        "💰 Please enter your TeleBirr name\n"
-        "(The name registered on your TeleBirr account):"
+    kb = ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 Share Contact", request_contact=True)]],
+        one_time_keyboard=True, resize_keyboard=True,
     )
-    return REG_TELEBIRR_NAME
+    await update.message.reply_text(
+        "📱 Now share your contact so we can get your phone number automatically.\n"
+        "Tap the button below:",
+        reply_markup=kb,
+    )
+    return REG_CONTACT
 
 
-async def reg_telebirr_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telebirr_name = update.message.text.strip()
+async def reg_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    contact = update.message.contact
+    if not contact:
+        await update.message.reply_text("❌ Please tap the Share Contact button below.")
+        return REG_CONTACT
+
+    phone = contact.phone_number
+    if not phone.startswith('+'):
+        phone = '+' + phone
+
     name = context.user_data.get('reg_name', update.effective_user.first_name)
-    phone = context.user_data.get('reg_phone', '')
-    await user_manager.register_user(update.effective_user.id, name, phone, telebirr_name)
+    await user_manager.register_user(update.effective_user.id, name, phone, '')
     await update.message.reply_text(
         f"✅ Registration complete!\n\n"
         f"Name: {name}\n"
-        f"Phone: {phone}\n"
-        f"TeleBirr Name: {telebirr_name}",
+        f"Phone: {phone}",
         reply_markup=MAIN_KEYBOARD,
     )
     return ConversationHandler.END
@@ -224,21 +228,14 @@ async def handle_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def balance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.data == "bal_deposit":
-        await _show_deposit_flow(query, context)
-    elif query.data == "bal_withdraw":
-        await _show_withdraw_flow(query, context)
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 💵 Deposit
 # ═══════════════════════════════════════════════════════════════════
 async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+        if update.callback_query.data == "bal_deposit":
+            return await _show_deposit_flow(update.callback_query, context)
     return await _show_deposit_flow_msg(update, context)
 
 
@@ -270,7 +267,7 @@ async def _show_deposit_flow(query, context):
     pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
         await query.edit_message_text("⚠️ Too many pending deposits. Wait for processing.")
-        return
+        return ConversationHandler.END
 
     await query.edit_message_text(
         "💵 *Deposit via TeleBirr*\n\nHow much ETB do you want to deposit? (Minimum 10)",
@@ -290,8 +287,18 @@ async def deposit_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DEPOSIT_AMOUNT
 
     context.user_data['deposit_amount'] = amount
+    await update.effective_message.reply_text(
+        "💰 Please enter your TeleBirr name\n"
+        "(The name registered on your TeleBirr account):"
+    )
+    return DEPOSIT_TELEBIRR_NAME
+
+
+async def deposit_telebirr_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['telebirr_name'] = update.message.text.strip()
     uid = update.effective_user.id
     await user_manager.set_awaiting_screenshot(uid, True)
+    amount = context.user_data.get('deposit_amount', 0)
     await update.effective_message.reply_text(
         f"💵 *Deposit {amount} ETB via TeleBirr*\n\n"
         f"1. Send *{TELEBIRR_NUMBER}* via TeleBirr\n"
@@ -358,7 +365,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'userId': str(uid),
         'username': update.effective_user.username or '',
         'firstName': update.effective_user.first_name or '',
-        'telebirrName': u.get('telebirr_name', ''),
+        'telebirrName': context.user_data.get('telebirr_name', ''),
         'amount': amount,
         'transactionId': txn_id,
         'senderName': sender_name,
@@ -396,6 +403,8 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+        if update.callback_query.data == "bal_withdraw":
+            return await _show_withdraw_flow(update.callback_query, context)
     return await _show_withdraw_flow_msg(update, context)
 
 
@@ -426,13 +435,13 @@ async def _show_withdraw_flow(query, context):
     u = await user_manager.get_user(uid)
     if not u:
         await query.edit_message_text("Please /start first.")
-        return
+        return ConversationHandler.END
     bal = u.get('balance', 0)
     if bal < MIN_WITHDRAW:
         await query.edit_message_text(f"❌ Minimum {MIN_WITHDRAW} ETB. Balance: {bal} ETB")
-        return
+        return ConversationHandler.END
     await query.edit_message_text(f"🎰 Withdraw — Balance: {bal} ETB\n\nEnter amount:")
-    context.user_data['awaiting_withdraw'] = True
+    return WITHDRAW_AMOUNT
 
 
 async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -451,23 +460,19 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return WITHDRAW_AMOUNT
 
     context.user_data['withdraw_amount'] = amount
+    await update.effective_message.reply_text(
+        "💰 Please enter your TeleBirr name\n"
+        "(The name registered on your TeleBirr account):"
+    )
+    return WITHDRAW_TELEBIRR_NAME
 
-    if u.get('phone'):
-        return await _process_withdraw(update, context, uid, amount, u['phone'])
 
-    await update.effective_message.reply_text("📱 Enter your TeleBirr phone number (+251...):")
-    return WITHDRAW_PHONE
-
-
-async def withdraw_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    phone = update.message.text.strip()
-    if not re.match(r'^\+251\d{9}$', phone):
-        await update.effective_message.reply_text("❌ Invalid format. Use: +2519XXXXXXXX")
-        return WITHDRAW_PHONE
-
+async def withdraw_telebirr_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['telebirr_name'] = update.message.text.strip()
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     amount = context.user_data.get('withdraw_amount', 0)
+    phone = u.get('phone', '') if u else ''
     return await _process_withdraw(update, context, uid, amount, phone)
 
 
@@ -477,7 +482,7 @@ async def _process_withdraw(update, context, uid, amount, phone):
         'userId': str(uid),
         'username': update.effective_user.username or '',
         'firstName': update.effective_user.first_name or '',
-        'telebirrName': u.get('telebirr_name', '') if u else '',
+        'telebirrName': context.user_data.get('telebirr_name', '') if u else '',
         'amount': amount,
         'phone': phone,
         'status': 'pending',
@@ -880,8 +885,8 @@ def main():
         ],
         states={
             REG_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_name)],
-            REG_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_phone)],
-            REG_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, reg_telebirr_name)],
+            REG_CONTACT: [MessageHandler(filters.CONTACT, reg_contact),
+                          MessageHandler(filters.TEXT & ~filters.COMMAND, reg_contact)],
         },
         fallbacks=[CommandHandler("start", start), MessageHandler(filters.Regex("^Cancel$"), cancel)],
     )
@@ -889,23 +894,42 @@ def main():
 
     # ─── ConversationHandler: Deposit ───
     deposit_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^💵 Deposit$"), handle_deposit), CallbackQueryHandler(handle_deposit, pattern="^menu_deposit$")],
+        entry_points=[
+            MessageHandler(filters.Regex("^💵 Deposit$"), handle_deposit),
+            CallbackQueryHandler(handle_deposit, pattern="^menu_deposit$"),
+            CallbackQueryHandler(handle_deposit, pattern="^bal_deposit$"),
+        ],
         states={
             DEPOSIT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_amount)],
+            DEPOSIT_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_telebirr_name)],
             AWAIT_PHOTO: [MessageHandler(filters.PHOTO, handle_screenshot)],
         },
-        fallbacks=[CommandHandler("start", start), MessageHandler(filters.Regex("^Cancel$"), cancel)],
+        fallbacks=[
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex("^Cancel$"), cancel),
+            CallbackQueryHandler(handle_deposit, pattern="^menu_deposit$"),
+            CallbackQueryHandler(handle_deposit, pattern="^bal_deposit$"),
+        ],
     )
     app.add_handler(deposit_conv, group=3)
 
     # ─── ConversationHandler: Withdraw ───
     withdraw_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🎰 Withdraw$"), handle_withdraw), CallbackQueryHandler(handle_withdraw, pattern="^menu_withdraw$")],
+        entry_points=[
+            MessageHandler(filters.Regex("^🎰 Withdraw$"), handle_withdraw),
+            CallbackQueryHandler(handle_withdraw, pattern="^menu_withdraw$"),
+            CallbackQueryHandler(handle_withdraw, pattern="^bal_withdraw$"),
+        ],
         states={
             WITHDRAW_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_amount)],
-            WITHDRAW_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_phone)],
+            WITHDRAW_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, withdraw_telebirr_name)],
         },
-        fallbacks=[CommandHandler("start", start), MessageHandler(filters.Regex("^Cancel$"), cancel)],
+        fallbacks=[
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex("^Cancel$"), cancel),
+            CallbackQueryHandler(handle_withdraw, pattern="^menu_withdraw$"),
+            CallbackQueryHandler(handle_withdraw, pattern="^bal_withdraw$"),
+        ],
     )
     app.add_handler(withdraw_conv, group=4)
 
@@ -930,12 +954,6 @@ def main():
         fallbacks=[CommandHandler("start", start)],
     )
     app.add_handler(bonus_conv, group=6)
-
-    # ─── Balance inline callbacks ───
-    app.add_handler(CallbackQueryHandler(balance_callback, pattern="^bal_"))
-
-    # ─── Screenshot handler (non-conversation fallback) ───
-    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_screenshot))
 
     # ─── New Inline Menu Callbacks ───
     app.add_handler(CallbackQueryHandler(handle_balance, pattern="^menu_balance$"))
