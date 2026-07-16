@@ -1,7 +1,6 @@
 import os
-import threading
 import logging
-import time
+import multiprocessing
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,7 +13,7 @@ def run_game_bot():
         from bot import main
         main()
     except Exception as e:
-        logger.error(f"Game bot error: {e}")
+        logger.error(f"Game bot error: {e}", exc_info=True)
 
 
 def run_admin_bot():
@@ -22,7 +21,7 @@ def run_admin_bot():
         from admin_bot import main
         main()
     except Exception as e:
-        logger.error(f"Admin bot error: {e}")
+        logger.error(f"Admin bot error: {e}", exc_info=True)
 
 
 def run_api():
@@ -32,31 +31,33 @@ def run_api():
         port = int(os.environ.get("PORT", 8000))
         uvicorn.run(app, host="0.0.0.0", port=port)
     except Exception as e:
-        logger.error(f"API error: {e}")
+        logger.error(f"API error: {e}", exc_info=True)
 
 
 if __name__ == "__main__":
+    try:
+        multiprocessing.set_start_method("spawn")
+    except RuntimeError:
+        pass
+
     logger.info("🚀 Starting Yegara Bingo Platform...")
 
-    threads = []
+    game_proc = multiprocessing.Process(target=run_game_bot, name="GameBot")
+    admin_proc = multiprocessing.Process(target=run_admin_bot, name="AdminBot")
 
-    services = [
-        ("Game Bot", run_game_bot),
-        ("Admin Bot", run_admin_bot),
-        ("API Server", run_api),
-    ]
-
-    for name, target in services:
-        t = threading.Thread(target=target, daemon=True, name=name)
-        t.start()
-        threads.append(t)
-        logger.info(f"✅ {name} started")
-        time.sleep(0.5)
-
-    logger.info("🎯 All services running! Press Ctrl+C to stop.")
+    game_proc.start()
+    logger.info("✅ Game Bot started")
+    admin_proc.start()
+    logger.info("✅ Admin Bot started")
+    logger.info("✅ API Server starting...")
+    logger.info("🎯 All services running!")
 
     try:
-        while True:
-            time.sleep(1)
+        run_api()
     except KeyboardInterrupt:
         logger.info("🛑 Shutting down...")
+    finally:
+        for proc in (game_proc, admin_proc):
+            if proc.is_alive():
+                proc.terminate()
+                proc.join(timeout=5)
