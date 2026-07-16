@@ -222,12 +222,6 @@ async def handle_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text,
         reply_markup=kb, parse_mode='Markdown',
     )
-    # Auto support follow-up
-    await update.effective_message.reply_text(
-        f"🆘 ድጋፍ ይፈልጋሉ?\n\n"
-        f"👇 ለማንኛውም ጥያቄ ወይም አስተያየት 👇\n\n"
-        f"👤 @{SUPPORT_USERNAME}"
-    )
 
 
 async def balance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):

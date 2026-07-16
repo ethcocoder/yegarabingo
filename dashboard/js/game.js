@@ -57,6 +57,7 @@ let calledNumbers = new Set();
 let numberCallInterval = null;
 let winCountdownInterval = null;
 let selectionHandled = false;
+let listenerReady = false;
 
 // Audio state
 let musicEnabled = false;
@@ -374,6 +375,7 @@ async function playNow() {
             .limit(1).get();
 
         let roundData, roundId;
+        let createNew = false;
         if (!roundSnap.empty) {
             const doc = roundSnap.docs[0];
             roundData = doc.data();
@@ -388,8 +390,19 @@ async function playNow() {
                 listenToRound(roundId);
                 return;
             }
+            // Check if deadline has enough time left (at least 15s to select)
+            const dl = roundData.selection_deadline;
+            if (dl) {
+                const dlMs = dl.toDate ? dl.toDate().getTime() : new Date(dl).getTime();
+                if (dlMs - Date.now() < 15000) {
+                    createNew = true;
+                }
+            }
         } else {
-            // Create new round
+            createNew = true;
+        }
+
+        if (createNew) {
             const now = new Date();
             const deadline = new Date(now.getTime() + SELECTION_SECONDS * 1000);
             roundData = {
@@ -423,6 +436,7 @@ async function playNow() {
 // ==================== CARD SELECTION (35s timer) ====================
 async function showCardSelection(roundId, roundData) {
     selectedCartelas = [];
+    listenerReady = false;
     updateSelectedInfo();
 
     document.getElementById('cs-stake').textContent = STAKE + ' ETB';
@@ -503,7 +517,14 @@ async function showCardSelection(roundId, roundData) {
             const pc = rd.player_count || 0;
             document.getElementById('cs-derash').textContent = Math.round((pc + 1) * STAKE * (1 - ADMIN_CUT));
 
-            // If round moved to 'playing', auto-confirm if user hasn't joined
+            // Skip the first snapshot (initial state) to prevent instant spectator mode
+            if (!listenerReady) {
+                listenerReady = true;
+                // If round already playing on first snapshot, just mark ready — timer will handle it
+                return;
+            }
+
+            // If round moved to 'playing', handle transition
             if (rd.status === 'playing') {
                 const uid = String(currentUser.id);
                 if (rd.players && rd.players[uid]) {
@@ -515,9 +536,24 @@ async function showCardSelection(roundId, roundData) {
                     loadMyCartelas(rd);
                     listenToRound(roundId);
                 } else if (!selectionHandled && selectedCartelas.length > 0) {
+                    // User selected cartelas — load them and go to game (can't join mid-game)
                     stopSelectionTimer();
                     selectionHandled = true;
-                    confirmSelection();
+                    document.getElementById('card-select-screen').classList.add('hidden');
+                    navigateTo('game');
+                    isSpectator = true;
+                    setupGameBoard();
+                    listenToRound(roundId);
+                    showToast('Round already started — spectating');
+                    // Load cartelas in background
+                    for (const num of selectedCartelas) {
+                        db.collection('cartelas_master').doc(String(num)).get().then(cartelaDoc => {
+                            if (cartelaDoc.exists) {
+                                myCartelas[num] = cartelaDoc.data().cartela;
+                                setupGameBoard();
+                            }
+                        });
+                    }
                 } else if (!selectionHandled) {
                     stopSelectionTimer();
                     selectionHandled = true;
@@ -627,6 +663,7 @@ function refreshCardSelect() {
 // ==================== CONFIRM SELECTION & JOIN ROUND ====================
 async function confirmSelection() {
     if (selectedCartelas.length === 0) { showToast('Select at least one card!'); return; }
+    isSpectator = false;
     stopSelectionTimer();
     showLoading('Joining round...');
 
@@ -986,6 +1023,7 @@ function checkBingoLocal(flat, called) {
 
 function handleRoundCompleted(data) {
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+    listenerReady = false;
     const uidStr = String(currentUser.id);
     const isWinner = (data.winners || []).includes(uidStr);
     const noWinner = !data.winners || data.winners.length === 0;
@@ -1083,6 +1121,7 @@ function loadMyCartelas(roundData) {
 
 function leaveGame() {
     isSpectator = false;
+    listenerReady = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     if (numberCallInterval) { clearInterval(numberCallInterval); numberCallInterval = null; }
     if (winCountdownInterval) { clearInterval(winCountdownInterval); winCountdownInterval = null; }

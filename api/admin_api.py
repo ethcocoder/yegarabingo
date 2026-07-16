@@ -158,19 +158,14 @@ async def start_background_monitor():
     async def _monitor():
         while True:
             try:
-                # Find rounds in 'selecting' that have passed their deadline
+                # Find rounds in 'selecting' that need a game loop
                 docs = list(db.collection('rounds')
                            .where('status', '==', 'selecting')
                            .get())
                 for doc in docs:
                     rid = doc.id
                     if rid not in _active_game_tasks:
-                        data = doc.to_dict()
-                        deadline = data.get('selection_deadline')
-                        if deadline:
-                            dl_dt = deadline if isinstance(deadline, datetime) else deadline.to_datetime()
-                            if datetime.utcnow() >= dl_dt:
-                                _start_game_loop(rid)
+                        _start_game_loop(rid)
             except Exception as e:
                 print(f"[Monitor] Error: {e}")
             await asyncio.sleep(5)
