@@ -304,6 +304,14 @@ def main():
     app.add_handler(CommandHandler("withdrawals", withdrawals))
     app.add_handler(CallbackQueryHandler(handle_callback))
     logger.info("🔧 Admin Bot starting...")
+
+    async def _handle_error(update, context):
+        from telegram.error import Conflict
+        if isinstance(context.error, Conflict):
+            return
+        logger.error(f"Unhandled exception: {context.error}", exc_info=context.error)
+
+    app.add_error_handler(_handle_error)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
