@@ -1,5 +1,5 @@
-from firebase_admin import firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
+from firestore_db import FieldFilter, transactional as firestore_transactional
+from firestore_db import MockFirestoreClient
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
@@ -106,7 +106,7 @@ class UserManager:
         return True
 
     async def get_user_history(self, user_id: int, limit: int = 10) -> list:
-        games = self.db.collection('games').where(filter=FieldFilter('user_id', '==', user_id)).order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit).get()
+        games = self.db.collection('games').where('user_id', '==', user_id).order_by('created_at', 'DESCENDING').limit(limit).get()
         return [game.to_dict() for game in games]
 
     async def get_all_users(self, limit: int = 100) -> list:
@@ -114,7 +114,7 @@ class UserManager:
         return [user.to_dict() for user in users]
 
     async def get_leaderboard(self, limit: int = 10) -> list:
-        users = self.users_ref.order_by('wins', direction=firestore.Query.DESCENDING).limit(limit).get()
+        users = self.users_ref.order_by('wins', 'DESCENDING').limit(limit).get()
         return [user.to_dict() for user in users]
 
     async def register_user(self, user_id: int, name: str, phone: str, telebirr_name: str = '') -> bool:
@@ -154,7 +154,7 @@ class UserManager:
         recipient_ref = self.users_ref.document(str(recipient_id))
         transaction = self.db.transaction()
 
-        @firestore.transactional
+        @firestore_transactional
         def _transfer(txn):
             sender_snap = sender_ref.get(transaction=txn)
             recipient_snap = recipient_ref.get(transaction=txn)

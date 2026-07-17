@@ -21,7 +21,7 @@ from config import (
 )
 from telegram import Bot
 from handlers.user_manager import UserManager
-from google.cloud.firestore_v1.base_query import FieldFilter
+from firestore_db import FieldFilter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -234,7 +234,7 @@ async def _show_deposit_flow_msg(update: Update, context: ContextTypes.DEFAULT_T
         return AWAIT_PHOTO
 
     # Check pending deposits limit
-    pending = db.collection('deposits').where(filter=FieldFilter('userId', '==', str(uid))).where(filter=FieldFilter('status', '==', 'pending')).get()
+    pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
         await update.effective_message.reply_text(
             "⚠️ You have too many pending deposits.\nWait for them to be processed.",
@@ -251,7 +251,7 @@ async def _show_deposit_flow_msg(update: Update, context: ContextTypes.DEFAULT_T
 
 async def _show_deposit_flow(query, context):
     uid = query.from_user.id
-    pending = db.collection('deposits').where(filter=FieldFilter('userId', '==', str(uid))).where(filter=FieldFilter('status', '==', 'pending')).get()
+    pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
         await query.edit_message_text("⚠️ Too many pending deposits. Wait for processing.")
         return ConversationHandler.END
@@ -327,7 +327,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     image_hash = hashlib.sha256(bytes(image_bytes)).hexdigest()
 
     # Check duplicate image
-    existing = db.collection('deposits').where(filter=FieldFilter('imageHash', '==', image_hash)).limit(1).get()
+    existing = db.collection('deposits').where('imageHash', '==', image_hash).limit(1).get()
     if existing:
         await update.effective_message.reply_text("❌ This screenshot was already submitted.", reply_markup=MAIN_KEYBOARD)
         await user_manager.set_awaiting_screenshot(uid, False)
@@ -342,7 +342,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check duplicate transaction ID
     if txn_id and not txn_id.startswith("IMG-"):
-        dup = db.collection('deposits').where(filter=FieldFilter('transactionId', '==', txn_id)).limit(1).get()
+        dup = db.collection('deposits').where('transactionId', '==', txn_id).limit(1).get()
         if dup:
             await update.effective_message.reply_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
             await user_manager.set_awaiting_screenshot(uid, False)

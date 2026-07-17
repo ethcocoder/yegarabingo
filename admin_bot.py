@@ -10,8 +10,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from config import db
-from firebase_admin import firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
 
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
@@ -41,7 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
-    pending = list(db.collection('deposits').where(filter=FieldFilter('status', '==', 'pending')).order_by('createdAt').limit(20).stream())
+    pending = list(db.collection('deposits').where('status', '==', 'pending').order_by('createdAt').limit(20).stream())
     if not pending:
         await update.message.reply_text("✅ No pending deposits.")
         return
@@ -96,7 +94,7 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def withdrawals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
-    pending = list(db.collection('withdrawals').where(filter=FieldFilter('status', '==', 'pending')).order_by('createdAt').limit(20).stream())
+    pending = list(db.collection('withdrawals').where('status', '==', 'pending').order_by('createdAt').limit(20).stream())
     if not pending:
         await update.message.reply_text("✅ No pending withdrawals.")
         return

@@ -1,7 +1,6 @@
 import random
 from datetime import datetime, timezone
-from firebase_admin import firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
+from firestore_db import FieldFilter, transactional as firestore_transactional
 
 TOTAL_CARTELAS = 500
 
@@ -60,12 +59,12 @@ class GameEngine:
     def get_stats(self):
         """Get game statistics (synchronous)"""
         try:
-            active_players = len(list(self.db.collection('users').where(filter=FieldFilter('is_playing', '==', True)).get()))
+            active_players = len(list(self.db.collection('users').where('is_playing', '==', True).get()))
             games = self.db.collection('games').get()
             games_played = len(list(games))
 
             today = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-            winners_today = len(list(self.db.collection('games').where(filter=FieldFilter('winner', '!=', None)).where(filter=FieldFilter('created_at', '>=', today)).get()))
+            winners_today = len(list(self.db.collection('games').where('winner', '!=', None).where('created_at', '>=', today).get()))
 
             return {
                 'active_players': active_players,
@@ -158,10 +157,10 @@ class GameEngine:
 
     async def mark_number(self, game_id, user_id, number):
         """Mark a number on player's cartela using transaction"""
-        cartelas = self.cartelas_ref.where(filter=FieldFilter('game_id', '==', game_id)).where(filter=FieldFilter('user_id', '==', user_id)).get()
+        cartelas = self.cartelas_ref.where('game_id', '==', game_id).where('user_id', '==', user_id).get()
 
         for cartela_doc in cartelas:
-            @firestore.transactional
+            @firestore_transactional
             def update_in_transaction(transaction, doc_ref):
                 snapshot = doc_ref.get(transaction=transaction)
                 marked = snapshot.to_dict().get('marked', [])
@@ -176,7 +175,7 @@ class GameEngine:
 
     async def check_bingo(self, game_id, user_id):
         """Check if player has Bingo"""
-        cartelas = self.cartelas_ref.where(filter=FieldFilter('game_id', '==', game_id)).where(filter=FieldFilter('user_id', '==', user_id)).get()
+        cartelas = self.cartelas_ref.where('game_id', '==', game_id).where('user_id', '==', user_id).get()
 
         for cartela_doc in cartelas:
             flat = cartela_doc.to_dict().get('cartela', [])

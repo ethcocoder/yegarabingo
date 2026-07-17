@@ -9,8 +9,8 @@ import random
 import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple
-from firebase_admin import firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
+from firestore_db import FieldFilter, transactional as firestore_transactional
+from firestore_db import MockFirestoreClient
 
 
 # ─── Constants ───
@@ -99,8 +99,8 @@ class RoundEngine:
         """Find the current active round (selecting or playing)."""
         for status in ['selecting', 'playing']:
             docs = list(self.rounds_ref
-                       .where(filter=FieldFilter('status', '==', status))
-                       .order_by('created_at', direction=firestore.Query.DESCENDING)
+                       .where('status', '==', status)
+                       .order_by('created_at', 'DESCENDING')
                        .limit(1)
                        .get())
             if docs:
