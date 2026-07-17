@@ -46,10 +46,11 @@
 
     // ── MockDocumentSnapshot ─────────────────────────────────
     class MockDocumentSnapshot {
-        constructor(id, data, exists) {
+        constructor(id, data, exists, ref) {
             this.id = id;
             this._data = data || {};
             this.exists = exists !== false;
+            this.ref = ref;
         }
         data() { return this._data; }
         get(field) { return this._data ? this._data[field] : undefined; }
@@ -75,9 +76,9 @@
 
         get() {
             return apiFetch('GET', this._path)
-                .then(r => new MockDocumentSnapshot(r.id, r.data, true))
+                .then(r => new MockDocumentSnapshot(r.id, r.data, true, this))
                 .catch(e => {
-                    if (e.message.includes('404')) return new MockDocumentSnapshot(this.id, {}, false);
+                    if (e.message.includes('404')) return new MockDocumentSnapshot(this.id, {}, false, this);
                     throw e;
                 });
         }
@@ -105,7 +106,7 @@
                 ws.onmessage = (ev) => {
                     const msg = JSON.parse(ev.data);
                     if (msg.type === 'snapshot') {
-                        const snap = new MockDocumentSnapshot(msg.id, msg.data, msg.exists);
+                        const snap = new MockDocumentSnapshot(msg.id, msg.data, msg.exists, this);
                         onNext(snap);
                     }
                 };
@@ -144,7 +145,7 @@
 
         get() {
             return apiFetch('GET', this._buildPath()).then(arr =>
-                new MockQuerySnapshot(arr.map(r => new MockDocumentSnapshot(r.id, r.data, true)))
+                new MockQuerySnapshot(arr.map(r => new MockDocumentSnapshot(r.id, r.data, true, new MockDocumentReference(this._collection, r.id))))
             );
         }
 
@@ -173,7 +174,7 @@
                     const msg = JSON.parse(ev.data);
                     if (msg.type === 'query_snapshot') {
                         const snap = new MockQuerySnapshot(
-                            msg.docs.map(d => new MockDocumentSnapshot(d.id, d.data, true))
+                            msg.docs.map(d => new MockDocumentSnapshot(d.id, d.data, true, new MockDocumentReference(this._collection, d.id)))
                         );
                         onNext(snap);
                     }

@@ -376,9 +376,245 @@ async def head_root():
     return Response(status_code=200)
 
 
+
 # ═══════════════════════════════════════════════════════════════
-# Database REST Bridge  (Frontend → SQL Emulator)
+# Admin-Specific Endpoints  (Dashboard → SQL directly)
 # ═══════════════════════════════════════════════════════════════
+
+class DepositActionRequest(BaseModel):
+    note: str = ""
+
+class BalanceEditRequest(BaseModel):
+    new_balance: float
+
+class UserBanRequest(BaseModel):
+    banned: bool
+
+class SystemStatusRequest(BaseModel):
+    online: bool
+
+class SettingsRequest(BaseModel):
+    data: dict
+
+
+@app.get("/api/admin/deposits")
+async def admin_get_deposits(status: Optional[str] = None, limit: int = 50):
+    ref = db.collection('deposits')
+    if status:
+        ref = ref.where('status', '==', status)
+    ref = ref.order_by('createdAt', 'DESCENDING').limit(limit)
+    docs = ref.get()
+    return [{"id": d.id, **d.to_dict()} for d in docs]
+
+
+@app.post("/api/admin/deposits/{deposit_id}/approve")
+async def admin_approve_deposit(deposit_id: str, req: DepositActionRequest):
+    dep_snap = db.collection('deposits').document(deposit_id).get()
+    if not dep_snap.exists:
+        raise HTTPException(status_code=404, detail="Deposit not found")
+    d = dep_snap.to_dict()
+    if d.get('status') != 'pending':
+        raise HTTPException(status_code=400, detail=f"Deposit already {d.get('status')}")
+    amount = d.get('amount', 0)
+    user_id = str(d.get('userId', ''))
+
+    # Credit user balance
+    user_snap = db.collection('users').document(user_id).get()
+    if not user_snap.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_data = user_snap.to_dict()
+    db.collection('users').document(user_id).update({
+        'balance': (user_data.get('balance', 0) or 0) + amount,
+        'updated_at': datetime.now(tz=timezone.utc).isoformat()
+    })
+    db.collection('deposits').document(deposit_id).update({
+        'status': 'approved',
+        'processedAt': datetime.now(tz=timezone.utc).isoformat(),
+        'adminNote': req.note or 'Approved by admin'
+    })
+
+    # Notify user via bot
+    try:
+        bot = Bot(token=BOT_TOKEN)
+        await bot.send_message(
+            chat_id=int(user_id),
+            text=f"✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet."
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "amount": amount, "user_id": user_id}
+
+
+@app.post("/api/admin/deposits/{deposit_id}/reject")
+async def admin_reject_deposit(deposit_id: str, req: DepositActionRequest):
+    dep_snap = db.collection('deposits').document(deposit_id).get()
+    if not dep_snap.exists:
+        raise HTTPException(status_code=404, detail="Deposit not found")
+    d = dep_snap.to_dict()
+    if d.get('status') != 'pending':
+        raise HTTPException(status_code=400, detail=f"Deposit already {d.get('status')}")
+    user_id = str(d.get('userId', ''))
+    note = req.note or 'Rejected by admin'
+
+    db.collection('deposits').document(deposit_id).update({
+        'status': 'rejected',
+        'processedAt': datetime.now(tz=timezone.utc).isoformat(),
+        'adminNote': note
+    })
+    try:
+        bot = Bot(token=BOT_TOKEN)
+        await bot.send_message(
+            chat_id=int(user_id),
+            text=f"❌ Deposit rejected.\nReason: {note}\nPlease contact support if you need help."
+        )
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+@app.get("/api/admin/withdrawals")
+async def admin_get_withdrawals(status: Optional[str] = None, limit: int = 50):
+    ref = db.collection('withdrawals')
+    if status:
+        ref = ref.where('status', '==', status)
+    ref = ref.order_by('createdAt', 'DESCENDING').limit(limit)
+    docs = ref.get()
+    return [{"id": d.id, **d.to_dict()} for d in docs]
+
+
+@app.post("/api/admin/withdrawals/{withdrawal_id}/approve")
+async def admin_approve_withdrawal(withdrawal_id: str, req: DepositActionRequest):
+    snap = db.collection('withdrawals').document(withdrawal_id).get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="Withdrawal not found")
+    d = snap.to_dict()
+    if d.get('status') != 'pending':
+        raise HTTPException(status_code=400, detail=f"Already {d.get('status')}")
+    amount = d.get('amount', 0)
+    user_id = str(d.get('userId', ''))
+
+    user_snap = db.collection('users').document(user_id).get()
+    if not user_snap.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_data = user_snap.to_dict()
+    bal = user_data.get('balance', 0) or 0
+    if bal < amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient balance: {bal} ETB")
+
+    db.collection('users').document(user_id).update({
+        'balance': bal - amount,
+        'updated_at': datetime.now(tz=timezone.utc).isoformat()
+    })
+    db.collection('withdrawals').document(withdrawal_id).update({
+        'status': 'approved',
+        'processedAt': datetime.now(tz=timezone.utc).isoformat(),
+        'adminNote': req.note or 'Approved by admin'
+    })
+    try:
+        bot = Bot(token=BOT_TOKEN)
+        await bot.send_message(
+            chat_id=int(user_id),
+            text=f"✅ Withdrawal approved!\n💸 {amount} ETB will be sent to your TeleBirr account."
+        )
+    except Exception:
+        pass
+    return {"ok": True, "amount": amount, "user_id": user_id}
+
+
+@app.post("/api/admin/withdrawals/{withdrawal_id}/reject")
+async def admin_reject_withdrawal(withdrawal_id: str, req: DepositActionRequest):
+    snap = db.collection('withdrawals').document(withdrawal_id).get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="Withdrawal not found")
+    d = snap.to_dict()
+    if d.get('status') != 'pending':
+        raise HTTPException(status_code=400, detail=f"Already {d.get('status')}")
+    user_id = str(d.get('userId', ''))
+    amount = d.get('amount', 0)
+    note = req.note or 'Rejected by admin'
+
+    # Refund balance
+    user_snap = db.collection('users').document(user_id).get()
+    if user_snap.exists:
+        u = user_snap.to_dict()
+        db.collection('users').document(user_id).update({
+            'balance': (u.get('balance', 0) or 0) + amount,
+            'updated_at': datetime.now(tz=timezone.utc).isoformat()
+        })
+    db.collection('withdrawals').document(withdrawal_id).update({
+        'status': 'rejected',
+        'processedAt': datetime.now(tz=timezone.utc).isoformat(),
+        'adminNote': note
+    })
+    try:
+        bot = Bot(token=BOT_TOKEN)
+        await bot.send_message(
+            chat_id=int(user_id),
+            text=f"❌ Withdrawal rejected.\nAmount {amount} ETB has been refunded.\nReason: {note}"
+        )
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+@app.patch("/api/admin/users/{user_id}/balance")
+async def admin_edit_balance(user_id: int, req: BalanceEditRequest):
+    snap = db.collection('users').document(str(user_id)).get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.collection('users').document(str(user_id)).update({
+        'balance': req.new_balance,
+        'updated_at': datetime.now(tz=timezone.utc).isoformat()
+    })
+    return {"ok": True}
+
+
+@app.patch("/api/admin/users/{user_id}/ban")
+async def admin_ban_user(user_id: int, req: UserBanRequest):
+    snap = db.collection('users').document(str(user_id)).get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.collection('users').document(str(user_id)).update({
+        'banned': req.banned,
+        'updated_at': datetime.now(tz=timezone.utc).isoformat()
+    })
+    return {"ok": True}
+
+
+@app.get("/api/admin/status")
+async def admin_get_status():
+    snap = db.collection('system').document('admin_status').get()
+    if snap.exists:
+        return snap.to_dict()
+    return {"online": False}
+
+
+@app.post("/api/admin/status")
+async def admin_set_status(req: SystemStatusRequest):
+    db.collection('system').document('admin_status').set({
+        'online': req.online,
+        'updatedAt': datetime.now(tz=timezone.utc).isoformat()
+    })
+    return {"ok": True, "online": req.online}
+
+
+@app.get("/api/admin/settings")
+async def admin_get_settings():
+    snap = db.collection('settings').document('game').get()
+    if snap.exists:
+        return snap.to_dict()
+    return {}
+
+
+@app.post("/api/admin/settings")
+async def admin_save_settings(req: SettingsRequest):
+    db.collection('settings').document('game').set(req.data, merge=True)
+    return {"ok": True}
+
+
+# ─── Dashboard & game (served from same service as API + bots) ───
+
 
 class DocSetRequest(BaseModel):
     data: dict
@@ -471,18 +707,26 @@ class ConnectionManager:
         for conn in self.connections:
             if conn["collection"] != collection:
                 continue
-            if conn["doc_id"] and conn["doc_id"] != doc_id:
-                continue
             try:
-                # Fetch latest snapshot
-                snap = db.collection(collection).document(doc_id).get()
-                payload = {
-                    "type": "snapshot",
-                    "collection": collection,
-                    "id": doc_id,
-                    "data": snap.to_dict() if snap.exists else None,
-                    "exists": snap.exists
-                }
+                if conn["doc_id"]:
+                    if conn["doc_id"] != doc_id:
+                        continue
+                    snap = db.collection(collection).document(doc_id).get()
+                    payload = {
+                        "type": "snapshot",
+                        "collection": collection,
+                        "id": doc_id,
+                        "data": snap.to_dict() if snap.exists else None,
+                        "exists": snap.exists
+                    }
+                else:
+                    # Query snapshot for whole collection
+                    docs = db.collection(collection).get()
+                    payload = {
+                        "type": "query_snapshot",
+                        "collection": collection,
+                        "docs": [{"id": d.id, "data": d.to_dict()} for d in docs]
+                    }
                 await conn["ws"].send_text(json.dumps(payload))
             except Exception:
                 dead.append(conn["ws"])
