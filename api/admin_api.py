@@ -179,23 +179,12 @@ async def _game_loop(round_id: str):
                 })
                 return
 
-            # Pick a random number
-            number = random.choice(available)
-            called.append(number)
-
-            now = datetime.now(tz=timezone.utc)
-            next_at = now + timedelta(seconds=NUMBER_CALL_INTERVAL)
-            
-            # Read current called_numbers and append (emulator stores as full list)
-            current_called = list(data.get('called_numbers', []))
-            current_called.append(number)
-            
-            db.collection('rounds').document(round_id).update({
-                'called_numbers': current_called,
-                'last_called_number': number,
-                'last_called_at': now,
-                'next_number_at': next_at,
-            })
+            # Call the next number using the Smart Predictor engine
+            number = await engine.call_number(round_id)
+            if number is None:
+                # Could not call number (none available, or round status changed)
+                await asyncio.sleep(NUMBER_CALL_INTERVAL)
+                continue
 
             await asyncio.sleep(NUMBER_CALL_INTERVAL)
 

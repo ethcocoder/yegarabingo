@@ -135,29 +135,29 @@
             </div>
         </div>
 
-        <!-- Info pills -->
-        <div class="info-bar flex gap-1.5 px-3 py-2 overflow-x-auto" style="scrollbar-width: none;">
-            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(255,140,0,0.12); border: 1px solid rgba(255,140,0,0.25);">
+        <!-- Game stats bar -->
+        <div class="px-2 py-2 grid grid-cols-3 md:flex md:items-stretch gap-1.5 mb-2" id="game-info-bar">
+            <div class="md:flex-1 rounded-lg px-2.5 py-1.5" style="background: rgba(255,140,0,0.12); border: 1px solid rgba(255,140,0,0.25);">
                 <div class="text-[9px] text-orange-400/60 uppercase">Game ID</div>
                 <div id="game-id-display" class="text-[11px] font-bold text-orange-400">#---</div>
             </div>
-            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25);">
+            <div class="md:flex-1 rounded-lg px-2.5 py-1.5" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25);">
                 <div class="text-[9px] text-emerald-400/60 uppercase">Players</div>
                 <div id="game-players" class="text-[11px] font-bold text-emerald-400">1</div>
             </div>
-            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25);">
+            <div class="md:flex-1 rounded-lg px-2.5 py-1.5" style="background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25);">
                 <div class="text-[9px] text-blue-400/60 uppercase">Bet</div>
                 <div id="game-stake" class="text-[11px] font-bold text-blue-400">0</div>
             </div>
-            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25);">
+            <div class="md:flex-1 rounded-lg px-2.5 py-1.5" style="background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25);">
                 <div class="text-[9px] text-purple-400/60 uppercase">Derash</div>
                 <div id="game-derash" class="text-[11px] font-bold text-purple-400">0</div>
             </div>
-            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25);">
+            <div class="md:flex-1 rounded-lg px-2.5 py-1.5" style="background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25);">
                 <div class="text-[9px] text-teal-400/60 uppercase">Called</div>
                 <div id="game-called-count" class="text-[11px] font-bold text-teal-400">0</div>
             </div>
-            <div class="flex-shrink-0 rounded-lg px-2.5 py-1.5" style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25);">
+            <div class="md:flex-1 rounded-lg px-2.5 py-1.5" style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25);">
                 <div class="text-[9px] text-red-400/60 uppercase">Timer</div>
                 <div id="game-timer" class="text-[11px] font-bold text-red-400">35</div>
             </div>
@@ -168,22 +168,22 @@
             <div id="game-countdown" class="hidden text-center rounded-xl px-4 py-3 mb-2 font-bold text-sm" style="background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.3)); border: 1px solid rgba(139,92,246,0.4); color: #c4b5fd;">Game starts in 10s — Admin choosing winners...</div>
         </div>
 
-        <!-- Main game area: Side by side -->
-        <div class="px-2 py-1 flex gap-1" id="game-board-container" style="height: calc(100vh - 220px); min-height: 400px;">
-            <!-- LEFT: Master Grid (50%) -->
-            <div class="w-1/2 glass rounded-xl p-1 flex flex-col min-w-0">
-                <div class="grid grid-cols-5 gap-0.5 mb-1" id="master-grid-headers">
-                    <div class="text-center text-[11px] font-black py-1 rounded text-white shadow-sm bg-[#3B82F6]">B</div>
-                    <div class="text-center text-[11px] font-black py-1 rounded text-white shadow-sm bg-[#8B5CF6]">I</div>
-                    <div class="text-center text-[11px] font-black py-1 rounded text-white shadow-sm bg-[#D946EF]">N</div>
-                    <div class="text-center text-[11px] font-black py-1 rounded text-white shadow-sm bg-[#10B981]">G</div>
-                    <div class="text-center text-[11px] font-black py-1 rounded text-white shadow-sm bg-[#F97316]">O</div>
+        <!-- Main game area: Responsive Layout -->
+        <div class="px-2 py-1 flex flex-col md:flex-row gap-3 pb-8" id="game-board-container" style="min-height: max-content;">
+            <!-- LEFT/TOP: Master Grid -->
+            <div class="w-full md:w-1/2 glass rounded-xl p-2 flex flex-col">
+                <div class="grid grid-cols-5 gap-1 mb-2" id="master-grid-headers">
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#3B82F6]">B</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#8B5CF6]">I</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#D946EF]">N</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#10B981]">G</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#F97316]">O</div>
                 </div>
-                <div class="grid grid-cols-5 gap-0.5 flex-1 overflow-hidden" id="master-grid"></div>
+                <div class="grid grid-cols-5 gap-1 flex-1" id="master-grid"></div>
             </div>
 
-            <!-- RIGHT: Called Tags + Circle + Cartelas (50%) -->
-            <div class="w-1/2 glass rounded-xl p-1.5 flex flex-col min-w-0 gap-1">
+            <!-- RIGHT/BOTTOM: Called Tags + Circle + Cartelas -->
+            <div class="w-full md:w-1/2 glass rounded-xl p-2 flex flex-col gap-2">
                 <!-- Called number tags + Sound -->
                 <div class="flex items-center gap-1 overflow-x-auto" style="scrollbar-width: none; min-height: 28px;">
                     <div class="flex gap-1 flex-1 overflow-x-auto" id="called-tags" style="scrollbar-width: none;"></div>
