@@ -190,27 +190,14 @@ async function showCardSelection(roundId, roundData) {
                     navigateTo('game');
                     loadMyCartelas(rd);
                     listenToRound(roundId);
-                } else if (!selectionHandled && selectedCartelas.length > 0) {
-                    stopSelectionTimer();
-                    selectionHandled = true;
-                    document.getElementById('card-select-screen').classList.add('hidden');
-                    navigateTo('game');
-                    isSpectator = true;
-                    setupGameBoard();
-                    listenToRound(roundId);
-                    showToast('Round already started — spectating');
-                    for (const num of selectedCartelas) {
-                        db.collection('cartelas_master').doc(String(num)).get().then(cartelaDoc => {
-                            if (cartelaDoc.exists) {
-                                myCartelas[num] = cartelaDoc.data().cartela;
-                                setupGameBoard();
-                            }
-                        });
-                    }
                 } else if (!selectionHandled) {
                     stopSelectionTimer();
                     selectionHandled = true;
-                    enterSpectatorMode();
+                    if (selectedCartelas.length > 0) {
+                        confirmSelection();
+                    } else {
+                        enterSpectatorMode();
+                    }
                 }
             }
         });
@@ -412,7 +399,7 @@ async function confirmSelection() {
             const userSnap = await txn.get(userRef);
             if (!roundSnap.exists) throw new Error('Round not found.');
             const rd = roundSnap.data();
-            if (rd.status !== 'selecting') throw new Error('Round already started.');
+            if (rd.status !== 'selecting' && rd.status !== 'playing') throw new Error('Round already finished or cancelled.');
             if (rd.players && rd.players[uidStr]) throw new Error('Already joined.');
             const pw = userSnap.data().play_wallet || 0;
             if (pw < totalCost) throw new Error('Not enough balance.');
