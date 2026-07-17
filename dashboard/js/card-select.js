@@ -80,6 +80,7 @@ async function showCardSelection(roundId, roundData) {
     document.getElementById('cs-stake').textContent = STAKE + ' ETB';
     document.getElementById('cs-main-wallet').textContent = (currentUser.balance || 0) + ' ETB';
     document.getElementById('cs-play-wallet').textContent = (currentUser.play_wallet || 0) + ' ETB';
+    document.getElementById('cs-preview-container').classList.add('hidden');
     document.getElementById('card-select-screen').classList.remove('hidden');
 
     const grid = document.getElementById('card-select-grid');
@@ -93,27 +94,19 @@ async function showCardSelection(roundId, roundData) {
         }
 
         const takenSet = new Set(roundData.taken_cartelas || []);
-        const playerCount = roundData.player_count || 0;
-        const derash = STAKE * PRIZE_MULTIPLIER;
-        document.getElementById('cs-derash').textContent = Math.round(derash);
 
         grid.innerHTML = '';
         masterSnap.forEach(doc => {
             const d = doc.data();
             const num = d.number;
             const cell = document.createElement('div');
-            cell.className = 'card-num font-bold';
+            cell.className = 'card-num';
             cell.textContent = num;
             cell.dataset.num = num;
 
             if (takenSet.has(num)) {
                 cell.classList.add('taken');
-                cell.style.opacity = '0.3';
-                cell.style.pointerEvents = 'none';
-                cell.style.background = 'rgba(255,255,255,0.03)';
-                cell.style.color = 'rgba(255,255,255,0.2)';
             } else {
-                cell.classList.add('bg-white/10', 'text-white/80', 'border', 'border-white/10');
                 cell.onclick = () => toggleCardSelection(num, cell);
             }
             grid.appendChild(cell);
@@ -136,18 +129,10 @@ async function showCardSelection(roundId, roundData) {
             grid.querySelectorAll('.card-num').forEach(cell => {
                 const n = parseInt(cell.dataset.num);
                 if (nowTaken.has(n) && !selectedCartelas.includes(n)) {
-                    cell.classList.remove('bg-white/10', 'text-white/80', 'border', 'border-white/10', 'selected');
-                    cell.classList.add('taken');
-                    cell.style.opacity = '0.3';
-                    cell.style.pointerEvents = 'none';
-                    cell.style.background = 'rgba(255,255,255,0.03)';
-                    cell.style.color = 'rgba(255,255,255,0.2)';
-                    cell.style.boxShadow = '';
+                    cell.className = 'card-num taken';
                     cell.onclick = null;
                 }
             });
-            const pc = rd.player_count || 0;
-            document.getElementById('cs-derash').textContent = Math.round(STAKE * PRIZE_MULTIPLIER);
 
             if (!listenerReady) {
                 listenerReady = true;
@@ -197,8 +182,13 @@ function toggleCardSelection(num, cell) {
     const idx = selectedCartelas.indexOf(num);
     if (idx > -1) {
         selectedCartelas.splice(idx, 1);
-        cell.className = 'card-num font-bold bg-white/10 text-white/80 border border-white/10';
+        cell.className = 'card-num';
         cell.style.boxShadow = '';
+        if (selectedCartelas.length > 0) {
+            renderCardSelectPreview(selectedCartelas[selectedCartelas.length - 1]);
+        } else {
+            document.getElementById('cs-preview-container').classList.add('hidden');
+        }
     } else {
         if (selectedCartelas.length >= MAX_CARTELAS) {
             showToast('Maximum ' + MAX_CARTELAS + ' cartelas!');
@@ -210,10 +200,49 @@ function toggleCardSelection(num, cell) {
             return;
         }
         selectedCartelas.push(num);
-        cell.className = 'card-num font-bold selected';
+        cell.className = 'card-num selected';
         cell.style.boxShadow = '0 0 15px rgba(16,185,129,0.5)';
+        renderCardSelectPreview(num);
     }
     updateSelectedInfo();
+}
+
+async function renderCardSelectPreview(num) {
+    const container = document.getElementById('cs-preview-container');
+    const grid = document.getElementById('cs-preview-grid');
+    const title = document.getElementById('cs-preview-title');
+    if (!num) {
+        container.classList.add('hidden');
+        return;
+    }
+    container.classList.remove('hidden');
+    title.textContent = 'Cartela No : ' + num;
+    grid.innerHTML = '<div class="col-span-5 text-center text-xs py-2 text-gray-500 font-normal">Loading card numbers...</div>';
+    try {
+        const doc = await db.collection('cartelas_master').doc(String(num)).get();
+        if (doc.exists) {
+            const data = doc.data();
+            const flat = data.cartela || [];
+            grid.innerHTML = '';
+            for (let i = 0; i < 25; i++) {
+                const val = flat[i];
+                const cell = document.createElement('div');
+                cell.className = 'py-1.5 rounded bg-white/5 border border-white/5 text-gray-300 font-bold text-xs flex items-center justify-center';
+                if (val === 0) {
+                    cell.innerHTML = '✨';
+                    cell.className = 'py-1.5 rounded border border-emerald-500 text-white font-bold text-xs flex items-center justify-center bg-emerald-600';
+                } else {
+                    cell.textContent = val;
+                }
+                grid.appendChild(cell);
+            }
+        } else {
+            grid.innerHTML = '<div class="col-span-10 text-center text-xs py-2 text-red-400 font-normal">Card numbers not found</div>';
+        }
+    } catch(err) {
+        console.error(err);
+        grid.innerHTML = '<div class="col-span-10 text-center text-xs py-2 text-red-500 font-normal">Error loading card</div>';
+    }
 }
 
 function updateSelectedInfo() {
@@ -225,7 +254,6 @@ function updateSelectedInfo() {
         btn.classList.remove('hidden');
         document.getElementById('cs-selected-count').textContent = count + '/' + MAX_CARTELAS;
         document.getElementById('cs-selected-total').textContent = (count * STAKE) + ' ETB';
-        btn.textContent = 'Confirm (' + count + ' cartela' + (count > 1 ? 's' : '') + ')';
     } else {
         info.classList.add('hidden');
         btn.classList.add('hidden');
@@ -300,6 +328,7 @@ function startSelectionCountdownOnGame(dlMs) {
 function cancelCardSelect() {
     stopSelectionTimer();
     selectedCartelas = [];
+    document.getElementById('cs-preview-container').classList.add('hidden');
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     document.getElementById('card-select-screen').classList.add('hidden');
 }
@@ -376,6 +405,7 @@ async function confirmSelection() {
         }
 
         hideLoading();
+        document.getElementById('cs-preview-container').classList.add('hidden');
         document.getElementById('card-select-screen').classList.add('hidden');
         navigateTo('game');
         setupGameBoard();

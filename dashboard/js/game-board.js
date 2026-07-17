@@ -53,17 +53,20 @@ function setupGameBoard() {
 function buildMasterGrid() {
     const grid = document.getElementById('master-grid');
     grid.innerHTML = '';
-    const colColors = ['#10B981', '#3B82F6', '#8B5CF6', '#FF8C00', '#14B8A6'];
-    for (let num = 1; num <= 75; num++) {
-        const col = Math.floor((num - 1) / 15);
-        const cell = document.createElement('div');
-        cell.className = 'master-cell text-center py-0.5 rounded-sm font-bold';
-        cell.style.background = 'rgba(255,255,255,0.03)';
-        cell.style.color = colColors[col] + '88';
-        cell.style.fontSize = '9px';
-        cell.textContent = num;
-        cell.id = 'master-' + num;
-        grid.appendChild(cell);
+    const colColors = ['#3B82F6', '#8B5CF6', '#D946EF', '#10B981', '#F97316'];
+    // Arrange column-wise: B(1-15), I(16-30), N(31-45), G(46-60), O(61-75)
+    for (let row = 0; row < 15; row++) {
+        for (let col = 0; col < 5; col++) {
+            const num = col * 15 + row + 1;
+            const cell = document.createElement('div');
+            cell.className = 'master-cell text-center rounded-sm font-black transition-all flex items-center justify-center';
+            cell.style.background = 'rgba(30, 35, 64, 0.4)';
+            cell.style.color = colColors[col] + '55';
+            cell.style.fontSize = '9px';
+            cell.textContent = num;
+            cell.id = 'master-' + num;
+            grid.appendChild(cell);
+        }
     }
 }
 
@@ -113,15 +116,20 @@ function manualMark(cell, num) {
     playMarkSound();
 }
 
-function highlightMasterNumber(num) {
+function highlightMasterNumber(num, isLast) {
     const cell = document.getElementById('master-' + num);
     if (!cell) return;
     const letter = getNumberLetter(num);
     const color = getLetterColor(letter);
-    cell.style.background = color + '33';
+    cell.style.backgroundColor = color;
     cell.style.color = '#fff';
-    cell.style.fontWeight = '900';
     cell.classList.add('called');
+    if (isLast) {
+        document.querySelectorAll('.master-cell.last-called').forEach(el => {
+            el.classList.remove('last-called');
+        });
+        cell.classList.add('last-called');
+    }
 }
 
 function addCalledNumberTag(num) {
@@ -197,10 +205,11 @@ function listenToRound(roundId) {
                 const num = called[i];
                 if (!calledNumbers.has(num)) {
                     calledNumbers.add(num);
-                    highlightMasterNumber(num);
+                    const isLast = (i === called.length - 1);
+                    highlightMasterNumber(num, isLast);
                     addCalledNumberTag(num);
                     autoMarkAllCartelas(num);
-                    if (i === called.length - 1) {
+                    if (isLast) {
                         showNumberAnnouncement(num);
                         playNumberSound(num);
                     }
@@ -394,9 +403,9 @@ function loadMyCartelas(roundData) {
     return Promise.all(promises).then(() => {
         setupGameBoard();
         const called = roundData.called_numbers || [];
-        called.forEach(num => {
+        called.forEach((num, idx) => {
             calledNumbers.add(num);
-            highlightMasterNumber(num);
+            highlightMasterNumber(num, idx === called.length - 1);
             addCalledNumberTag(num);
             autoMarkAllCartelas(num);
         });
@@ -428,9 +437,10 @@ function refreshGame() {
                 const data = doc.data();
                 calledNumbers = new Set();
                 setupGameBoard();
-                (data.called_numbers || []).forEach(num => {
+                const called = data.called_numbers || [];
+                called.forEach((num, idx) => {
                     calledNumbers.add(num);
-                    highlightMasterNumber(num);
+                    highlightMasterNumber(num, idx === called.length - 1);
                     addCalledNumberTag(num);
                     autoMarkAllCartelas(num);
                 });

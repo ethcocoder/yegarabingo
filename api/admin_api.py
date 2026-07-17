@@ -823,6 +823,11 @@ async def login_page():
     return FileResponse(os.path.join(DASHBOARD_DIR, "login.html"))
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+
 if os.path.isdir(os.path.join(DASHBOARD_DIR, "css")):
     app.mount("/css", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "css")), name="css")
 if os.path.isdir(os.path.join(DASHBOARD_DIR, "js")):
