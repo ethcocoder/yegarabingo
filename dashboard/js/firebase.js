@@ -223,6 +223,14 @@
                 commit() { return Promise.all(this._ops.map(op => op())); }
             };
         }
+        runTransaction(updateFunction) {
+            const txn = {
+                get: (ref) => ref.get(),
+                update: (ref, data) => ref.update(data),
+                set: (ref, data, opts) => ref.set(data, opts)
+            };
+            return updateFunction(txn);
+        }
     }
 
     // ── MockAuth ─────────────────────────────────────────────
