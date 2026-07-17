@@ -33,21 +33,20 @@ function loadPayments() {
         adminOnline = data.online || false;
         updateAdminStatusUI();
     });
+}
 
-    // Pending deposits
-    api('GET', '/api/admin/deposits?status=pending&limit=50').then(function (deposits) {
-        var list = document.getElementById('payPendingList');
-        document.getElementById('pay-pending-count').textContent = deposits.length;
-        if (!deposits.length) {
-            list.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2">📭</div><p class="text-gray-500 text-sm">No pending deposits</p></div>';
-            return;
-        }
-        var totalPending = 0;
+function renderPayments() {
+    // 1. Pending deposits
+    var deposits = allDeposits.filter(function (d) { return d.status === 'pending'; });
+    var list = document.getElementById('payPendingList');
+    document.getElementById('pay-pending-count').textContent = deposits.length;
+    if (!deposits.length) {
+        list.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2">📭</div><p class="text-gray-500 text-sm">No pending deposits</p></div>';
+    } else {
         var html = '';
         deposits.forEach(function (d) {
             var id = d.id;
             var amt = d.amount || 0;
-            totalPending += amt;
             var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
             var ocrHtml = '';
             if (d.ocr) {
@@ -83,53 +82,50 @@ function loadPayments() {
                 '</div>';
         });
         list.innerHTML = html;
-    }).catch(function () {
-        document.getElementById('payPendingList').innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Failed to load deposits</div>';
-    });
+    }
 
-    // Approved count + total
-    api('GET', '/api/admin/deposits?status=approved&limit=500').then(function (deposits) {
-        document.getElementById('pay-approved-count').textContent = deposits.length;
-        var total = deposits.reduce(function (s, d) { return s + (d.amount || 0); }, 0);
-        document.getElementById('pay-total-amount').textContent = total.toFixed(0);
-    });
+    // 2. Counts + Total amount
+    var approvedDeposits = allDeposits.filter(function (d) { return d.status === 'approved'; });
+    var rejectedDeposits = allDeposits.filter(function (d) { return d.status === 'rejected'; });
+    document.getElementById('pay-approved-count').textContent = approvedDeposits.length;
+    document.getElementById('pay-rejected-count').textContent = rejectedDeposits.length;
+    var totalApprovedAmt = approvedDeposits.reduce(function (s, d) { return s + (d.amount || 0); }, 0);
+    document.getElementById('pay-total-amount').textContent = totalApprovedAmt.toFixed(0);
 
-    // Rejected count
-    api('GET', '/api/admin/deposits?status=rejected&limit=500').then(function (deposits) {
-        document.getElementById('pay-rejected-count').textContent = deposits.length;
+    // 3. Processed deposits history (status != pending)
+    var processedDeposits = allDeposits.filter(function (d) { return d.status !== 'pending'; });
+    processedDeposits.sort(function (a, b) {
+        var tA = a.processedAt ? new Date(a.processedAt) : 0;
+        var tB = b.processedAt ? new Date(b.processedAt) : 0;
+        return tB - tA;
     });
-
-    // Processed deposits history
-    api('GET', '/api/admin/deposits?limit=30').then(function (deposits) {
-        var list = document.getElementById('payProcessedList');
-        var items = deposits.filter(function (d) { return d.status !== 'pending'; }).slice(0, 10).map(function (d) {
-            var emoji = d.status === 'approved' ? '✅' : '❌';
-            var color = d.status === 'approved' ? 'text-green-400' : 'text-red-400';
-            var bgColor = d.status === 'approved' ? 'border-green-500/20' : 'border-red-500/20';
-            var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
-            return '<div class="glass rounded-xl p-3 mb-2 border ' + bgColor + '">' +
-                '<div class="flex items-center justify-between">' +
-                '<div><span class="' + color + ' font-bold">' + emoji + ' ' + (d.amount || 0) + ' ETB</span>' +
-                '<span class="text-[10px] text-gray-500 ml-2">' + (d.firstName || 'Unknown') + '</span></div>' +
-                '<span class="text-[10px] text-gray-600">' + time + '</span>' +
-                '</div></div>';
-        });
-        list.innerHTML = items.length > 0 ? items.join('') : '<div class="text-center py-4 text-gray-600 text-sm">No processed deposits</div>';
+    var dList = document.getElementById('payProcessedList');
+    var dItems = processedDeposits.slice(0, 10).map(function (d) {
+        var emoji = d.status === 'approved' ? '✅' : '❌';
+        var color = d.status === 'approved' ? 'text-green-400' : 'text-red-400';
+        var bgColor = d.status === 'approved' ? 'border-green-500/20' : 'border-red-500/20';
+        var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
+        return '<div class="glass rounded-xl p-3 mb-2 border ' + bgColor + '">' +
+            '<div class="flex items-center justify-between">' +
+            '<div><span class="' + color + ' font-bold">' + emoji + ' ' + (d.amount || 0) + ' ETB</span>' +
+            '<span class="text-[10px] text-gray-500 ml-2">' + (d.firstName || 'Unknown') + '</span></div>' +
+            '<span class="text-[10px] text-gray-600">' + time + '</span>' +
+            '</div></div>';
     });
+    dList.innerHTML = dItems.length > 0 ? dItems.join('') : '<div class="text-center py-4 text-gray-600 text-sm">No processed deposits</div>';
 
-    // Pending withdrawals
-    api('GET', '/api/admin/withdrawals?status=pending&limit=50').then(function (withdrawals) {
-        var list = document.getElementById('withdrawPendingList');
-        if (!withdrawals.length) {
-            list.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2">📭</div><p class="text-gray-500 text-sm">No pending withdrawals</p></div>';
-            return;
-        }
-        var html = '';
+    // 4. Pending withdrawals
+    var withdrawals = allWithdrawals.filter(function (w) { return w.status === 'pending'; });
+    var wList = document.getElementById('withdrawPendingList');
+    if (!withdrawals.length) {
+        wList.innerHTML = '<div class="text-center py-8"><div class="text-3xl mb-2">📭</div><p class="text-gray-500 text-sm">No pending withdrawals</p></div>';
+    } else {
+        var wHtml = '';
         withdrawals.forEach(function (d) {
             var id = d.id;
             var amt = d.amount || 0;
             var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
-            html += '<div class="glass rounded-xl p-4 mb-3 anim-slide border border-orange-500/20">' +
+            wHtml += '<div class="glass rounded-xl p-4 mb-3 anim-slide border border-orange-500/20">' +
                 '<div class="flex flex-col sm:flex-row sm:items-start gap-3">' +
                 '<div class="flex-1">' +
                 '<div class="flex items-center gap-2 mb-1">' +
@@ -149,27 +145,31 @@ function loadPayments() {
                 '</div>' +
                 '</div>';
         });
-        list.innerHTML = html;
-    });
+        wList.innerHTML = wHtml;
+    }
 
-    // Processed withdrawals history
-    api('GET', '/api/admin/withdrawals?limit=30').then(function (withdrawals) {
-        var list = document.getElementById('withdrawProcessedList');
-        var items = withdrawals.filter(function (d) { return d.status !== 'pending'; }).slice(0, 10).map(function (d) {
-            var emoji = d.status === 'approved' ? '✅' : '❌';
-            var color = d.status === 'approved' ? 'text-green-400' : 'text-red-400';
-            var bgColor = d.status === 'approved' ? 'border-green-500/20' : 'border-red-500/20';
-            var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
-            return '<div class="glass rounded-xl p-3 mb-2 border ' + bgColor + '">' +
-                '<div class="flex items-center justify-between">' +
-                '<div><span class="' + color + ' font-bold">' + emoji + ' ' + (d.amount || 0) + ' ETB</span>' +
-                '<span class="text-[10px] text-gray-500 ml-2">' + (d.firstName || 'Unknown') + '</span>' +
-                '<span class="text-[10px] text-gray-600 ml-2">📞 ' + (d.phone || 'N/A') + '</span></div>' +
-                '<span class="text-[10px] text-gray-600">' + time + '</span>' +
-                '</div></div>';
-        });
-        list.innerHTML = items.length > 0 ? items.join('') : '<div class="text-center py-4 text-gray-600 text-sm">No processed withdrawals</div>';
+    // 5. Processed withdrawals history
+    var processedWithdrawals = allWithdrawals.filter(function (d) { return d.status !== 'pending'; });
+    processedWithdrawals.sort(function (a, b) {
+        var tA = a.processedAt ? new Date(a.processedAt) : 0;
+        var tB = b.processedAt ? new Date(b.processedAt) : 0;
+        return tB - tA;
     });
+    var wHistList = document.getElementById('withdrawProcessedList');
+    var wHistItems = processedWithdrawals.slice(0, 10).map(function (d) {
+        var emoji = d.status === 'approved' ? '✅' : '❌';
+        var color = d.status === 'approved' ? 'text-green-400' : 'text-red-400';
+        var bgColor = d.status === 'approved' ? 'border-green-500/20' : 'border-red-500/20';
+        var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
+        return '<div class="glass rounded-xl p-3 mb-2 border ' + bgColor + '">' +
+            '<div class="flex items-center justify-between">' +
+            '<div><span class="' + color + ' font-bold">' + emoji + ' ' + (d.amount || 0) + ' ETB</span>' +
+            '<span class="text-[10px] text-gray-500 ml-2">' + (d.firstName || 'Unknown') + '</span>' +
+            '<span class="text-[10px] text-gray-600 ml-2">📞 ' + (d.phone || 'N/A') + '</span></div>' +
+            '<span class="text-[10px] text-gray-600">' + time + '</span>' +
+            '</div></div>';
+    });
+    wHistList.innerHTML = wHistItems.length > 0 ? wHistItems.join('') : '<div class="text-center py-4 text-gray-600 text-sm">No processed withdrawals</div>';
 }
 
 function approveDeposit(id) {

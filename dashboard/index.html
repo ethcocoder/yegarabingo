@@ -4,12 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yegara Bingo - Admin Dashboard</title>
+    <script>
+        (function() {
+            const warn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+                warn.apply(console, args);
+            };
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDK replaced by local SQL emulator bridge -->
     <script>
         // Set API base before firebase.js loads so the emulator can find it
         window.API_BASE = 'https://yegara-bingo-api.onrender.com';
-        const db = window; // will be replaced by firebase.js
     </script>
     <script>
         tailwind.config = {
@@ -308,7 +316,10 @@
                         <span class="w-8 h-8 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center text-sm">📡</span>
                         Activity Feed
                     </h3>
-                    <span class="flex items-center gap-1.5 text-xs text-[#10B981]"><span class="w-2 h-2 bg-[#10B981] rounded-full anim-live"></span>Live</span>
+                    <div class="flex items-center gap-3">
+                        <button onclick="requestDeleteAllGames()" class="text-xs text-red-400 hover:text-red-300 font-semibold transition-colors focus:outline-none">Clear All</button>
+                        <span class="flex items-center gap-1.5 text-xs text-[#10B981]"><span class="w-2 h-2 bg-[#10B981] rounded-full anim-live"></span>Live</span>
+                    </div>
                 </div>
                 <div class="space-y-1 max-h-[400px] overflow-y-auto pr-1" id="activityFeed"></div>
                 <div id="activityEmpty" class="text-center py-8 text-gray-500 text-sm">No activity yet</div>

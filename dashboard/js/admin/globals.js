@@ -1,6 +1,8 @@
 // ==================== ADMIN GLOBALS ====================
 var allUsers = [];
 var allRounds = [];
+var allDeposits = [];
+var allWithdrawals = [];
 var userPageSize = 10;
 var userPage = 1;
 var totalRevenue = 0;

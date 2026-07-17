@@ -42,9 +42,6 @@ function renderGames() {
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Players</p><p class="text-xs font-bold text-[#8B5CF6]">' + (g.player_count || 0) + '</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Derash</p><p class="text-xs font-bold text-[#14B8A6]">' + derash + '</p></div>' +
                 '</div>' +
-                '<div class="flex items-center gap-2">' +
-                '<button onclick="adminEndRound(\'' + escHtml(id) + '\')" class="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 px-3 py-2 rounded-lg text-xs font-semibold transition-all">End Round</button>' +
-                '</div>' +
                 '</div>';
         }).join('');
     }
