@@ -15,16 +15,37 @@ async function playNow() {
             .orderBy('created_at', 'desc')
             .limit(1).get();
 
+        let roundData, roundId;
         if (roundSnap.empty) {
+            // No active round yet. Create one immediately so the user doesn't have to wait.
+            const now = new Date();
+            const deadline = new Date(now.getTime() + SELECTION_SECONDS * 1000);
+            roundData = {
+                status: 'selecting',
+                stake: STAKE,
+                players: {},
+                player_count: 0,
+                taken_cartelas: [],
+                called_numbers: [],
+                winners: [],
+                prize_per_winner: 0,
+                admin_profit: 0,
+                selection_deadline: firebase.firestore.Timestamp.fromDate(deadline),
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                completed_at: null,
+            };
+            const ref = await db.collection('rounds').add(roundData);
+            roundId = ref.id;
+            currentRoundId = roundId;
+            
             hideLoading();
-            showToast('Waiting for the next round to start...');
-            // The backend monitor will automatically create the round shortly
+            showCardSelection(roundId, roundData);
             return;
         }
 
         const doc = roundSnap.docs[0];
-        const roundData = doc.data();
-        const roundId = doc.id;
+        roundData = doc.data();
+        roundId = doc.id;
         currentRoundId = roundId;
 
         if (roundData.status === 'playing') {
