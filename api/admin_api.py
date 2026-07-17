@@ -84,11 +84,39 @@ async def _game_loop(round_id: str):
             # Check if selection deadline has passed
             deadline = data.get('selection_deadline')
             if deadline:
-                dl_dt = deadline if isinstance(deadline, datetime) else deadline.to_datetime()
+                # Parse deadline — it may be a datetime, ISO string, or dict
+                if isinstance(deadline, datetime):
+                    dl_dt = deadline
+                elif isinstance(deadline, str):
+                    try:
+                        dl_dt = datetime.fromisoformat(deadline)
+                    except (ValueError, TypeError):
+                        dl_dt = datetime.now(tz=timezone.utc)
+                else:
+                    dl_dt = datetime.now(tz=timezone.utc)  # fallback: start immediately
+                
+                # Ensure timezone-aware comparison
+                if dl_dt.tzinfo is None:
+                    dl_dt = dl_dt.replace(tzinfo=timezone.utc)
+                
                 if datetime.now(tz=timezone.utc) >= dl_dt:
-                    # Auto-start the round (even with 0 players)
-                    now = datetime.now(tz=timezone.utc)
                     player_count = data.get('player_count', 0)
+                    
+                    if player_count == 0:
+                        # No players joined — mark completed and let monitor create new round
+                        db.collection('rounds').document(round_id).update({
+                            'status': 'completed',
+                            'winners': [],
+                            'winner_name': 'No players',
+                            'prize_per_winner': 0,
+                            'admin_profit': 0,
+                            'payout_processed': True,
+                            'completed_at': datetime.now(tz=timezone.utc),
+                        })
+                        return  # exits _game_loop, monitor will create next round
+                    
+                    # Has players — auto-start the round
+                    now = datetime.now(tz=timezone.utc)
                     total_pool = player_count * STAKE
                     derash = total_pool * 0.75
                     
@@ -157,8 +185,13 @@ async def _game_loop(round_id: str):
 
             now = datetime.now(tz=timezone.utc)
             next_at = now + timedelta(seconds=NUMBER_CALL_INTERVAL)
+            
+            # Read current called_numbers and append (emulator stores as full list)
+            current_called = list(data.get('called_numbers', []))
+            current_called.append(number)
+            
             db.collection('rounds').document(round_id).update({
-                'called_numbers': firestore.ArrayUnion([number]),
+                'called_numbers': current_called,
                 'last_called_number': number,
                 'last_called_at': now,
                 'next_number_at': next_at,

@@ -171,6 +171,16 @@ async function showCardSelection(roundId, roundData) {
                 return;
             }
 
+            if (rd.status === 'completed' || rd.status === 'cancelled') {
+                const selectScreen = document.getElementById('card-select-screen');
+                if (selectScreen && !selectScreen.classList.contains('hidden')) {
+                    stopSelectionTimer();
+                    if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+                    playNow(); // Auto-join the newly created round
+                    return;
+                }
+            }
+
             if (rd.status === 'playing') {
                 const uid = String(currentUser.id);
                 if (rd.players && rd.players[uid]) {
