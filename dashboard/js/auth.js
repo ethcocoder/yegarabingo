@@ -8,6 +8,9 @@ function getTelegramUser() {
 }
 
 async function initUser() {
+    // Sync server clock before anything else
+    await syncServerTime();
+
     if (!tg) {
         document.getElementById('user-greeting').textContent = '';
         const hero = document.querySelector('#screen-home .glass.rounded-2xl.p-5');

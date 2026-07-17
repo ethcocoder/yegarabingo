@@ -31,6 +31,11 @@ app.add_middleware(
 engine = RoundEngine(db)
 user_manager = UserManager(db)
 
+@app.get("/api/time")
+def get_server_time():
+    """Returns the current server time in ISO format for client sync."""
+    return {"iso": datetime.now(tz=timezone.utc).isoformat()}
+
 # ─── Background game loop state ───
 _active_game_tasks = {}  # round_id -> asyncio.Task
 BINGO_NUMBERS = list(range(1, 76))

@@ -133,7 +133,7 @@ async function showCardSelection(roundId, roundData) {
             const deadlineMs = deadline.toDate ? deadline.toDate().getTime() : new Date(deadline).getTime();
             selectionDeadline = deadlineMs;
         } else {
-            selectionDeadline = Date.now() + SELECTION_SECONDS * 1000;
+            selectionDeadline = serverNow() + SELECTION_SECONDS * 1000;
         }
         startSelectionTimer();
 
@@ -283,7 +283,7 @@ function startSelectionTimer() {
     const timerEl = document.getElementById('cs-timer');
     timerEl.classList.remove('text-red-400');
     selectionTimer = setInterval(() => {
-        const rem = Math.max(0, Math.ceil((selectionDeadline - Date.now()) / 1000));
+        const rem = Math.max(0, Math.ceil((selectionDeadline - serverNow()) / 1000));
         timerEl.textContent = rem;
         if (rem <= 5) timerEl.classList.add('text-red-400');
         if (rem <= 0) {
@@ -308,7 +308,7 @@ function startGameCountdown(nextMs) {
     if (gameCountdownInterval) clearInterval(gameCountdownInterval);
     const timerEl = document.getElementById('game-timer');
     gameCountdownInterval = setInterval(() => {
-        const rem = Math.max(0, Math.ceil((nextMs - Date.now()) / 1000));
+        const rem = Math.max(0, Math.ceil((nextMs - serverNow()) / 1000));
         timerEl.textContent = rem + 's';
         if (rem <= 1) timerEl.textContent = '...';
         if (rem <= 0) {
@@ -328,7 +328,7 @@ function startSelectionCountdownOnGame(dlMs) {
     const banner = document.getElementById('game-countdown');
     const timerEl = document.getElementById('game-timer');
     gameCountdownInterval = setInterval(() => {
-        const rem = Math.max(0, Math.ceil((dlMs - Date.now()) / 1000));
+        const rem = Math.max(0, Math.ceil((dlMs - serverNow()) / 1000));
         banner.textContent = 'Game starts in ' + rem + 's';
         timerEl.textContent = rem + 's';
         if (rem <= 0) {
