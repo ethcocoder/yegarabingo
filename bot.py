@@ -77,37 +77,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_reg = u.get('registered') or (u.get('phone') and len(u.get('phone')) > 0)
 
     if is_reg:
-        # Already registered — show play directly, no extra text
+        # Already registered — skip registration, show play directly
+        pw = u.get('play_wallet', 0)
+        bal = u.get('balance', 0)
+        text = (
+            f"👋 Welcome back, {user.first_name}!\n\n"
+            f"💰 Main Wallet: *{bal} ETB*\n"
+            f"🎮 Play Wallet: *{pw} ETB*\n\n"
+            f"Tap Play to start the game!"
+        )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🎮 Play", callback_data="menu_play")],
+            [InlineKeyboardButton("💰 Wallet", callback_data="menu_balance"),
+             InlineKeyboardButton("🔗 Invite", callback_data="menu_invite")],
         ])
-        await update.effective_message.reply_text("👋 Welcome back!", reply_markup=kb)
-        return
+        await update.effective_message.reply_text(text, reply_markup=kb, parse_mode='Markdown')
     else:
-        # New user — needs registration
+        # New user — needs registration, show banner
         text = "👋 Welcome to Yegara Bingo! Choose an Option below."
         kb = MAIN_INLINE_KEYBOARD
+        banner_path = os.path.join(ASSETS_DIR, 'welcome_banner.png')
+        try:
+            if os.path.exists(banner_path):
+                with open(banner_path, 'rb') as photo:
+                    await update.effective_message.reply_photo(
+                        photo=photo,
+                        caption=text,
+                        reply_markup=kb,
+                        read_timeout=30,
+                        write_timeout=60,
+                        connect_timeout=30
+                    )
+            else:
+                await update.effective_message.reply_text(text, reply_markup=kb)
+        except Exception as e:
+            logger.warning(f"Banner upload failed, sending text only: {e}")
+            await update.effective_message.reply_text(text, reply_markup=kb)
 
-    banner_path = os.path.join(ASSETS_DIR, 'welcome_banner.png')
-    try:
-        if os.path.exists(banner_path):
-            with open(banner_path, 'rb') as photo:
-                await update.effective_message.reply_photo(
-                    photo=photo,
-                    caption=text,
-                    reply_markup=kb,
-                    parse_mode='Markdown',
-                    read_timeout=30,
-                    write_timeout=60,
-                    connect_timeout=30
-                )
-        else:
-            await update.effective_message.reply_text(text, reply_markup=kb, parse_mode='Markdown')
-    except Exception as e:
-        logger.warning(f"Banner upload failed, sending text only: {e}")
-        await update.effective_message.reply_text(text, reply_markup=kb, parse_mode='Markdown')
-
-    if not is_reg:
         await update.effective_message.reply_text(
             "🎮 ጨዋታውን ለመጀመር ከታች ያለውን Play የሚለውን ይጫኑ::\n"
             "(Click Play below to start the game)"
