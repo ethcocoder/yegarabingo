@@ -504,24 +504,3 @@ function leaveGame() {
     autoMarkEnabled = false;
     stopBgMusic();
 }
-
-function refreshGame() {
-    if (currentRoundId) {
-        db.collection('rounds').doc(currentRoundId).get().then(function(doc) {
-            if (doc.exists) {
-                var data = doc.data();
-                calledNumbers = new Set();
-                setupGameBoard();
-                var called = data.called_numbers || [];
-                called.forEach(function(num, idx) {
-                    calledNumbers.add(num);
-                    highlightMasterNumber(num, idx === called.length - 1);
-                    addCalledNumberTag(num);
-                    autoMarkAllCartelas(num);
-                });
-                var gcc = document.getElementById('game-called-count');
-                if (gcc) gcc.textContent = (data.called_numbers || []).length;
-            }
-        });
-    }
-}

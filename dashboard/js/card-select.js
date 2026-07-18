@@ -93,6 +93,29 @@ async function playNow() {
             return;
         }
 
+        // Check if selection timer has already expired
+        var deadline = roundData.selection_deadline;
+        if (deadline) {
+            var dlMs;
+            if (typeof deadline === 'object' && deadline.toDate) dlMs = deadline.toDate().getTime();
+            else if (typeof deadline === 'string') dlMs = new Date(deadline).getTime();
+            else if (typeof deadline === 'object' && deadline._iso) dlMs = new Date(deadline._iso).getTime();
+            else if (typeof deadline === 'object' && deadline.seconds) dlMs = deadline.seconds * 1000;
+            else dlMs = new Date(deadline).getTime();
+            if (!isNaN(dlMs) && serverNow() >= dlMs) {
+                // Timer expired — spectate if players already joined, else allow first player
+                var pc = roundData.player_count || 0;
+                if (pc > 0) {
+                    isSpectator = true;
+                    await navigateTo('game');
+                    setupGameBoard();
+                    listenToRound(roundId);
+                    showToast('Selection ended. Spectating...');
+                    return;
+                }
+            }
+        }
+
         // Has balance — show card selection, wait for timer to hit 0
         showCardSelection(roundId, roundData);
     } catch (err) {
@@ -325,14 +348,6 @@ async function enterSpectatorMode() {
     showToast('Spectating...');
 }
 
-function refreshCardSelect() {
-    if (currentRoundId) {
-        db.collection('rounds').doc(currentRoundId).get().then(function(doc) {
-            if (doc.exists) showCardSelection(currentRoundId, doc.data());
-        });
-    }
-}
-
 // ==================== CONFIRM SELECTION & JOIN ROUND ====================
 async function confirmSelection() {
     if (selectedCartelas.length === 0) return;
@@ -351,6 +366,20 @@ async function confirmSelection() {
             if (!roundSnap.exists) throw new Error('Round not found.');
             var rd = roundSnap.data();
             if (rd.status !== 'selecting') throw new Error('Round already started or finished.');
+            // Block join if selection timer expired and round already has players
+            var dl = rd.selection_deadline;
+            if (dl) {
+                var dlMs;
+                if (typeof dl === 'object' && dl.toDate) dlMs = dl.toDate().getTime();
+                else if (typeof dl === 'string') dlMs = new Date(dl).getTime();
+                else if (typeof dl === 'object' && dl._iso) dlMs = new Date(dl._iso).getTime();
+                else if (typeof dl === 'object' && dl.seconds) dlMs = dl.seconds * 1000;
+                else dlMs = new Date(dl).getTime();
+                if (!isNaN(dlMs) && serverNow() >= dlMs) {
+                    var pc = rd.player_count || 0;
+                    if (pc > 0) throw new Error('Selection ended. Spectating.');
+                }
+            }
             if (rd.players && rd.players[uidStr]) throw new Error('Already joined.');
             var pw = userSnap.data().play_wallet || 0;
             if (pw < totalCost) throw new Error('Not enough balance.');
@@ -398,6 +427,17 @@ async function confirmSelection() {
     } catch (err) {
         hideLoading();
         console.error('Error joining round:', err);
-        showToast('Error: ' + err.message);
+        if (err.message && err.message.indexOf('Spectating') !== -1) {
+            isSpectator = true;
+            var cs = document.getElementById('card-select-screen');
+            if (cs) cs.classList.add('hidden');
+            stopSelectionCountdown();
+            await navigateTo('game');
+            setupGameBoard();
+            listenToRound(currentRoundId);
+            showToast('Selection ended. Spectating...');
+        } else {
+            showToast('Error: ' + err.message);
+        }
     }
 }

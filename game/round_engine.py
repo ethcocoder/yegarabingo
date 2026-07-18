@@ -155,6 +155,28 @@ class RoundEngine:
         if round_data['status'] != 'selecting':
             return {'error': 'Round is no longer accepting players'}
 
+        # Enforce selection deadline — close race window before game loop transitions
+        selection_deadline = round_data.get('selection_deadline')
+        if selection_deadline:
+            if isinstance(selection_deadline, str):
+                try:
+                    dl_dt = datetime.fromisoformat(selection_deadline)
+                except Exception:
+                    dl_dt = None
+            elif isinstance(selection_deadline, datetime):
+                dl_dt = selection_deadline
+            else:
+                dl_dt = None
+            if dl_dt:
+                if dl_dt.tzinfo is None:
+                    dl_dt = dl_dt.replace(tzinfo=timezone.utc)
+                now_utc = datetime.now(tz=timezone.utc)
+                if now_utc >= dl_dt:
+                    # Timer expired — only allow if round has no players yet (first player)
+                    player_count = round_data.get('player_count', 0)
+                    if player_count > 0:
+                        return {'error': 'Selection timer expired. Spectating this round.'}
+
         # Check if cartelas are already taken
         taken = round_data.get('taken_cartelas', [])
         for num in cartela_numbers:
