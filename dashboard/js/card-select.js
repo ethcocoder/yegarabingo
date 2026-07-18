@@ -16,6 +16,7 @@ async function playNow() {
 
         var roundData, roundId;
         if (roundSnap.empty) {
+            var nowMs = Date.now();
             roundData = {
                 status: 'selecting',
                 stake: STAKE,
@@ -26,6 +27,7 @@ async function playNow() {
                 winners: [],
                 prize_per_winner: 0,
                 admin_profit: 0,
+                selection_deadline: new Date(nowMs + SELECTION_DURATION * 1000).toISOString(),
                 created_at: firebase.firestore.FieldValue.serverTimestamp(),
                 completed_at: null,
             };
@@ -226,6 +228,9 @@ function toggleCardSelection(num, cell) {
         renderCardSelectPreview(num);
     }
     updateSelectedInfo();
+    if (selectedCartelas.length > 0) {
+        setTimeout(function() { confirmSelection(); }, 300);
+    }
 }
 
 async function renderCardSelectPreview(num) {
@@ -269,17 +274,14 @@ async function renderCardSelectPreview(num) {
 function updateSelectedInfo() {
     var count = selectedCartelas.length;
     var info = document.getElementById('cs-selected-info');
-    var btn = document.getElementById('cs-confirm-btn');
     if (count > 0) {
         if (info) info.classList.remove('hidden');
-        if (btn) btn.classList.remove('hidden');
         var sc = document.getElementById('cs-selected-count');
         var st = document.getElementById('cs-selected-total');
         if (sc) sc.textContent = count + '/' + MAX_CARTELAS;
         if (st) st.textContent = (count * STAKE) + ' ETB';
     } else {
         if (info) info.classList.add('hidden');
-        if (btn) btn.classList.add('hidden');
     }
 }
 

@@ -39,7 +39,7 @@ def get_server_time():
 # ─── Background game loop state ───
 _active_game_tasks = {}  # round_id -> asyncio.Task
 BINGO_NUMBERS = list(range(1, 76))
-NUMBER_CALL_INTERVAL = 4  # seconds
+NUMBER_CALL_INTERVAL = 5  # seconds
 
 
 # ─── Models ───

@@ -1,8 +1,6 @@
 // ==================== CONSTANTS ====================
 const STAKE = 10;
 const MAX_CARTELAS = 2;
-const NUMBER_CALL_INTERVAL = 4000;
-const ADMIN_CUT = 0.25;
 
 const BINGO_RANGES = [
     { min: 1, max: 15, letter: 'B', color: '#3B82F6' },

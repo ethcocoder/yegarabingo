@@ -348,7 +348,6 @@ async function checkMyBingo() {
                                 winners: newWinners,
                                 winner_name: currentUser.first_name || 'Player',
                                 winning_cartela: parseInt(cartelaNum),
-                                payout_processed: true,
                                 completed_at: firebase.firestore.FieldValue.serverTimestamp()
                             });
                         });
