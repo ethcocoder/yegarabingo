@@ -7,10 +7,13 @@ and prize distribution.
 
 import random
 import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple
 from firestore_db import FieldFilter, transactional as firestore_transactional
 from firestore_db import MockFirestoreClient
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Constants ───
@@ -56,18 +59,20 @@ class RoundEngine:
 
     async def generate_all_cartelas(self) -> dict:
         """Generate 500 fixed cartelas in cartelas_master. Idempotent."""
+        logger.info("Checking for existing cartelas...")
         existing = list(self.master_ref.limit(1).get())
         if existing:
             count = len(list(self.master_ref.get()))
+            logger.info(f"Cartelas already exist, count={count}")
             return {'status': 'already_exists', 'count': count}
 
+        logger.info("Starting generation of 500 cartelas...")
         batch_size = 100
         generated = 0
         for start in range(1, TOTAL_CARTELAS + 1, batch_size):
             batch = self.db.batch()
             end = min(start + batch_size, TOTAL_CARTELAS + 1)
             for num in range(start, end):
-                # Use fixed seed = num × 1337 for deterministic generation
                 cartela = self._generate_single_cartela(num * 1337)
                 doc_ref = self.master_ref.document(str(num))
                 batch.set(doc_ref, {
@@ -77,7 +82,9 @@ class RoundEngine:
                 })
                 generated += 1
             batch.commit()
+            logger.info(f"Batch committed: {generated}/{TOTAL_CARTELAS}")
 
+        logger.info(f"Successfully generated {generated} cartelas")
         return {'status': 'generated', 'count': generated}
 
     async def get_all_cartelas(self) -> List[dict]:

@@ -21,7 +21,13 @@ function generateOneCartela() {
 async function generateCartelaPool() {
     if (!confirm('Generate the 500 fixed cartelas? This will call the API.')) return;
     try {
-        const res = await fetch(API_BASE + '/api/cartelas/generate', { method: 'POST' });
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function () { controller.abort(); }, 120000);
+        var res = await fetch(API_BASE + '/api/cartelas/generate', {
+            method: 'POST',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
         if (!res.ok) {
             var errText = '';
             try { errText = await res.text(); } catch (_) {}
@@ -34,7 +40,11 @@ async function generateCartelaPool() {
         // onSnapshot listener will auto-update the UI
     } catch (e) {
         console.error(e);
-        alert('Error generating cartelas: ' + e.message);
+        if (e.name === 'AbortError') {
+            alert('Error generating cartelas: Request timed out after 2 minutes.');
+        } else {
+            alert('Error generating cartelas: ' + e.message);
+        }
     }
 }
 

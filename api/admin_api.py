@@ -1,6 +1,7 @@
 import os
 import random
 import asyncio
+import logging
 import socketio
 from fastapi import FastAPI, HTTPException, Query as FastAPIQuery
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,8 @@ from handlers.user_manager import UserManager
 from datetime import datetime, timedelta, timezone
 from telegram import Bot
 # Firebase replaced by SQLAlchemy emulator (firestore_db.py)
+
+logger = logging.getLogger(__name__)
 
 # ─── Socket.IO Server ───
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
@@ -148,7 +151,7 @@ async def _game_loop(round_id: str):
                     try:
                         await engine.end_round(round_id, [int(w) for w in winners])
                     except Exception as e:
-                        print(f"[GameLoop] Error distributing prizes for {round_id}: {e}")
+                        logger.error(f"[GameLoop] Error distributing prizes for {round_id}: {e}")
                         return  # Don't mark as processed if payout failed
                     db.collection('rounds').document(round_id).update({'payout_processed': True})
                 return
@@ -186,7 +189,7 @@ async def _game_loop(round_id: str):
             try:
                 number = await engine.call_number(round_id)
             except Exception as e:
-                print(f"Smart predictor error for {round_id}: {e}")
+                logger.warning(f"Smart predictor error for {round_id}: {e}")
                 # Fallback to pure random choice if predictor crashes
                 import random
                 number = random.choice(available)
@@ -210,7 +213,7 @@ async def _game_loop(round_id: str):
     except asyncio.CancelledError:
         pass
     except Exception as e:
-        print(f"[GameLoop] Error for round {round_id}: {e}")
+        logger.error(f"[GameLoop] Error for round {round_id}: {e}", exc_info=True)
     finally:
         _active_game_tasks.pop(round_id, None)
 
@@ -247,7 +250,7 @@ async def start_background_monitor():
                         _start_game_loop(result['id'])
                         
             except Exception as e:
-                pass  # silently skip — no Firebase quota hits
+                logger.warning(f"Error in background monitor: {e}")
             await asyncio.sleep(5)
     asyncio.create_task(_monitor())
     asyncio.create_task(_event_broadcast_loop())
@@ -260,11 +263,17 @@ async def start_background_monitor():
 async def generate_cartelas():
     """Generate 500 fixed cartelas (idempotent)."""
     try:
+        logger.info("Cartela generation requested")
         result = await engine.generate_all_cartelas()
-        # Broadcast cartela pool update to all admin dashboards (fire-and-forget)
-        asyncio.create_task(broadcast_event('cartelas_master', 'list'))
+        logger.info(f"Cartela generation complete: {result}")
+        # Broadcast cartela pool update (fire-and-forget, wrapped safely)
+        try:
+            asyncio.create_task(broadcast_cartelas_update())
+        except Exception as broadcast_err:
+            logger.warning(f"Failed to schedule cartela broadcast: {broadcast_err}")
         return result
     except Exception as e:
+        logger.error(f"Error generating cartelas: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -595,7 +604,7 @@ async def notify_admin_withdrawal(req: WithdrawalNotifyRequest):
                 )
         return {"ok": True}
     except Exception as e:
-        print(f"[NotifyAdmin] Error: {e}")
+        logger.warning(f"[NotifyAdmin] Error: {e}")
         return {"ok": True}
 
 
@@ -856,6 +865,20 @@ async def broadcast_event(collection: str, doc_id: str):
     }
     await sio.emit('query_snapshot', query_payload, room=room_collection)
 
+async def broadcast_cartelas_update():
+    """Safely broadcast cartela pool update to all admin dashboards."""
+    try:
+        docs = db.collection('cartelas_master').get()
+        cartela_list = [{"id": d.id, "data": d.to_dict()} for d in docs]
+        await sio.emit('query_snapshot', {
+            "type": "query_snapshot",
+            "collection": "cartelas_master",
+            "docs": cartela_list,
+        }, room="cartelas_master")
+    except Exception as e:
+        logger.warning(f"Error broadcasting cartelas update: {e}")
+
+
 async def broadcast_cartela_pool(round_id: str):
     """Emit real-time cartela pool update to all clients watching this round."""
     round_snap = db.collection('rounds').document(round_id).get()
@@ -882,10 +905,13 @@ async def _event_broadcast_loop():
             events = events.order_by(SystemEvent.created_at).limit(50).all()
             for ev in events:
                 last_id = ev.id
-                await broadcast_event(ev.collection, ev.doc_id)
+                try:
+                    await broadcast_event(ev.collection, ev.doc_id)
+                except Exception as ev_err:
+                    logger.warning(f"Error broadcasting event {ev.collection}/{ev.doc_id}: {ev_err}")
             sess.close()
         except Exception as e:
-            pass
+            logger.warning(f"Error in event broadcast loop: {e}")
         await asyncio.sleep(0.5)
 
 
