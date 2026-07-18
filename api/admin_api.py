@@ -608,18 +608,6 @@ async def admin_approve_withdrawal(withdrawal_id: str, req: DepositActionRequest
     amount = d.get('amount', 0)
     user_id = str(d.get('userId', ''))
 
-    user_snap = db.collection('users').document(user_id).get()
-    if not user_snap.exists:
-        raise HTTPException(status_code=404, detail="User not found")
-    user_data = user_snap.to_dict()
-    bal = user_data.get('balance', 0) or 0
-    if bal < amount:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance: {bal} ETB")
-
-    db.collection('users').document(user_id).update({
-        'balance': bal - amount,
-        'updated_at': datetime.now(tz=timezone.utc).isoformat()
-    })
     db.collection('withdrawals').document(withdrawal_id).update({
         'status': 'approved',
         'processedAt': datetime.now(tz=timezone.utc).isoformat(),

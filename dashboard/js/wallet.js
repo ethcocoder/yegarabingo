@@ -21,6 +21,10 @@ async function submitWithdrawal() {
         const snap = await userRef.get();
         const bal = (snap.data().balance || 0);
         if (amount > bal) { showToast('Insufficient balance!'); return; }
+        await userRef.update({
+            balance: bal - amount,
+            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
         const withdrawRef = await db.collection('withdrawals').add({
             userId: String(currentUser.id),
             firstName: currentUser.first_name,
