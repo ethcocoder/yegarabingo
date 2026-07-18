@@ -1,4 +1,6 @@
 // ==================== CARTELA POOL ====================
+var _cartelaPoolUnsubscribe = null;
+
 function generateOneCartela() {
     var ranges = [{ min: 1, max: 15 }, { min: 16, max: 30 }, { min: 31, max: 45 }, { min: 46, max: 60 }, { min: 61, max: 75 }];
     var cartela = [];
@@ -22,7 +24,7 @@ async function generateCartelaPool() {
         const res = await fetch(API_BASE + '/api/cartelas/generate', { method: 'POST' });
         const data = await res.json();
         alert(data.status === 'already_exists' ? 'Cartelas already exist.' : 'Generated 500 cartelas successfully!');
-        loadCartelaPool();
+        // onSnapshot listener will auto-update the UI
     } catch (e) {
         console.error(e);
         alert('Error generating cartelas: ' + e.message);
@@ -30,9 +32,14 @@ async function generateCartelaPool() {
 }
 
 function loadCartelaPool() {
-    db.collection('cartelas_master').orderBy('number').get().then(function (snap) {
+    // Unsubscribe previous listener
+    if (_cartelaPoolUnsubscribe) { _cartelaPoolUnsubscribe(); _cartelaPoolUnsubscribe = null; }
+
+    _cartelaPoolUnsubscribe = db.collection('cartelas_master').orderBy('number').onSnapshot(function (snap) {
         var list = document.getElementById('cartelaPoolList');
         var empty = document.getElementById('cartelaPoolEmpty');
+        if (!list || !empty) return;
+
         var items = [];
         snap.forEach(function (doc) {
             items.push({ id: doc.id, data: doc.data() });
@@ -74,4 +81,8 @@ function loadCartelaPool() {
                 '</div>';
         }).join('');
     });
+}
+
+function stopCartelaPoolListener() {
+    if (_cartelaPoolUnsubscribe) { _cartelaPoolUnsubscribe(); _cartelaPoolUnsubscribe = null; }
 }
