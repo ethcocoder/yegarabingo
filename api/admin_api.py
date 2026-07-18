@@ -12,7 +12,7 @@ import datetime
 from config import db, BOT_TOKEN
 from firestore_db import MockFirestoreClient, SessionLocal, SystemEvent, FieldFilter, Increment, ArrayUnion
 
-from game.round_engine import RoundEngine, STAKE
+from game.round_engine import RoundEngine, STAKE, SELECTION_DURATION
 from handlers.user_manager import UserManager
 from datetime import datetime, timedelta, timezone
 from telegram import Bot
@@ -65,7 +65,7 @@ class NotifyRequest(BaseModel):
 # Server-Side Game Loop
 # ═══════════════════════════════════════════════════════════════
 async def _game_loop(round_id: str):
-    """Background task: start round immediately when first player joins."""
+    """Background task: start round when selection deadline passes OR first player joins."""
     try:
         while True:
             round_doc = db.collection('rounds').document(round_id).get()
@@ -80,9 +80,9 @@ async def _game_loop(round_id: str):
             if status == 'playing':
                 break
 
-            # Start immediately when at least 1 player joins
             player_count = data.get('player_count', 0)
             
+            # Start immediately when at least 1 player joins
             if player_count > 0:
                 now = datetime.now(tz=timezone.utc)
                 total_pool = player_count * STAKE
@@ -96,23 +96,24 @@ async def _game_loop(round_id: str):
                 })
                 break
             
-            # No players — auto-cancel after 2 minutes to let monitor create new round
-            created_at = data.get('created_at')
-            if created_at:
-                if isinstance(created_at, datetime):
-                    cat_dt = created_at
-                elif isinstance(created_at, str):
+            # Also check if selection deadline has passed (timer expired, no players)
+            deadline = data.get('selection_deadline')
+            if deadline:
+                if isinstance(deadline, datetime):
+                    dl_dt = deadline
+                elif isinstance(deadline, str):
                     try:
-                        cat_dt = datetime.fromisoformat(created_at)
+                        dl_dt = datetime.fromisoformat(deadline)
                     except:
-                        cat_dt = datetime.now(tz=timezone.utc)
+                        dl_dt = datetime.now(tz=timezone.utc)
                 else:
-                    cat_dt = datetime.now(tz=timezone.utc)
+                    dl_dt = datetime.now(tz=timezone.utc)
                 
-                if cat_dt.tzinfo is None:
-                    cat_dt = cat_dt.replace(tzinfo=timezone.utc)
+                if dl_dt.tzinfo is None:
+                    dl_dt = dl_dt.replace(tzinfo=timezone.utc)
                 
-                if datetime.now(tz=timezone.utc) - cat_dt > timedelta(minutes=2):
+                if datetime.now(tz=timezone.utc) >= dl_dt:
+                    # Timer expired, no players — cancel
                     db.collection('rounds').document(round_id).update({
                         'status': 'completed',
                         'winners': [],

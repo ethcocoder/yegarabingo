@@ -62,7 +62,7 @@ function setupGameBoard() {
     if (calledTags) calledTags.innerHTML = '';
 }
 
-// ==================== GAME COUNTDOWN ====================
+// ==================== GAME COUNTDOWN (5s between calls) ====================
 function startGameCountdown(nextMs) {
     stopGameCountdown();
     gameCountdownInterval = setInterval(function() {
@@ -91,6 +91,34 @@ function stopGameCountdown() {
     }
 }
 
+// ==================== SELECTION COUNTDOWN (35s) ====================
+function startSelectionCountdown(deadlineMs) {
+    stopSelectionCountdown();
+    selectionCountdownInterval = setInterval(function() {
+        var remaining = Math.max(0, Math.ceil((deadlineMs - serverNow()) / 1000));
+        var el = document.getElementById('cs-timer');
+        if (el) el.textContent = remaining + 's';
+        var bar = document.getElementById('cs-timer-bar');
+        if (bar) {
+            var pct = Math.max(0, (remaining / SELECTION_DURATION) * 100);
+            bar.style.width = pct + '%';
+            if (remaining <= 10) {
+                bar.style.background = 'linear-gradient(90deg, #EF4444, #F87171)';
+            }
+        }
+        if (remaining <= 0) {
+            stopSelectionCountdown();
+        }
+    }, 200);
+}
+
+function stopSelectionCountdown() {
+    if (selectionCountdownInterval) {
+        clearInterval(selectionCountdownInterval);
+        selectionCountdownInterval = null;
+    }
+}
+
 function buildMasterGrid() {
     var grid = document.getElementById('master-grid');
     if (!grid) return;
@@ -116,7 +144,7 @@ function buildCartelaGrid(gridId, flat) {
     for (var i = 0; i < 25; i++) {
         var num = flat[i];
         var cell = document.createElement('div');
-        cell.className = 'cartela-cell text-[11px] font-bold text-center py-2 rounded cursor-pointer transition-all';
+        cell.className = 'cartela-cell text-[10px] font-bold text-center py-1.5 rounded cursor-pointer transition-all';
         cell.dataset.num = num;
         if (num === 0) {
             cell.textContent = '★';
@@ -469,6 +497,7 @@ function leaveGame() {
     listenerReady = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     try { stopGameCountdown(); } catch(e) {}
+    try { stopSelectionCountdown(); } catch(e) {}
     if (winCountdownInterval) { clearInterval(winCountdownInterval); winCountdownInterval = null; }
     myCartelas = {};
     calledNumbers = new Set();

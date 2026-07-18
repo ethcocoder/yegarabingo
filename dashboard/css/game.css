@@ -97,18 +97,29 @@ body { background: #0D1117; color: white; overflow-x: hidden; }
 
 /* ==================== GAME BOARD RESPONSIVE ==================== */
 .master-grid-compact {
-    max-height: 50vh;
+    max-height: calc(100vh - 200px);
     overflow-y: auto;
+    scrollbar-width: thin;
 }
 @media (min-width: 768px) {
+    .master-grid-compact {
+        max-height: calc(100vh - 180px);
+    }
+}
+@media (min-width: 1024px) {
     .master-grid-compact {
         max-height: none;
         overflow-y: visible;
     }
 }
 .master-grid-compact .master-cell {
-    font-size: 7px;
+    font-size: 6px;
     aspect-ratio: 1;
+}
+@media (min-width: 480px) {
+    .master-grid-compact .master-cell {
+        font-size: 7px;
+    }
 }
 @media (min-width: 768px) {
     .master-grid-compact .master-cell {

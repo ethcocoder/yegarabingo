@@ -979,6 +979,16 @@ def main():
     # ─── /start ───
     app.add_handler(CommandHandler("start", start))
 
+    # ─── Slash commands for Telegram menu ───
+    app.add_handler(CommandHandler("play", handle_play))
+    app.add_handler(CommandHandler("deposit", handle_deposit))
+    app.add_handler(CommandHandler("withdraw", handle_withdraw))
+    app.add_handler(CommandHandler("register", handle_register))
+    app.add_handler(CommandHandler("balance", handle_balance))
+    app.add_handler(CommandHandler("transfer", handle_transfer))
+    app.add_handler(CommandHandler("invite", handle_invite))
+    app.add_handler(CommandHandler("help", handle_instruction))
+
     # ─── Simple menu handlers (no conversation needed) ───
     app.add_handler(MessageHandler(filters.Regex("^💵 Check Balance$"), handle_balance))
     app.add_handler(MessageHandler(filters.Regex("^🔗 Invite$"), handle_invite))
