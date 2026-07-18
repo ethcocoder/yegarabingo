@@ -371,7 +371,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = "❓ We couldn't detect the amount on your screenshot.\n\nDo you want to try again with another screenshot?"
 
     await update.effective_message.reply_text(msg, reply_markup=kb, parse_mode='Markdown')
-    return DEPOSIT_CONFIRM
+    return AWAIT_PHOTO
 
 
 async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1214,7 +1214,6 @@ def main():
         states={
             DEPOSIT_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_telebirr_name)],
             AWAIT_PHOTO: [MessageHandler(filters.PHOTO, handle_screenshot)],
-            DEPOSIT_CONFIRM: [CallbackQueryHandler(confirm_deposit, pattern="^deposit_confirm_")],
         },
         fallbacks=[
             CommandHandler("start", start),
@@ -1282,6 +1281,9 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_reject_deposit, pattern="^reject_(?!withdraw_)"))
     app.add_handler(CallbackQueryHandler(admin_approve_withdraw, pattern="^approve_withdraw_"))
     app.add_handler(CallbackQueryHandler(admin_reject_withdraw, pattern="^reject_withdraw_"))
+
+    # ─── Deposit confirm callbacks ───
+    app.add_handler(CallbackQueryHandler(confirm_deposit, pattern="^deposit_confirm_"))
 
     logger.info("🎯 Yegara Bingo Bot starting...")
 
