@@ -65,7 +65,7 @@ class NotifyRequest(BaseModel):
 # Server-Side Game Loop
 # ═══════════════════════════════════════════════════════════════
 async def _game_loop(round_id: str):
-    """Background task: start round when selection deadline passes OR first player joins."""
+    """Background task: wait for selection deadline, then start if players exist."""
     try:
         while True:
             round_doc = db.collection('rounds').document(round_id).get()
@@ -80,23 +80,7 @@ async def _game_loop(round_id: str):
             if status == 'playing':
                 break
 
-            player_count = data.get('player_count', 0)
-            
-            # Start immediately when at least 1 player joins
-            if player_count > 0:
-                now = datetime.now(tz=timezone.utc)
-                total_pool = player_count * STAKE
-                derash = total_pool * 0.75
-                
-                db.collection('rounds').document(round_id).update({
-                    'status': 'playing',
-                    'derash': derash,
-                    'game_started_at': now,
-                    'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
-                })
-                break
-            
-            # Also check if selection deadline has passed (timer expired, no players)
+            # Wait for selection deadline to expire before starting
             deadline = data.get('selection_deadline')
             if deadline:
                 if isinstance(deadline, datetime):
@@ -113,21 +97,35 @@ async def _game_loop(round_id: str):
                     dl_dt = dl_dt.replace(tzinfo=timezone.utc)
                 
                 if datetime.now(tz=timezone.utc) >= dl_dt:
-                    # Timer expired, no players — cancel
-                    db.collection('rounds').document(round_id).update({
-                        'status': 'completed',
-                        'winners': [],
-                        'winner_name': 'No players',
-                        'prize_per_winner': 0,
-                        'admin_profit': 0,
-                        'payout_processed': True,
-                        'completed_at': datetime.now(tz=timezone.utc),
-                    })
-                    return
+                    # Timer expired — start game if players exist, else cancel
+                    player_count = data.get('player_count', 0)
+                    if player_count > 0:
+                        now = datetime.now(tz=timezone.utc)
+                        total_pool = player_count * STAKE
+                        derash = total_pool * 0.75
+                        db.collection('rounds').document(round_id).update({
+                            'status': 'playing',
+                            'derash': derash,
+                            'game_started_at': now,
+                            'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
+                        })
+                        break
+                    else:
+                        # No players joined — cancel
+                        db.collection('rounds').document(round_id).update({
+                            'status': 'completed',
+                            'winners': [],
+                            'winner_name': 'No players',
+                            'prize_per_winner': 0,
+                            'admin_profit': 0,
+                            'payout_processed': True,
+                            'completed_at': datetime.now(tz=timezone.utc),
+                        })
+                        return
 
             await asyncio.sleep(1)
 
-        # Now call numbers every 4 seconds
+        # Now call numbers every 5 seconds
         called = []
         while True:
             round_doc = db.collection('rounds').document(round_id).get()

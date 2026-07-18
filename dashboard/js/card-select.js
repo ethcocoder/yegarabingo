@@ -2,10 +2,7 @@
 async function playNow() {
     if (!currentUser) { showToast('Loading user data...'); return; }
     var pw = currentUser.play_wallet || 0;
-    if (pw < STAKE) {
-        showToast('Not enough balance! Need at least ' + STAKE + ' ETB');
-        return;
-    }
+    var hasBalance = pw >= STAKE;
 
     showLoading('Finding game...');
     try {
@@ -16,6 +13,11 @@ async function playNow() {
 
         var roundData, roundId;
         if (roundSnap.empty) {
+            if (!hasBalance) {
+                hideLoading();
+                showToast('No games available right now.');
+                return;
+            }
             var nowMs = Date.now();
             roundData = {
                 status: 'selecting',
@@ -45,6 +47,7 @@ async function playNow() {
         roundId = doc.id;
         currentRoundId = roundId;
 
+        // Already playing — check if user is a player
         if (roundData.status === 'playing') {
             if (roundData.players && roundData.players[String(currentUser.id)]) {
                 hideLoading();
@@ -54,27 +57,41 @@ async function playNow() {
                 listenToRound(roundId);
                 return;
             } else {
+                // Spectator mode for everyone (with or without balance)
                 hideLoading();
-                showToast('Round in progress! Spectator mode.');
                 isSpectator = true;
                 await navigateTo('game');
                 setupGameBoard();
                 listenToRound(roundId);
+                showToast('Round in progress — spectating...');
                 return;
             }
-        } else {
-            if (roundData.players && roundData.players[String(currentUser.id)]) {
-                hideLoading();
-                showToast('You already joined this round!');
-                await navigateTo('game');
-                await loadMyCartelas(roundData);
-                listenToRound(roundId);
-                return;
-            }
-            
-            hideLoading();
-            showCardSelection(roundId, roundData);
         }
+
+        // Round is in 'selecting' state
+        if (roundData.players && roundData.players[String(currentUser.id)]) {
+            hideLoading();
+            showToast('You already joined this round!');
+            await navigateTo('game');
+            await loadMyCartelas(roundData);
+            listenToRound(roundId);
+            return;
+        }
+
+        hideLoading();
+
+        if (!hasBalance) {
+            // No balance — spectator mode
+            isSpectator = true;
+            await navigateTo('game');
+            setupGameBoard();
+            listenToRound(roundId);
+            showToast('Spectating...');
+            return;
+        }
+
+        // Has balance — show card selection, wait for timer to hit 0
+        showCardSelection(roundId, roundData);
     } catch (err) {
         hideLoading();
         console.error('Error finding round:', err);
@@ -188,6 +205,7 @@ async function showCardSelection(roundId, roundData) {
                 } else {
                     document.getElementById('card-select-screen').classList.add('hidden');
                     stopSelectionCountdown();
+                    isSpectator = true;
                     navigateTo('game').then(function() {
                         setupGameBoard();
                         listenToRound(roundId);
@@ -228,9 +246,6 @@ function toggleCardSelection(num, cell) {
         renderCardSelectPreview(num);
     }
     updateSelectedInfo();
-    if (selectedCartelas.length > 0) {
-        setTimeout(function() { confirmSelection(); }, 300);
-    }
 }
 
 async function renderCardSelectPreview(num) {
@@ -317,7 +332,7 @@ function refreshCardSelect() {
 
 // ==================== CONFIRM SELECTION & JOIN ROUND ====================
 async function confirmSelection() {
-    if (selectedCartelas.length === 0) { showToast('Select at least one card!'); return; }
+    if (selectedCartelas.length === 0) return;
     isSpectator = false;
     showLoading('Joining round...');
 

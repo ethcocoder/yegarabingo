@@ -108,6 +108,10 @@ function startSelectionCountdown(deadlineMs) {
         }
         if (remaining <= 0) {
             stopSelectionCountdown();
+            // Auto-join when timer hits 0 (user has selected cards during countdown)
+            if (selectedCartelas.length > 0 && typeof confirmSelection === 'function') {
+                confirmSelection();
+            }
         }
     }, 200);
 }
@@ -319,7 +323,7 @@ function showNumberAnnouncement(num) {
     setTimeout(function() {
         if (na) na.classList.add('hidden');
         if (nw) nw.classList.remove('hidden');
-    }, 3500);
+    }, 4500);
 }
 
 // ==================== BINGO CHECK ====================
@@ -342,12 +346,15 @@ async function checkMyBingo() {
                             if (currentWinners.includes(uidStr)) return;
 
                             var newWinners = currentWinners.concat([uidStr]);
+                            var playerCount = rd.player_count || 1;
+                            var prizePerWinner = Math.round((playerCount * STAKE * 0.75) / newWinners.length);
                             
                             txn.update(roundRef, {
                                 status: 'completed',
                                 winners: newWinners,
                                 winner_name: currentUser.first_name || 'Player',
                                 winning_cartela: parseInt(cartelaNum),
+                                prize_per_winner: prizePerWinner,
                                 completed_at: firebase.firestore.FieldValue.serverTimestamp()
                             });
                         });
