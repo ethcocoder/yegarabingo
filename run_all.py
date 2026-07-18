@@ -1,7 +1,7 @@
 import threading
 import asyncio
 import uvicorn
-from api.admin_api import app as api_app
+from api.admin_api import socket_app as api_app
 import logging
 
 logging.basicConfig(level=logging.INFO)

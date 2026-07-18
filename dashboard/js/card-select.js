@@ -306,10 +306,31 @@ async function renderCardSelectPreview(num) {
         } else {
             if (grid) grid.innerHTML = '<div class="col-span-5 text-center text-xs py-2 text-red-400 font-normal">Card numbers not found</div>';
         }
-    } catch(err) {
-        console.error(err);
-        if (grid) grid.innerHTML = '<div class="col-span-5 text-center text-xs py-2 text-red-500 font-normal">Error loading card</div>';
+    } catch (err) {
+        console.error('Error loading cartelas:', err);
+        if (grid) grid.innerHTML = '<div class="col-span-8 text-center py-8"><p class="text-red-400 text-sm">Error: ' + err.message + '</p></div>';
     }
+
+    // Socket.IO dedicated cartela pool listener for faster updates
+    if (window._bingoSocket) {
+        window._bingoSocket.emit('subscribe', { collection: 'rounds', doc_id: roundId });
+        window._bingoSocket.on('cartela_pool', function(msg) {
+            if (msg.round_id !== roundId) return;
+            var nowTaken = new Set(msg.taken_cartelas || []);
+            if (grid) {
+                grid.querySelectorAll('.card-tile').forEach(function(cell) {
+                    var n = parseInt(cell.dataset.num);
+                    if (nowTaken.has(n) && !selectedCartelas.includes(n)) {
+                        cell.className = 'card-tile taken';
+                        cell.onclick = null;
+                    }
+                });
+            }
+            var pc = document.getElementById('cs-player-count');
+            if (pc) pc.textContent = msg.player_count || 0;
+        });
+    }
+}
 }
 
 function updateSelectedInfo() {
@@ -333,6 +354,11 @@ function cancelCardSelect() {
     var pc = document.getElementById('cs-preview-container');
     if (pc) pc.classList.add('hidden');
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+    // Unsubscribe from Socket.IO rooms
+    if (window._bingoSocket && currentRoundId) {
+        window._bingoSocket.emit('unsubscribe', { collection: 'rounds', doc_id: currentRoundId });
+        window._bingoSocket.off('cartela_pool');
+    }
     var cs = document.getElementById('card-select-screen');
     if (cs) cs.classList.add('hidden');
 }

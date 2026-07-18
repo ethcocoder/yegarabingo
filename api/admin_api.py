@@ -1,7 +1,8 @@
 import os
 import random
 import asyncio
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query as FastAPIQuery
+import socketio
+from fastapi import FastAPI, HTTPException, Query as FastAPIQuery
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
@@ -18,7 +19,13 @@ from datetime import datetime, timedelta, timezone
 from telegram import Bot
 # Firebase replaced by SQLAlchemy emulator (firestore_db.py)
 
+# ─── Socket.IO Server ───
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+
 app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
+
+# Mount Socket.IO on the FastAPI app
+socket_app = socketio.ASGIApp(sio, app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -306,6 +313,9 @@ async def join_round(round_id: str, req: JoinRoundRequest):
     )
     if 'error' in result:
         raise HTTPException(status_code=400, detail=result['error'])
+    # Broadcast real-time cartela pool update
+    await broadcast_cartela_pool(round_id)
+    await broadcast_event('rounds', round_id)
     return result
 
 
@@ -743,7 +753,7 @@ async def db_get_doc(collection: str, doc_id: str):
 @app.post("/api/db/{collection}/{doc_id}")
 async def db_set_doc(collection: str, doc_id: str, req: DocSetRequest):
     db.collection(collection).document(doc_id).set(req.data, merge=req.merge)
-    await ws_manager.broadcast_event(collection, doc_id)
+    await broadcast_event(collection, doc_id)
     return {"ok": True}
 
 
@@ -753,7 +763,7 @@ async def db_update_doc(collection: str, doc_id: str, req: DocUpdateRequest):
         db.collection(collection).document(doc_id).update(req.data)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    await ws_manager.broadcast_event(collection, doc_id)
+    await broadcast_event(collection, doc_id)
     return {"ok": True}
 
 
@@ -792,102 +802,74 @@ async def db_add_doc(collection: str, req: DocSetRequest):
     return {"id": ref.id}
 
 
-# ─── WebSocket Manager ───
-class ConnectionManager:
-    def __init__(self):
-        # Each connection: {ws, collection, doc_id (or None for collection watch)}
-        self.connections: list = []
+# ─── Socket.IO Events ───
+@sio.event
+async def connect(sid, environ):
+    """Client connected."""
+    pass
 
-    async def connect(self, ws: WebSocket, collection: str, doc_id: Optional[str]):
-        await ws.accept()
-        self.connections.append({"ws": ws, "collection": collection, "doc_id": doc_id})
+@sio.event
+async def disconnect(sid):
+    """Client disconnected."""
+    pass
 
-    def disconnect(self, ws: WebSocket):
-        self.connections = [c for c in self.connections if c["ws"] is not ws]
+@sio.event
+async def subscribe(sid, data):
+    """Client subscribes to a collection/doc for real-time updates."""
+    collection = data.get('collection')
+    doc_id = data.get('doc_id')
+    room = f"{collection}:{doc_id}" if doc_id else collection
+    await sio.enter_room(sid, room)
 
-    async def broadcast_event(self, collection: str, doc_id: str):
-        """Send updated snapshot to any subscriber watching this collection/doc."""
-        dead = []
-        for conn in self.connections:
-            if conn["collection"] != collection:
-                continue
-            try:
-                if conn["doc_id"]:
-                    if conn["doc_id"] != doc_id:
-                        continue
-                    snap = db.collection(collection).document(doc_id).get()
-                    payload = {
-                        "type": "snapshot",
-                        "collection": collection,
-                        "id": doc_id,
-                        "data": snap.to_dict() if snap.exists else None,
-                        "exists": snap.exists
-                    }
-                else:
-                    # Query snapshot for whole collection
-                    docs = db.collection(collection).get()
-                    payload = {
-                        "type": "query_snapshot",
-                        "collection": collection,
-                        "docs": [{"id": d.id, "data": d.to_dict()} for d in docs]
-                    }
-                await conn["ws"].send_text(json.dumps(payload))
-            except Exception:
-                dead.append(conn["ws"])
-        for ws in dead:
-            self.disconnect(ws)
+@sio.event
+async def unsubscribe(sid, data):
+    """Client unsubscribes from a collection/doc."""
+    collection = data.get('collection')
+    doc_id = data.get('doc_id')
+    room = f"{collection}:{doc_id}" if doc_id else collection
+    await sio.leave_room(sid, room)
 
-ws_manager = ConnectionManager()
+async def broadcast_event(collection: str, doc_id: str):
+    """Emit updated snapshot to all subscribers of this collection/doc."""
+    room_exact = f"{collection}:{doc_id}"
+    room_collection = collection
 
+    # Send exact doc snapshot to subscribers of this specific doc
+    snap = db.collection(collection).document(doc_id).get()
+    payload = {
+        "type": "snapshot",
+        "collection": collection,
+        "id": doc_id,
+        "data": snap.to_dict() if snap.exists else None,
+        "exists": snap.exists
+    }
+    await sio.emit('snapshot', payload, room=room_exact)
 
-@app.websocket("/api/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """Client sends: {collection, doc_id?}  then receives live updates."""
-    await websocket.accept()
-    sub = None
-    try:
-        # First message = subscription request
-        raw = await websocket.receive_text()
-        msg = json.loads(raw)
-        collection = msg.get("collection")
-        doc_id = msg.get("doc_id")
-        if not collection:
-            await websocket.close(code=1003)
-            return
-        sub = {"ws": websocket, "collection": collection, "doc_id": doc_id}
-        ws_manager.connections.append(sub)
-        # Send initial snapshot
-        if doc_id:
-            snap = db.collection(collection).document(doc_id).get()
-            payload = {
-                "type": "snapshot",
-                "collection": collection,
-                "id": doc_id,
-                "data": snap.to_dict() if snap.exists else None,
-                "exists": snap.exists
-            }
-            await websocket.send_text(json.dumps(payload))
-        else:
-            docs = db.collection(collection).get()
-            payload = {
-                "type": "query_snapshot",
-                "collection": collection,
-                "docs": [{"id": d.id, "data": d.to_dict()} for d in docs]
-            }
-            await websocket.send_text(json.dumps(payload))
-        # Keep alive and handle client disconnects
-        while True:
-            await websocket.receive_text()  # ping or ignored
-    except WebSocketDisconnect:
-        pass
-    finally:
-        if sub:
-            ws_manager.connections = [c for c in ws_manager.connections if c["ws"] is not websocket]
+    # Send query snapshot to subscribers of the whole collection
+    docs = db.collection(collection).get()
+    query_payload = {
+        "type": "query_snapshot",
+        "collection": collection,
+        "docs": [{"id": d.id, "data": d.to_dict()} for d in docs]
+    }
+    await sio.emit('query_snapshot', query_payload, room=room_collection)
+
+async def broadcast_cartela_pool(round_id: str):
+    """Emit real-time cartela pool update to all clients watching this round."""
+    round_snap = db.collection('rounds').document(round_id).get()
+    if round_snap.exists:
+        rd = round_snap.to_dict()
+        await sio.emit('cartela_pool', {
+            "type": "cartela_pool",
+            "round_id": round_id,
+            "taken_cartelas": rd.get('taken_cartelas', []),
+            "player_count": rd.get('player_count', 0),
+        }, room=f"round:{round_id}")
 
 
 # ─── Background event broadcaster ───
 async def _event_broadcast_loop():
-    """Poll system_events table and push WebSocket updates to subscribed clients."""
+    """Poll system_events table and push Socket.IO updates to subscribed clients."""
     last_id = ""
     while True:
         try:
@@ -898,7 +880,7 @@ async def _event_broadcast_loop():
             events = events.order_by(SystemEvent.created_at).limit(50).all()
             for ev in events:
                 last_id = ev.id
-                await ws_manager.broadcast_event(ev.collection, ev.doc_id)
+                await broadcast_event(ev.collection, ev.doc_id)
             sess.close()
         except Exception as e:
             pass

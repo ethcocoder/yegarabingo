@@ -495,6 +495,11 @@ function leaveGame() {
     isSpectator = false;
     listenerReady = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+    // Unsubscribe from Socket.IO rooms
+    if (window._bingoSocket && currentRoundId) {
+        window._bingoSocket.emit('unsubscribe', { collection: 'rounds', doc_id: currentRoundId });
+        window._bingoSocket.off('cartela_pool');
+    }
     try { stopGameCountdown(); } catch(e) {}
     try { stopSelectionCountdown(); } catch(e) {}
     if (winCountdownInterval) { clearInterval(winCountdownInterval); winCountdownInterval = null; }

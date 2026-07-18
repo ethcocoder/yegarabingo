@@ -1,6 +1,6 @@
 // ============================================================
 // Yegara Bingo – Client-Side Firestore Emulator
-// Replaces the Google Firebase SDK with REST + WebSocket calls
+// Replaces the Google Firebase SDK with REST + Socket.IO calls
 // to our FastAPI backend (firestore_db / admin_api.py).
 // All existing firebase.js consumers remain unchanged.
 // ============================================================
@@ -17,7 +17,35 @@
         return window.location.origin;
     })();
 
-    const WS_BASE = API_BASE.replace(/^http/, 'ws');
+    // ── Socket.IO Connection ──────────────────────────────────
+    const socket = io(API_BASE, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: Infinity,
+    });
+
+    socket.on('connect', function() {
+        console.log('[Yegara Bingo] Socket.IO connected:', socket.id);
+    });
+
+    socket.on('disconnect', function() {
+        console.log('[Yegara Bingo] Socket.IO disconnected');
+    });
+
+    socket.on('reconnect', function() {
+        console.log('[Yegara Bingo] Socket.IO reconnected');
+    });
+
+    // Track active subscriptions for reconnection
+    var _activeSubscriptions = [];
+
+    socket.on('connect', function() {
+        // Re-subscribe to all active subscriptions on reconnect
+        _activeSubscriptions.forEach(function(sub) {
+            socket.emit('subscribe', sub);
+        });
+    });
 
     // ── Helpers ──────────────────────────────────────────────
     function apiFetch(method, path, body) {
@@ -98,28 +126,34 @@
         }
 
         onSnapshot(onNext, onError) {
-            var ws;
-            var stopped = false;
-            var connect = function() {
-                if (stopped) return;
-                ws = new WebSocket(WS_BASE + '/api/ws');
-                ws.onopen = function() {
-                    ws.send(JSON.stringify({ collection: self._collection, doc_id: self.id }));
-                };
-                ws.onmessage = function(ev) {
-                    var msg = JSON.parse(ev.data);
-                    if (msg.type === 'snapshot') {
-                        var snap = new MockDocumentSnapshot(msg.id, msg.data, msg.exists, self);
-                        onNext(snap);
-                    }
-                };
-                ws.onerror = function(e) { if (!stopped && onError) onError(e); };
-                ws.onclose = function() { if (!stopped) setTimeout(connect, 2000); };
-            };
             var self = this;
-            connect();
-            this.get().then(onNext).catch(function(e) { if (!stopped && onError) onError(e); });
-            return function() { stopped = true; if (ws) ws.close(); };
+            var sub = { collection: self._collection, doc_id: self.id };
+            var eventName = 'snapshot';
+
+            // Subscribe to Socket.IO room
+            _activeSubscriptions.push(sub);
+            socket.emit('subscribe', sub);
+
+            // Listen for updates
+            function handler(msg) {
+                if (msg.collection === self._collection && msg.id === self.id) {
+                    var snap = new MockDocumentSnapshot(msg.id, msg.data, msg.exists, self);
+                    onNext(snap);
+                }
+            }
+            socket.on(eventName, handler);
+
+            // Send initial snapshot via REST
+            this.get().then(onNext).catch(function(e) { if (onError) onError(e); });
+
+            // Return unsubscribe function
+            return function() {
+                socket.off(eventName, handler);
+                socket.emit('unsubscribe', { collection: self._collection, doc_id: self.id });
+                _activeSubscriptions = _activeSubscriptions.filter(function(s) {
+                    return !(s.collection === self._collection && s.doc_id === self.id);
+                });
+            };
         }
 
         collection(sub) {
@@ -167,30 +201,34 @@
         }
 
         onSnapshot(onNext, onError) {
-            var ws;
-            var stopped = false;
             var self = this;
-            var connect = function() {
-                if (stopped) return;
-                ws = new WebSocket(WS_BASE + '/api/ws');
-                ws.onopen = function() {
-                    ws.send(JSON.stringify({ collection: self._collection }));
-                };
-                ws.onmessage = function(ev) {
-                    var msg = JSON.parse(ev.data);
-                    if (msg.type === 'query_snapshot') {
-                        var snap = new MockQuerySnapshot(
-                            msg.docs.map(function(d) { return new MockDocumentSnapshot(d.id, d.data, true, new MockDocumentReference(self._collection, d.id)); })
-                        );
-                        onNext(snap);
-                    }
-                };
-                ws.onerror = function(e) { if (!stopped && onError) onError(e); };
-                ws.onclose = function() { if (!stopped) setTimeout(connect, 2000); };
+            var subKey = this._collection + ':' + JSON.stringify(this._filters);
+
+            // Subscribe to collection room
+            var subData = { collection: this._collection };
+            socket.emit('subscribe', subData);
+            _activeSubscriptions.push(subData);
+
+            function handler(msg) {
+                if (msg.type === 'query_snapshot' && msg.collection === self._collection) {
+                    var snap = new MockQuerySnapshot(
+                        msg.docs.map(function(d) { return new MockDocumentSnapshot(d.id, d.data, true, new MockDocumentReference(self._collection, d.id)); })
+                    );
+                    onNext(snap);
+                }
+            }
+            socket.on('query_snapshot', handler);
+
+            // Send initial snapshot via REST
+            this.get().then(onNext).catch(function(e) { if (onError) onError(e); });
+
+            return function() {
+                socket.off('query_snapshot', handler);
+                socket.emit('unsubscribe', { collection: self._collection });
+                _activeSubscriptions = _activeSubscriptions.filter(function(s) {
+                    return s.collection !== self._collection;
+                });
             };
-            connect();
-            this.get().then(onNext).catch(function(e) { if (!stopped && onError) onError(e); });
-            return function() { stopped = true; if (ws) ws.close(); };
         }
     }
 
@@ -286,5 +324,8 @@
     window.db = _firestore;
     window.auth = _auth;
 
-    console.log('[Yegara Bingo] SQL emulator bridge loaded. API:', API_BASE);
+    // Expose socket for cartela pool real-time updates
+    window._bingoSocket = socket;
+
+    console.log('[Yegara Bingo] Socket.IO bridge loaded. API:', API_BASE);
 })();
