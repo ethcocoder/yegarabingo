@@ -280,30 +280,27 @@ async def _show_deposit_flow(query, context):
     return DEPOSIT_TELEBIRR_NAME
 
 
+async def deposit_telebirr_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['telebirr_name'] = update.message.text.strip()
+    await update.effective_message.reply_text("💰 Enter deposit amount (ETB):")
+    return DEPOSIT_AMOUNT
+
+
 async def deposit_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = float(update.message.text.strip())
         if amount < 10:
-            await update.effective_message.reply_text("⚠️ Minimum deposit is 10 ETB. Please enter again.")
+            await update.effective_message.reply_text("⚠️ Minimum deposit is 10 ETB. Enter again:")
             return DEPOSIT_AMOUNT
     except ValueError:
-        await update.effective_message.reply_text("❌ Invalid amount. Please enter a number.")
+        await update.effective_message.reply_text("❌ Enter a valid number:")
         return DEPOSIT_AMOUNT
 
     context.user_data['deposit_amount'] = amount
-    await update.effective_message.reply_text(
-        "💰 Please enter your TeleBirr name\n"
-        "(The name registered on your TeleBirr account):"
-    )
-    return DEPOSIT_TELEBIRR_NAME
-
-
-async def deposit_telebirr_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['telebirr_name'] = update.message.text.strip()
     uid = update.effective_user.id
     await user_manager.set_awaiting_screenshot(uid, True)
     await update.effective_message.reply_text(
-        f"📸 Please send your TeleBirr payment screenshot.\n\n"
+        f"📸 Send your TeleBirr payment screenshot.\n\n"
         f"Send to *{TELEBIRR_NUMBER}* first, then send the confirmation screenshot here.",
         parse_mode='Markdown',
     )
@@ -346,79 +343,34 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await user_manager.set_awaiting_screenshot(uid, False)
         return ConversationHandler.END
 
-    # OCR extraction
+    # OCR extraction (for admin verification)
     extracted = await asyncio.to_thread(_extract_text_from_image, bytes(image_bytes))
-    ocr_amount = extracted.get('amount') or 0
 
-    # Store screenshot data in context for confirmation step
-    context.user_data['screenshot_data'] = {
-        'image_bytes': bytes(image_bytes),
-        'image_hash': image_hash,
-        'image_file_id': photo[-1].file_id,
-        'extracted': extracted,
-        'ocr_amount': ocr_amount,
-    }
-
-    # Ask user to confirm the amount
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Yes, correct", callback_data="deposit_confirm_yes"),
-         InlineKeyboardButton("❌ No, wrong", callback_data="deposit_confirm_no")],
-    ])
-
-    if ocr_amount > 0:
-        msg = f"💵 We detected *{ocr_amount} ETB* on your screenshot.\n\nIs this correct?"
-    else:
-        msg = "❓ We couldn't detect the amount on your screenshot.\n\nDo you want to try again with another screenshot?"
-
-    await update.effective_message.reply_text(msg, reply_markup=kb, parse_mode='Markdown')
-    return AWAIT_PHOTO
-
-
-async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    uid = query.from_user.id
-
-    if query.data == "deposit_confirm_no":
-        await query.edit_message_text("📸 Please send the correct screenshot.")
-        return AWAIT_PHOTO
-
-    # YES — submit the deposit
-    screenshot_data = context.user_data.get('screenshot_data')
-    if not screenshot_data:
-        await query.edit_message_text("❌ Session expired. Please start over with /deposit")
-        await user_manager.set_awaiting_screenshot(uid, False)
-        return ConversationHandler.END
-
-    extracted = screenshot_data['extracted']
-    image_hash = screenshot_data['image_hash']
-    ocr_amount = screenshot_data['ocr_amount']
-    image_file_id = screenshot_data['image_file_id']
-
-    u = await user_manager.get_user(uid)
+    # Use the amount user entered, not OCR amount
+    amount = context.user_data.get('deposit_amount', 0)
+    telebirr_name = context.user_data.get('telebirr_name', '')
     txn_id = extracted.get('transaction_ref') or f"IMG-{image_hash[:12]}"
     sender_name = extracted.get('receiver_name') or extracted.get('sender_name') or (u.get('first_name', 'Unknown') if u else 'Unknown')
-    amount = ocr_amount
 
     # Check duplicate transaction ID
     if txn_id and not txn_id.startswith("IMG-"):
         dup = db.collection('deposits').where('transactionId', '==', txn_id).limit(1).get()
         if dup:
-            await query.edit_message_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
+            await update.effective_message.reply_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
             await user_manager.set_awaiting_screenshot(uid, False)
             return ConversationHandler.END
 
     deposit_data = {
         'userId': str(uid),
-        'username': query.from_user.username or '',
-        'firstName': query.from_user.first_name or '',
-        'telebirrName': context.user_data.get('telebirr_name', ''),
+        'username': update.message.from_user.username or '',
+        'firstName': update.message.from_user.first_name or '',
+        'telebirrName': telebirr_name,
         'amount': amount,
         'transactionId': txn_id,
         'senderName': sender_name,
         'status': 'pending',
         'imageHash': image_hash,
-        'imageFileId': image_file_id,
+        'imageFileId': photo[-1].file_id,
         'ocr': {
             'status': extracted.get('status', 'unknown'),
             'amount': extracted.get('amount', 0),
@@ -439,22 +391,19 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     deposit_id = deposit_ref.id
 
     await user_manager.set_awaiting_screenshot(uid, False)
-    context.user_data.pop('screenshot_data', None)
+    context.user_data.pop('deposit_amount', None)
+    context.user_data.pop('telebirr_name', None)
 
-    ocr = deposit_data['ocr']
-    status_icon = "✅" if ocr['status'] == 'success' else "❌" if ocr['status'] == 'failed' else "❓"
-    date_text = ocr['transactionDate'] or "not detected"
     ref_text = txn_id if not txn_id.startswith("IMG-") else "not detected"
 
-    await query.edit_message_text(
+    await update.effective_message.reply_text(
         f"✅ Deposit request submitted!\n\n"
         f"💵 Amount: {amount} ETB\n"
-        f"{status_icon} Status: {ocr['status']}\n"
-        f"👤 Receiver: {sender_name}\n"
+        f"👤 Name: {telebirr_name}\n"
         f"🔖 Reference: {ref_text}\n"
-        f"📅 Date: {date_text}\n"
-        f"🆔 `{deposit_id}`",
-        parse_mode='Markdown',
+        f"🆔 `{deposit_id}`\n\n"
+        f"Admin will review and approve shortly.",
+        parse_mode='Markdown', reply_markup=MAIN_KEYBOARD,
     )
 
     await _notify_admin_deposit(deposit_data, deposit_id, context)
@@ -1213,6 +1162,7 @@ def main():
         per_message=False,
         states={
             DEPOSIT_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_telebirr_name)],
+            DEPOSIT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_amount)],
             AWAIT_PHOTO: [MessageHandler(filters.PHOTO, handle_screenshot)],
         },
         fallbacks=[
@@ -1281,9 +1231,6 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_reject_deposit, pattern="^reject_(?!withdraw_)"))
     app.add_handler(CallbackQueryHandler(admin_approve_withdraw, pattern="^approve_withdraw_"))
     app.add_handler(CallbackQueryHandler(admin_reject_withdraw, pattern="^reject_withdraw_"))
-
-    # ─── Deposit confirm callbacks ───
-    app.add_handler(CallbackQueryHandler(confirm_deposit, pattern="^deposit_confirm_"))
 
     logger.info("🎯 Yegara Bingo Bot starting...")
 
