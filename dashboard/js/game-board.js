@@ -33,9 +33,7 @@ function setupGameBoard() {
 
     // Reset number announce
     var numAnnounce = document.getElementById('number-announce');
-    var numWaiting = document.getElementById('number-waiting');
     if (numAnnounce) numAnnounce.classList.add('hidden');
-    if (numWaiting) numWaiting.classList.remove('hidden');
 
     if (wrap1) {
         if (nums.length > 0) {
@@ -315,14 +313,11 @@ function showNumberAnnouncement(num) {
     var al = document.getElementById('announce-letter');
     var an = document.getElementById('announce-number');
     var na = document.getElementById('number-announce');
-    var nw = document.getElementById('number-waiting');
     if (al) { al.textContent = letter; al.style.color = color; }
     if (an) an.textContent = num;
     if (na) na.classList.remove('hidden');
-    if (nw) nw.classList.add('hidden');
     setTimeout(function() {
         if (na) na.classList.add('hidden');
-        if (nw) nw.classList.remove('hidden');
     }, 4500);
 }
 
@@ -387,9 +382,7 @@ function handleRoundCompleted(data) {
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     stopGameCountdown();
     var na = document.getElementById('number-announce');
-    var nw = document.getElementById('number-waiting');
     if (na) na.classList.add('hidden');
-    if (nw) nw.classList.remove('hidden');
     listenerReady = false;
     if (!currentUser) return;
     var uidStr = String(currentUser.id);

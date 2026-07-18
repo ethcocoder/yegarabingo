@@ -15,7 +15,10 @@ async function playNow() {
         if (roundSnap.empty) {
             if (!hasBalance) {
                 hideLoading();
-                showToast('No games available right now.');
+                isSpectator = true;
+                await navigateTo('game');
+                setupGameBoard();
+                showToast('No active game right now. Waiting for next round...');
                 return;
             }
             var nowMs = Date.now();
@@ -347,7 +350,7 @@ async function confirmSelection() {
             var userSnap = await txn.get(userRef);
             if (!roundSnap.exists) throw new Error('Round not found.');
             var rd = roundSnap.data();
-            if (rd.status !== 'selecting' && rd.status !== 'playing') throw new Error('Round already finished or cancelled.');
+            if (rd.status !== 'selecting') throw new Error('Round already started or finished.');
             if (rd.players && rd.players[uidStr]) throw new Error('Already joined.');
             var pw = userSnap.data().play_wallet || 0;
             if (pw < totalCost) throw new Error('Not enough balance.');

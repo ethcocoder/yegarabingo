@@ -743,6 +743,7 @@ async def db_get_doc(collection: str, doc_id: str):
 @app.post("/api/db/{collection}/{doc_id}")
 async def db_set_doc(collection: str, doc_id: str, req: DocSetRequest):
     db.collection(collection).document(doc_id).set(req.data, merge=req.merge)
+    await ws_manager.broadcast_event(collection, doc_id)
     return {"ok": True}
 
 
@@ -752,6 +753,7 @@ async def db_update_doc(collection: str, doc_id: str, req: DocUpdateRequest):
         db.collection(collection).document(doc_id).update(req.data)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    await ws_manager.broadcast_event(collection, doc_id)
     return {"ok": True}
 
 

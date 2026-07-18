@@ -372,8 +372,8 @@ class RoundEngine:
             return {'error': 'Round not found'}
 
         data = round_doc.to_dict()
-        if data['status'] != 'playing':
-            return {'error': 'Round not in playing state'}
+        if data['status'] not in ('playing', 'completed'):
+            return {'error': 'Round not in a valid state for ending'}
 
         player_count = data.get('player_count', 0)
         total_pool = player_count * STAKE
