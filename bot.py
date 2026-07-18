@@ -944,7 +944,13 @@ def _extract_text_from_image(image_bytes: bytes) -> dict:
         m = re.search(pattern, raw_text, re.IGNORECASE)
         if m:
             try:
-                result["amount"] = abs(float(m.group(1).replace(',', '')))
+                raw_num = m.group(1)
+                # Handle comma as decimal separator (Ethiopian: 550,00 = 550.00)
+                if re.search(r',\d{1,2}$', raw_num):
+                    raw_num = raw_num.replace(',', '.')
+                else:
+                    raw_num = raw_num.replace(',', '')
+                result["amount"] = abs(float(raw_num))
                 break
             except ValueError:
                 continue
