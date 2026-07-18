@@ -37,7 +37,7 @@ async function submitWithdrawal() {
         });
         // Notify admin bot
         try {
-            const apiBase = window.API_BASE || window.location.origin;
+            const apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
             await fetch(apiBase + '/api/admin/withdrawals/notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

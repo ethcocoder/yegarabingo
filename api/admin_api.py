@@ -920,6 +920,10 @@ if os.path.isdir(os.path.join(DASHBOARD_DIR, "css")):
     app.mount("/css", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "css")), name="css")
 if os.path.isdir(os.path.join(DASHBOARD_DIR, "js")):
     app.mount("/js", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "js")), name="js")
+if os.path.isdir(os.path.join(DASHBOARD_DIR, "pages")):
+    app.mount("/pages", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "pages")), name="pages")
+if os.path.isdir(os.path.join(DASHBOARD_DIR, "components")):
+    app.mount("/components", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "components")), name="components")
 if os.path.isdir(os.path.join(DASHBOARD_DIR, "public", "audio")):
     app.mount("/audio", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "public", "audio")), name="audio")
 

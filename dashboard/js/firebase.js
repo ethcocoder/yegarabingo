@@ -8,44 +8,61 @@
 (function () {
     // ── Detect API base URL ──────────────────────────────────
     const API_BASE = (function () {
-        if (window.API_BASE) return window.API_BASE;
-        const scripts = document.querySelectorAll('script');
-        for (const s of scripts) {
-            const m = (s.textContent || '').match(/API_BASE\s*=\s*['"]([^'"]+)['"]/);
-            if (m) return m[1];
-        }
-        return window.location.origin;
+        if (window.API_BASE && window.API_BASE !== 'null' && window.API_BASE !== 'about:blank') return window.API_BASE;
+        // Fallback: construct from protocol + host
+        try {
+            var origin = window.location.origin;
+            if (origin && origin !== 'null' && origin !== 'about:blank' && origin !== 'about:srcdoc') return origin;
+        } catch(e) {}
+        try {
+            return window.location.protocol + '//' + window.location.host;
+        } catch(e) {}
+        return '';
     })();
 
     // ── Socket.IO Connection ──────────────────────────────────
-    const socket = io(API_BASE, {
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: Infinity,
-    });
+    var socket = null;
+    try {
+        if (typeof io === 'undefined') {
+            console.warn('[Yegara Bingo] Socket.IO library not loaded (CDN failed). Real-time updates disabled.');
+        } else if (API_BASE && API_BASE !== 'null' && API_BASE !== 'about:' && API_BASE !== 'about:blank' && API_BASE !== '') {
+            socket = io(API_BASE, {
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: Infinity,
+            });
+        }
+    } catch(e) {
+        console.warn('[Yegara Bingo] Socket.IO init failed, falling back to polling:', e);
+        socket = null;
+    }
 
-    socket.on('connect', function() {
-        console.log('[Yegara Bingo] Socket.IO connected:', socket.id);
-    });
+    if (socket) {
+        socket.on('connect', function() {
+            console.log('[Yegara Bingo] Socket.IO connected:', socket.id);
+        });
 
-    socket.on('disconnect', function() {
-        console.log('[Yegara Bingo] Socket.IO disconnected');
-    });
+        socket.on('disconnect', function() {
+            console.log('[Yegara Bingo] Socket.IO disconnected');
+        });
 
-    socket.on('reconnect', function() {
-        console.log('[Yegara Bingo] Socket.IO reconnected');
-    });
+        socket.on('reconnect', function() {
+            console.log('[Yegara Bingo] Socket.IO reconnected');
+        });
+    }
 
     // Track active subscriptions for reconnection
     var _activeSubscriptions = [];
 
-    socket.on('connect', function() {
-        // Re-subscribe to all active subscriptions on reconnect
-        _activeSubscriptions.forEach(function(sub) {
-            socket.emit('subscribe', sub);
+    if (socket) {
+        socket.on('connect', function() {
+            // Re-subscribe to all active subscriptions on reconnect
+            _activeSubscriptions.forEach(function(sub) {
+                socket.emit('subscribe', sub);
+            });
         });
-    });
+    }
 
     // ── Helpers ──────────────────────────────────────────────
     function apiFetch(method, path, body) {
@@ -54,7 +71,8 @@
             headers: { 'Content-Type': 'application/json' },
         };
         if (body !== undefined) opts.body = JSON.stringify(body);
-        return fetch(API_BASE + path, opts).then(async r => {
+        const url = API_BASE ? (API_BASE + path) : path;
+        return fetch(url, opts).then(async r => {
             if (!r.ok) {
                 const txt = await r.text();
                 throw new Error(`API ${method} ${path} → ${r.status}: ${txt}`);
@@ -129,27 +147,35 @@
             var self = this;
             var sub = { collection: self._collection, doc_id: self.id };
             var eventName = 'snapshot';
+            var handler = null;
 
-            // Subscribe to Socket.IO room
+            // Subscribe to Socket.IO room (if available)
             _activeSubscriptions.push(sub);
-            socket.emit('subscribe', sub);
+            if (socket) {
+                try { socket.emit('subscribe', sub); } catch(e) {}
+            }
 
-            // Listen for updates
-            function handler(msg) {
+            // Listen for updates (if Socket.IO available)
+            function _handler(msg) {
                 if (msg.collection === self._collection && msg.id === self.id) {
                     var snap = new MockDocumentSnapshot(msg.id, msg.data, msg.exists, self);
                     onNext(snap);
                 }
             }
-            socket.on(eventName, handler);
+            handler = _handler;
+            if (socket) {
+                try { socket.on(eventName, handler); } catch(e) {}
+            }
 
             // Send initial snapshot via REST
             this.get().then(onNext).catch(function(e) { if (onError) onError(e); });
 
             // Return unsubscribe function
             return function() {
-                socket.off(eventName, handler);
-                socket.emit('unsubscribe', { collection: self._collection, doc_id: self.id });
+                if (socket) {
+                    try { socket.off(eventName, handler); } catch(e) {}
+                    try { socket.emit('unsubscribe', { collection: self._collection, doc_id: self.id }); } catch(e) {}
+                }
                 _activeSubscriptions = _activeSubscriptions.filter(function(s) {
                     return !(s.collection === self._collection && s.doc_id === self.id);
                 });
@@ -203,13 +229,16 @@
         onSnapshot(onNext, onError) {
             var self = this;
             var subKey = this._collection + ':' + JSON.stringify(this._filters);
+            var handler = null;
 
-            // Subscribe to collection room
+            // Subscribe to collection room (if Socket.IO available)
             var subData = { collection: this._collection };
-            socket.emit('subscribe', subData);
+            if (socket) {
+                try { socket.emit('subscribe', subData); } catch(e) {}
+            }
             _activeSubscriptions.push(subData);
 
-            function handler(msg) {
+            function _handler(msg) {
                 if (msg.type === 'query_snapshot' && msg.collection === self._collection) {
                     var snap = new MockQuerySnapshot(
                         msg.docs.map(function(d) { return new MockDocumentSnapshot(d.id, d.data, true, new MockDocumentReference(self._collection, d.id)); })
@@ -217,14 +246,19 @@
                     onNext(snap);
                 }
             }
-            socket.on('query_snapshot', handler);
+            handler = _handler;
+            if (socket) {
+                try { socket.on('query_snapshot', handler); } catch(e) {}
+            }
 
             // Send initial snapshot via REST
             this.get().then(onNext).catch(function(e) { if (onError) onError(e); });
 
             return function() {
-                socket.off('query_snapshot', handler);
-                socket.emit('unsubscribe', { collection: self._collection });
+                if (socket) {
+                    try { socket.off('query_snapshot', handler); } catch(e) {}
+                    try { socket.emit('unsubscribe', { collection: self._collection }); } catch(e) {}
+                }
                 _activeSubscriptions = _activeSubscriptions.filter(function(s) {
                     return s.collection !== self._collection;
                 });
@@ -327,5 +361,5 @@
     // Expose socket for cartela pool real-time updates
     window._bingoSocket = socket;
 
-    console.log('[Yegara Bingo] Socket.IO bridge loaded. API:', API_BASE);
+    console.log('[Yegara Bingo] Socket.IO bridge loaded. API:', API_BASE, '| Socket:', socket ? 'connected' : 'disabled (REST-only mode)');
 })();

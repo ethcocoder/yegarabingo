@@ -25,7 +25,8 @@ function serverNow() {
 async function syncServerTime() {
     try {
         var before = Date.now();
-        var res = await fetch((window.API_BASE || window.location.origin) + '/api/time');
+        var apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
+        var res = await fetch(apiBase + '/api/time');
         var after = Date.now();
         var data = await res.json();
         var serverMs = new Date(data.iso).getTime();
