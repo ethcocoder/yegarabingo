@@ -252,17 +252,30 @@ async def _show_deposit_flow(query, context):
     uid = query.from_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await query.edit_message_text("Please /start first.")
+        try:
+            await query.edit_message_text("Please /start first.")
+        except Exception:
+            await context.bot.send_message(chat_id=query.message.chat_id, text="Please /start first.")
         return ConversationHandler.END
     pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
-        await query.edit_message_text("⚠️ Too many pending deposits. Wait for processing.")
+        try:
+            await query.edit_message_text("⚠️ Too many pending deposits. Wait for processing.")
+        except Exception:
+            await context.bot.send_message(chat_id=query.message.chat_id, text="⚠️ Too many pending deposits. Wait for processing.")
         return ConversationHandler.END
 
-    await query.edit_message_text(
-        "💵 *Deposit via TeleBirr*\n\nHow much ETB do you want to deposit? (Minimum 10)",
-        parse_mode='Markdown',
-    )
+    try:
+        await query.edit_message_text(
+            "💵 *Deposit via TeleBirr*\n\nHow much ETB do you want to deposit? (Minimum 10)",
+            parse_mode='Markdown',
+        )
+    except Exception:
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="💵 *Deposit via TeleBirr*\n\nHow much ETB do you want to deposit? (Minimum 10)",
+            parse_mode='Markdown',
+        )
     return DEPOSIT_AMOUNT
 
 
@@ -440,13 +453,22 @@ async def _show_withdraw_flow(query, context):
     uid = query.from_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await query.edit_message_text("Please /start first.")
+        try:
+            await query.edit_message_text("Please /start first.")
+        except Exception:
+            await context.bot.send_message(chat_id=query.message.chat_id, text="Please /start first.")
         return ConversationHandler.END
     bal = u.get('balance', 0)
     if bal < MIN_WITHDRAW:
-        await query.edit_message_text(f"❌ Minimum {MIN_WITHDRAW} ETB. Balance: {bal} ETB")
+        try:
+            await query.edit_message_text(f"❌ Minimum {MIN_WITHDRAW} ETB. Balance: {bal} ETB")
+        except Exception:
+            await context.bot.send_message(chat_id=query.message.chat_id, text=f"❌ Minimum {MIN_WITHDRAW} ETB. Balance: {bal} ETB")
         return ConversationHandler.END
-    await query.edit_message_text(f"🎰 Withdraw — Balance: {bal} ETB\n\nEnter amount:")
+    try:
+        await query.edit_message_text(f"🎰 Withdraw — Balance: {bal} ETB\n\nEnter amount:")
+    except Exception:
+        await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎰 Withdraw — Balance: {bal} ETB\n\nEnter amount:")
     return WITHDRAW_AMOUNT
 
 

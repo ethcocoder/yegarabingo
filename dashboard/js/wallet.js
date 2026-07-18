@@ -25,7 +25,7 @@ async function submitWithdrawal() {
             balance: bal - amount,
             updated_at: firebase.firestore.FieldValue.serverTimestamp()
         });
-        await db.collection('withdrawals').add({
+        const withdrawRef = await db.collection('withdrawals').add({
             userId: String(currentUser.id),
             firstName: currentUser.first_name,
             username: currentUser.username,
@@ -35,6 +35,23 @@ async function submitWithdrawal() {
             status: 'pending',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        // Notify admin bot
+        try {
+            const apiBase = window.API_BASE || window.location.origin;
+            await fetch(apiBase + '/api/admin/withdrawals/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    withdrawal_id: withdrawRef.id,
+                    user_id: currentUser.id,
+                    first_name: currentUser.first_name,
+                    username: currentUser.username,
+                    amount: amount,
+                    phone: phone,
+                    telebirr_name: name
+                })
+            });
+        } catch (e) { console.warn('Admin notification failed:', e); }
         hideScreen('withdrawModal');
         showToast('Withdrawal request submitted!');
     } catch (err) { showToast('Error: ' + err.message); }

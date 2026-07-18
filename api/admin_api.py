@@ -12,7 +12,7 @@ import datetime
 from config import db, BOT_TOKEN
 from firestore_db import MockFirestoreClient, SessionLocal, SystemEvent, FieldFilter, Increment, ArrayUnion
 
-from game.round_engine import RoundEngine, STAKE, SELECTION_DURATION
+from game.round_engine import RoundEngine, STAKE
 from handlers.user_manager import UserManager
 from datetime import datetime, timedelta, timezone
 from telegram import Bot
@@ -65,9 +65,8 @@ class NotifyRequest(BaseModel):
 # Server-Side Game Loop
 # ═══════════════════════════════════════════════════════════════
 async def _game_loop(round_id: str):
-    """Background task: wait for selection deadline, then start round or restart if empty."""
+    """Background task: start round immediately when first player joins."""
     try:
-        # Wait for selection deadline to pass
         while True:
             round_doc = db.collection('rounds').document(round_id).get()
             if not round_doc.exists:
@@ -81,50 +80,49 @@ async def _game_loop(round_id: str):
             if status == 'playing':
                 break
 
-            # Check if selection_deadline has passed
-            deadline = data.get('selection_deadline')
-            if deadline:
-                if isinstance(deadline, datetime):
-                    dl_dt = deadline
-                elif isinstance(deadline, str):
+            # Start immediately when at least 1 player joins
+            player_count = data.get('player_count', 0)
+            
+            if player_count > 0:
+                now = datetime.now(tz=timezone.utc)
+                total_pool = player_count * STAKE
+                derash = total_pool * 0.75
+                
+                db.collection('rounds').document(round_id).update({
+                    'status': 'playing',
+                    'derash': derash,
+                    'game_started_at': now,
+                    'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
+                })
+                break
+            
+            # No players — auto-cancel after 2 minutes to let monitor create new round
+            created_at = data.get('created_at')
+            if created_at:
+                if isinstance(created_at, datetime):
+                    cat_dt = created_at
+                elif isinstance(created_at, str):
                     try:
-                        dl_dt = datetime.fromisoformat(deadline)
-                    except (ValueError, TypeError):
-                        dl_dt = datetime.now(tz=timezone.utc)
+                        cat_dt = datetime.fromisoformat(created_at)
+                    except:
+                        cat_dt = datetime.now(tz=timezone.utc)
                 else:
-                    dl_dt = datetime.now(tz=timezone.utc)
+                    cat_dt = datetime.now(tz=timezone.utc)
                 
-                if dl_dt.tzinfo is None:
-                    dl_dt = dl_dt.replace(tzinfo=timezone.utc)
+                if cat_dt.tzinfo is None:
+                    cat_dt = cat_dt.replace(tzinfo=timezone.utc)
                 
-                if datetime.now(tz=timezone.utc) >= dl_dt:
-                    player_count = data.get('player_count', 0)
-                    
-                    if player_count == 0:
-                        # Timer expired, no players — cancel and let monitor create new round
-                        db.collection('rounds').document(round_id).update({
-                            'status': 'completed',
-                            'winners': [],
-                            'winner_name': 'No players',
-                            'prize_per_winner': 0,
-                            'admin_profit': 0,
-                            'payout_processed': True,
-                            'completed_at': datetime.now(tz=timezone.utc),
-                        })
-                        return
-                    
-                    # Timer expired, has players — start the round
-                    now = datetime.now(tz=timezone.utc)
-                    total_pool = player_count * STAKE
-                    derash = total_pool * 0.75
-                    
+                if datetime.now(tz=timezone.utc) - cat_dt > timedelta(minutes=2):
                     db.collection('rounds').document(round_id).update({
-                        'status': 'playing',
-                        'derash': derash,
-                        'game_started_at': now,
-                        'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
+                        'status': 'completed',
+                        'winners': [],
+                        'winner_name': 'No players',
+                        'prize_per_winner': 0,
+                        'admin_profit': 0,
+                        'payout_processed': True,
+                        'completed_at': datetime.now(tz=timezone.utc),
                     })
-                    break
+                    return
 
             await asyncio.sleep(1)
 
@@ -537,6 +535,57 @@ async def admin_reject_deposit(deposit_id: str, req: DepositActionRequest):
     except Exception:
         pass
     return {"ok": True}
+
+
+class WithdrawalNotifyRequest(BaseModel):
+    withdrawal_id: str
+    user_id: int
+    first_name: str
+    username: str
+    amount: int
+    phone: str
+    telebirr_name: str
+
+
+@app.post("/api/admin/withdrawals/notify")
+async def notify_admin_withdrawal(req: WithdrawalNotifyRequest):
+    """Send Telegram notification to admin when withdrawal is created from web dashboard."""
+    try:
+        from config import ADMIN_BOT_TOKEN, ADMIN_CHAT_ID
+        if ADMIN_BOT_TOKEN and ADMIN_CHAT_ID:
+            import httpx
+            text = (
+                f"🎰 *New Withdrawal Request*\n\n"
+                f"👤 User: {req.first_name} (@{req.username})\n"
+                f"🆔 ID: `{req.user_id}`\n"
+                f"💰 Amount: *{req.amount} ETB*\n"
+                f"📱 Phone: {req.phone}\n"
+                f"📛 TeleBirr: {req.telebirr_name}\n"
+                f"📋 ID: `{req.withdrawal_id}`"
+            )
+            keyboard = {
+                "inline_keyboard": [
+                    [
+                        {"text": "✅ Approve", "callback_data": f"approve_withdraw_{req.withdrawal_id}"},
+                        {"text": "❌ Reject", "callback_data": f"reject_withdraw_{req.withdrawal_id}"}
+                    ]
+                ]
+            }
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage",
+                    json={
+                        "chat_id": int(ADMIN_CHAT_ID),
+                        "text": text,
+                        "parse_mode": "Markdown",
+                        "reply_markup": keyboard
+                    },
+                    timeout=10
+                )
+        return {"ok": True}
+    except Exception as e:
+        print(f"[NotifyAdmin] Error: {e}")
+        return {"ok": True}
 
 
 @app.get("/api/admin/withdrawals")

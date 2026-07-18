@@ -27,32 +27,42 @@ function updateAllDisplays() {
 }
 
 // ==================== NAVIGATION ====================
+var isNavigating = false;
+
 async function navigateTo(screen) {
-    if (currentScreen === 'game' && screen !== 'game') {
-        try { leaveGame(); } catch(e) { console.warn('leaveGame error:', e); }
-    }
+    if (isNavigating) return;
+    if (!appReady) return;
+    isNavigating = true;
     
-    if (window.PageLoader) {
-        await PageLoader.loadOnDemand(screen);
-    }
-    
-    document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
-    var target = document.getElementById('screen-' + screen);
-    if (target) { 
-        target.classList.remove('screen-transition');
-        void target.offsetWidth;
-        target.classList.add('active'); 
-        target.classList.add('screen-transition'); 
-    }
-    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
-    var navBtn = document.querySelector('.nav-item[data-screen="' + screen + '"]');
-    if (navBtn) navBtn.classList.add('active');
-    currentScreen = screen;
-    var bottomNav = document.getElementById('bottom-nav');
-    if (bottomNav) bottomNav.style.display = (screen === 'game') ? 'none' : '';
-    if (screen === 'history' && currentUser) loadHistory();
-    
-    if (currentUser && typeof updateAllDisplays === 'function') {
-        updateAllDisplays();
+    try {
+        if (currentScreen === 'game' && screen !== 'game') {
+            try { leaveGame(); } catch(e) { console.warn('leaveGame error:', e); }
+        }
+        
+        if (window.PageLoader) {
+            await PageLoader.loadOnDemand(screen);
+        }
+        
+        document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+        var target = document.getElementById('screen-' + screen);
+        if (target) { 
+            target.classList.remove('screen-transition');
+            void target.offsetWidth;
+            target.classList.add('active'); 
+            target.classList.add('screen-transition'); 
+        }
+        document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+        var navBtn = document.querySelector('.nav-item[data-screen="' + screen + '"]');
+        if (navBtn) navBtn.classList.add('active');
+        currentScreen = screen;
+        var bottomNav = document.getElementById('bottom-nav');
+        if (bottomNav) bottomNav.style.display = (screen === 'game') ? 'none' : '';
+        if (screen === 'history' && currentUser) loadHistory();
+        
+        if (currentUser && typeof updateAllDisplays === 'function') {
+            updateAllDisplays();
+        }
+    } finally {
+        isNavigating = false;
     }
 }

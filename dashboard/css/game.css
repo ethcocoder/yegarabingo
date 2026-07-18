@@ -95,6 +95,27 @@ body { background: #0D1117; color: white; overflow-x: hidden; }
     .game-cell { font-size: 10px !important; }
 }
 
+/* ==================== GAME BOARD RESPONSIVE ==================== */
+.master-grid-compact {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+@media (min-width: 768px) {
+    .master-grid-compact {
+        max-height: none;
+        overflow-y: visible;
+    }
+}
+.master-grid-compact .master-cell {
+    font-size: 7px;
+    aspect-ratio: 1;
+}
+@media (min-width: 768px) {
+    .master-grid-compact .master-cell {
+        font-size: 9px;
+    }
+}
+
 /* ==================== BINGO CELLS ==================== */
 .bingo-cell { transition: all 0.2s ease; position: relative; overflow: hidden; }
 .bingo-cell:active { transform: scale(0.9); }

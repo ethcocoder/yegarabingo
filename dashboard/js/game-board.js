@@ -91,34 +91,6 @@ function stopGameCountdown() {
     }
 }
 
-// ==================== SELECTION COUNTDOWN ====================
-function startSelectionCountdown(deadlineMs) {
-    stopSelectionCountdown();
-    selectionCountdownInterval = setInterval(function() {
-        var remaining = Math.max(0, Math.ceil((deadlineMs - serverNow()) / 1000));
-        var el = document.getElementById('cs-timer');
-        if (el) el.textContent = remaining + 's';
-        var bar = document.getElementById('cs-timer-bar');
-        if (bar) {
-            var pct = Math.max(0, (remaining / SELECTION_DURATION) * 100);
-            bar.style.width = pct + '%';
-            if (remaining <= 10) {
-                bar.style.background = 'linear-gradient(90deg, #EF4444, #F87171)';
-            }
-        }
-        if (remaining <= 0) {
-            stopSelectionCountdown();
-        }
-    }, 200);
-}
-
-function stopSelectionCountdown() {
-    if (selectionCountdownInterval) {
-        clearInterval(selectionCountdownInterval);
-        selectionCountdownInterval = null;
-    }
-}
-
 function buildMasterGrid() {
     var grid = document.getElementById('master-grid');
     if (!grid) return;
@@ -252,7 +224,7 @@ function listenToRound(roundId) {
             var gc = document.getElementById('game-countdown');
             if (gc) {
                 gc.classList.remove('hidden');
-                gc.textContent = 'Waiting for players to join...';
+                gc.textContent = 'Game starting soon...';
             }
         } else if (data.status === 'playing') {
             var gc2 = document.getElementById('game-countdown');
@@ -497,7 +469,6 @@ function leaveGame() {
     listenerReady = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     try { stopGameCountdown(); } catch(e) {}
-    try { stopSelectionCountdown(); } catch(e) {}
     if (winCountdownInterval) { clearInterval(winCountdownInterval); winCountdownInterval = null; }
     myCartelas = {};
     calledNumbers = new Set();

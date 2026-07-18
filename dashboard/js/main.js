@@ -1,4 +1,6 @@
 // ==================== INIT ====================
+var appReady = false;
+
 document.addEventListener('DOMContentLoaded', async function() {
     restoreAudioSettings();
     
@@ -11,20 +13,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     await initUser();
+    appReady = true;
 });
 
 document.addEventListener('pageLoaded', function(e) {
     var screen = e.detail.screen;
     
-    if (screen === 'home') {
-        if (currentUser && typeof updateAllDisplays === 'function') {
-            updateAllDisplays();
-        }
-    } else if (screen === 'wallet') {
-        if (currentUser && typeof updateAllDisplays === 'function') {
-            updateAllDisplays();
-        }
-    } else if (screen === 'profile') {
+    if (screen === 'home' || screen === 'wallet' || screen === 'profile') {
         if (currentUser && typeof updateAllDisplays === 'function') {
             updateAllDisplays();
         }

@@ -44,22 +44,10 @@
             <div id="game-countdown" class="hidden text-center rounded-xl px-4 py-3 mb-2 font-bold text-sm" style="background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.3)); border: 1px solid rgba(139,92,246,0.4); color: #c4b5fd;">Waiting for players...</div>
         </div>
 
-        <!-- Main game area: Responsive Layout -->
-        <div class="px-2 py-1 flex flex-col md:flex-row gap-3 pb-8" id="game-board-container" style="min-height: max-content;">
-            <!-- LEFT/TOP: Master Grid -->
-            <div class="w-full md:w-1/2 glass rounded-xl p-2 flex flex-col">
-                <div class="grid grid-cols-5 gap-1 mb-2" id="master-grid-headers">
-                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#3B82F6]">B</div>
-                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#8B5CF6]">I</div>
-                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#D946EF]">N</div>
-                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#10B981]">G</div>
-                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#F97316]">O</div>
-                </div>
-                <div class="grid grid-cols-5 gap-1 flex-1" id="master-grid"></div>
-            </div>
-
-            <!-- RIGHT/BOTTOM: Called Tags + Circle + Cartelas -->
-            <div class="w-full md:w-1/2 glass rounded-xl p-2 flex flex-col gap-2">
+        <!-- Main game area: Mobile = cartela first, Desktop = side by side -->
+        <div class="px-2 py-1 flex flex-col gap-3 pb-8 md:flex-row" id="game-board-container" style="min-height: max-content;">
+            <!-- Mobile: Cartela on TOP (reversed on desktop) -->
+            <div class="w-full md:w-1/2 glass rounded-xl p-2 flex flex-col gap-2 order-1 md:order-2">
                 <!-- Called number tags + Sound -->
                 <div class="flex items-center gap-1 overflow-x-auto" style="scrollbar-width: none; min-height: 28px;">
                     <div class="flex gap-1 flex-1 overflow-x-auto" id="called-tags" style="scrollbar-width: none; flex-wrap: nowrap;"></div>
@@ -72,13 +60,13 @@
                 </div>
 
                 <!-- Number announcement circle -->
-                <div class="flex items-center justify-center py-2" style="min-height: 80px;">
+                <div class="flex items-center justify-center py-1" style="min-height: 60px;">
                     <div id="number-announce" class="hidden">
-                        <div class="number-circle-outer w-20 h-20 rounded-full flex items-center justify-center" style="background: conic-gradient(#FF8C00, #FFD700, #FF8C00); padding: 3px;">
+                        <div class="number-circle-outer w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center" style="background: conic-gradient(#FF8C00, #FFD700, #FF8C00); padding: 3px;">
                             <div class="w-full h-full rounded-full flex items-center justify-center" style="background: #1A1A2E;">
                                 <div class="text-center leading-none">
-                                    <div id="announce-letter" class="text-sm font-black"></div>
-                                    <div id="announce-number" class="text-2xl font-black text-white"></div>
+                                    <div id="announce-letter" class="text-xs md:text-sm font-black"></div>
+                                    <div id="announce-number" class="text-lg md:text-2xl font-black text-white"></div>
                                 </div>
                             </div>
                         </div>
@@ -93,7 +81,7 @@
                     <svg class="w-12 h-12 text-white/20 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     <div class="text-bingo-orange font-bold text-sm mb-1">Game in Progress</div>
                     <div class="text-white/50 text-xs mb-2">Watching Only</div>
-                    <div class="text-white/30 text-[10px] leading-relaxed">የእርስዎ ቅርጫት አልተመረጠም<br/>ለዚህ ዙር እድሜዎ አልባ ነው</div>
+                    <div class="text-white/30 text-[10px] leading-relaxed">Your card was not selected<br/>for this round</div>
                 </div>
 
                 <!-- Cartela(s) -->
@@ -125,6 +113,18 @@
                         <div class="grid grid-cols-5 gap-px rounded-b overflow-hidden" id="cartela-grid-2"></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Desktop: Master Grid on LEFT, Mobile: on BOTTOM -->
+            <div class="w-full md:w-1/2 glass rounded-xl p-2 flex flex-col order-2 md:order-1">
+                <div class="grid grid-cols-5 gap-1 mb-2" id="master-grid-headers">
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#3B82F6]">B</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#8B5CF6]">I</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#D946EF]">N</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#10B981]">G</div>
+                    <div class="text-center text-xs sm:text-sm font-black py-1.5 rounded text-white shadow-sm bg-[#F97316]">O</div>
+                </div>
+                <div class="grid grid-cols-5 gap-px md:gap-1 flex-1 master-grid-compact" id="master-grid"></div>
             </div>
         </div>
 

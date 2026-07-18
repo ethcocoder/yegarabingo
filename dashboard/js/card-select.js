@@ -96,27 +96,6 @@ async function showCardSelection(roundId, roundData) {
     if (el = document.getElementById('cs-preview-container')) el.classList.add('hidden');
     if (el = document.getElementById('card-select-screen')) el.classList.remove('hidden');
 
-    // Start selection timer based on round created_at
-    var created_at = roundData.created_at;
-    if (created_at) {
-        var catMs;
-        if (typeof created_at === 'object' && created_at.toDate) {
-            catMs = created_at.toDate().getTime();
-        } else if (typeof created_at === 'string') {
-            catMs = new Date(created_at).getTime();
-        } else if (typeof created_at === 'object' && created_at._iso) {
-            catMs = new Date(created_at._iso).getTime();
-        } else if (typeof created_at === 'object' && created_at.seconds) {
-            catMs = created_at.seconds * 1000;
-        } else {
-            catMs = new Date(created_at).getTime();
-        }
-        if (!isNaN(catMs)) {
-            var deadlineMs = catMs + (SELECTION_DURATION * 1000);
-            startSelectionCountdown(deadlineMs);
-        }
-    }
-
     var grid = document.getElementById('card-select-grid');
     if (grid) grid.innerHTML = '<div class="col-span-8 text-center py-8"><div class="text-3xl mb-2 float-anim">🃏</div><p class="text-white/50 text-sm">Loading cartelas...</p></div>';
 
@@ -179,14 +158,12 @@ async function showCardSelection(roundId, roundData) {
                 var uid = String(currentUser.id);
                 if (rd.players && rd.players[uid]) {
                     document.getElementById('card-select-screen').classList.add('hidden');
-                    stopSelectionCountdown();
                     navigateTo('game').then(function() {
                         loadMyCartelas(rd);
                         listenToRound(roundId);
                     });
                 } else {
                     document.getElementById('card-select-screen').classList.add('hidden');
-                    stopSelectionCountdown();
                     navigateTo('game').then(function() {
                         setupGameBoard();
                         listenToRound(roundId);
@@ -287,7 +264,6 @@ function updateSelectedInfo() {
 // ==================== SPECTATOR / CANCEL ====================
 function cancelCardSelect() {
     selectedCartelas = [];
-    stopSelectionCountdown();
     var pc = document.getElementById('cs-preview-container');
     if (pc) pc.classList.add('hidden');
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
@@ -299,7 +275,6 @@ async function enterSpectatorMode() {
     isSpectator = true;
     var cs = document.getElementById('card-select-screen');
     if (cs) cs.classList.add('hidden');
-    stopSelectionCountdown();
     await navigateTo('game');
     setupGameBoard();
     listenToRound(currentRoundId);
@@ -371,7 +346,6 @@ async function confirmSelection() {
         if (pc) pc.classList.add('hidden');
         var cs = document.getElementById('card-select-screen');
         if (cs) cs.classList.add('hidden');
-        stopSelectionCountdown();
         await navigateTo('game');
         setupGameBoard();
         listenToRound(currentRoundId);
