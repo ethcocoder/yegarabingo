@@ -167,7 +167,9 @@ class CollectionRef:
         self._order_by = None
         self._limit = None
 
-    def document(self, doc_id):
+    def document(self, doc_id=None):
+        if doc_id is None:
+            doc_id = str(uuid.uuid4())
         return DocumentRef(self.collection_name, str(doc_id), self._session)
 
     def where(self, field=None, op=None, value=None, filter=None):
