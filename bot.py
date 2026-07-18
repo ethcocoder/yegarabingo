@@ -21,7 +21,7 @@ from config import (
 )
 from telegram import Bot
 from handlers.user_manager import UserManager
-from firestore_db import FieldFilter
+from firestore_db import FieldFilter, Increment
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -830,7 +830,7 @@ async def _is_admin_online() -> bool:
         try:
             doc = db.collection('system').document('admin_status').get()
             if doc.exists:
-                return doc.to_dict().get('online', False)
+                return doc.to_dict().get('online', True)
         except Exception:
             pass
         return True
@@ -845,7 +845,8 @@ def _extract_text_from_image(image_bytes: bytes) -> dict:
         import io
         img = Image.open(io.BytesIO(image_bytes))
         raw_text = pytesseract.image_to_string(img)
-    except ImportError:
+    except Exception as e:
+        logger.warning(f"OCR failed: {e}")
         return {
             "raw_text": "OCR not available",
             "status": "unknown",
@@ -952,6 +953,132 @@ def _extract_text_from_image(image_bytes: bytes) -> dict:
     return result
 
 
+# ═══════════════════════════════════════════════════════════════════
+# Admin approve/reject (fallback when ADMIN_BOT_TOKEN not set)
+# ═══════════════════════════════════════════════════════════════════
+async def admin_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id != _admin_id():
+        return
+    deposit_id = query.data.replace("approve_", "")
+    try:
+        ref = db.collection('deposits').document(deposit_id)
+        doc = ref.get()
+        if not doc.exists:
+            await query.edit_message_text("❌ Deposit not found.")
+            return
+        data = doc.to_dict()
+        if data.get('status') != 'pending':
+            await query.edit_message_text(f"Already {data.get('status')}.")
+            return
+        ref.update({'status': 'approved', 'processedAt': datetime.now(tz=timezone.utc)})
+        user_id = data.get('userId')
+        amount = data.get('amount', 0)
+        if user_id and amount > 0:
+            user_ref = db.collection('users').document(str(user_id))
+            user_ref.update({'balance': Increment(amount), 'updated_at': datetime.now(tz=timezone.utc)})
+            try:
+                await context.bot.send_message(chat_id=int(user_id), text=f"✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.")
+            except Exception:
+                pass
+        await query.edit_message_text(f"✅ Deposit approved\nUser: {data.get('firstName', '?')} | {amount} ETB")
+    except Exception as e:
+        logger.error(f"Error approving deposit: {e}")
+        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+
+
+async def admin_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id != _admin_id():
+        return
+    deposit_id = query.data.replace("reject_", "")
+    try:
+        ref = db.collection('deposits').document(deposit_id)
+        doc = ref.get()
+        if not doc.exists:
+            await query.edit_message_text("❌ Deposit not found.")
+            return
+        data = doc.to_dict()
+        if data.get('status') != 'pending':
+            await query.edit_message_text(f"Already {data.get('status')}.")
+            return
+        ref.update({'status': 'rejected', 'processedAt': datetime.now(tz=timezone.utc)})
+        user_id = data.get('userId')
+        if user_id:
+            try:
+                await context.bot.send_message(chat_id=int(user_id), text="❌ Deposit rejected.\nPlease contact support if you need help.")
+            except Exception:
+                pass
+        await query.edit_message_text(f"❌ Deposit rejected\nUser: {data.get('firstName', '?')}")
+    except Exception as e:
+        logger.error(f"Error rejecting deposit: {e}")
+        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+
+
+async def admin_approve_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id != _admin_id():
+        return
+    wid = query.data.replace("approve_withdraw_", "")
+    try:
+        ref = db.collection('withdrawals').document(wid)
+        doc = ref.get()
+        if not doc.exists:
+            await query.edit_message_text("❌ Withdrawal not found.")
+            return
+        data = doc.to_dict()
+        if data.get('status') != 'pending':
+            await query.edit_message_text(f"Already {data.get('status')}.")
+            return
+        ref.update({'status': 'approved', 'processedAt': datetime.now(tz=timezone.utc)})
+        user_id = data.get('userId')
+        amount = data.get('amount', 0)
+        if user_id:
+            try:
+                await context.bot.send_message(chat_id=int(user_id), text=f"✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.")
+            except Exception:
+                pass
+        await query.edit_message_text(f"✅ Withdrawal approved\nUser: {data.get('firstName', '?')} | {amount} ETB")
+    except Exception as e:
+        logger.error(f"Error approving withdrawal: {e}")
+        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+
+
+async def admin_reject_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id != _admin_id():
+        return
+    wid = query.data.replace("reject_withdraw_", "")
+    try:
+        ref = db.collection('withdrawals').document(wid)
+        doc = ref.get()
+        if not doc.exists:
+            await query.edit_message_text("❌ Withdrawal not found.")
+            return
+        data = doc.to_dict()
+        if data.get('status') != 'pending':
+            await query.edit_message_text(f"Already {data.get('status')}.")
+            return
+        ref.update({'status': 'rejected', 'processedAt': datetime.now(tz=timezone.utc)})
+        user_id = data.get('userId')
+        amount = data.get('amount', 0)
+        if user_id and amount > 0:
+            user_ref = db.collection('users').document(str(user_id))
+            user_ref.update({'balance': Increment(amount), 'updated_at': datetime.now(tz=timezone.utc)})
+            try:
+                await context.bot.send_message(chat_id=int(user_id), text=f"❌ Withdrawal rejected.\n💰 {amount} ETB has been refunded to your balance.")
+            except Exception:
+                pass
+        await query.edit_message_text(f"❌ Withdrawal rejected\nUser: {data.get('firstName', '?')} | {amount} ETB")
+    except Exception as e:
+        logger.error(f"Error rejecting withdrawal: {e}")
+        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("Cancelled.", reply_markup=MAIN_KEYBOARD)
     return ConversationHandler.END
@@ -981,11 +1108,7 @@ def main():
 
     # ─── Slash commands for Telegram menu ───
     app.add_handler(CommandHandler("play", handle_play))
-    app.add_handler(CommandHandler("deposit", handle_deposit))
-    app.add_handler(CommandHandler("withdraw", handle_withdraw))
-    app.add_handler(CommandHandler("register", handle_register))
     app.add_handler(CommandHandler("balance", handle_balance))
-    app.add_handler(CommandHandler("transfer", handle_transfer))
     app.add_handler(CommandHandler("invite", handle_invite))
     app.add_handler(CommandHandler("help", handle_instruction))
 
@@ -1002,6 +1125,7 @@ def main():
     # ─── ConversationHandler: Register ───
     reg_conv = ConversationHandler(
         entry_points=[
+            CommandHandler("register", handle_register),
             MessageHandler(filters.Regex("^📝 Register$"), handle_register),
             CallbackQueryHandler(handle_register, pattern="^menu_register$"),
         ],
@@ -1017,6 +1141,7 @@ def main():
     # ─── ConversationHandler: Deposit ───
     deposit_conv = ConversationHandler(
         entry_points=[
+            CommandHandler("deposit", handle_deposit),
             MessageHandler(filters.Regex("^💵 Deposit$"), handle_deposit),
             CallbackQueryHandler(handle_deposit, pattern="^menu_deposit$"),
             CallbackQueryHandler(handle_deposit, pattern="^bal_deposit$"),
@@ -1039,6 +1164,7 @@ def main():
     # ─── ConversationHandler: Withdraw ───
     withdraw_conv = ConversationHandler(
         entry_points=[
+            CommandHandler("withdraw", handle_withdraw),
             MessageHandler(filters.Regex("^🎰 Withdraw$"), handle_withdraw),
             CallbackQueryHandler(handle_withdraw, pattern="^menu_withdraw$"),
             CallbackQueryHandler(handle_withdraw, pattern="^bal_withdraw$"),
@@ -1059,7 +1185,7 @@ def main():
 
     # ─── ConversationHandler: Transfer ───
     transfer_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🎁 Transfer$"), handle_transfer), CallbackQueryHandler(handle_transfer, pattern="^menu_transfer$")],
+        entry_points=[CommandHandler("transfer", handle_transfer), MessageHandler(filters.Regex("^🎁 Transfer$"), handle_transfer), CallbackQueryHandler(handle_transfer, pattern="^menu_transfer$")],
         per_message=False,
         states={
             TRANSFER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, transfer_id)],
@@ -1086,6 +1212,12 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_invite, pattern="^menu_invite$"))
     app.add_handler(CallbackQueryHandler(handle_instruction, pattern="^menu_instruction$"))
     app.add_handler(CallbackQueryHandler(handle_support, pattern="^menu_support$"))
+
+    # ─── Admin approve/reject callbacks (fallback when ADMIN_BOT_TOKEN not set) ───
+    app.add_handler(CallbackQueryHandler(admin_approve_deposit, pattern="^approve_(?!withdraw_)"))
+    app.add_handler(CallbackQueryHandler(admin_reject_deposit, pattern="^reject_(?!withdraw_)"))
+    app.add_handler(CallbackQueryHandler(admin_approve_withdraw, pattern="^approve_withdraw_"))
+    app.add_handler(CallbackQueryHandler(admin_reject_withdraw, pattern="^reject_withdraw_"))
 
     logger.info("🎯 Yegara Bingo Bot starting...")
 
