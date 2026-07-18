@@ -1,4 +1,14 @@
 // ==================== ADMIN UTILITIES ====================
+function showToast(msg) {
+    var el = document.getElementById('toast');
+    var textEl = document.getElementById('toast-text');
+    if (el && textEl) {
+        textEl.textContent = msg;
+        el.classList.remove('hidden');
+        setTimeout(function() { el.classList.add('hidden'); }, 3000);
+    }
+}
+
 function animateNum(el, target, dur) {
     if (!el) return;
     var start = 0;
