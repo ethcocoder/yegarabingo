@@ -33,18 +33,77 @@ sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins=ALLOWED_ORIGI
 
 app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
 
-# Add CORS middleware directly to FastAPI so it runs before any route handling
-from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
-app.add_middleware(
-    StarletteCORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Mount Socket.IO on the FastAPI app
-socket_app = socketio.ASGIApp(sio, app)
+
+# ─── Outer CORS ASGI Middleware ───
+# Wraps the ENTIRE app (including Socket.IO) so that preflight OPTIONS
+# and CORS response headers work for ALL paths, not just FastAPI routes.
+class CORSASGIMiddleware:
+    """ASGI middleware that adds CORS headers to ALL responses.
+
+    The Starlette CORSMiddleware only covers the inner FastAPI app,
+    but socketio.ASGIApp wraps FastAPI, so preflight/OPTIONS requests
+    to /socket.io/* and sometimes /api/* never reach FastAPI's middleware.
+    This outer wrapper guarantees every HTTP response carries the
+    correct Access-Control-* headers.
+    """
+
+    def __init__(self, app, allowed_origins):
+        self.app = app
+        self.allowed_origins = set(allowed_origins)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            # WebSocket / lifespan — pass through unchanged
+            await self.app(scope, receive, send)
+            return
+
+        # Extract Origin header from the request
+        origin = ""
+        for key, val in scope.get("headers", []):
+            if key == b"origin":
+                origin = val.decode("latin-1")
+                break
+
+        if not origin or origin not in self.allowed_origins:
+            # No origin or not allowed — pass through without CORS headers
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "GET")
+
+        # ── Handle preflight OPTIONS ──
+        if method == "OPTIONS":
+            cors_headers = [
+                (b"access-control-allow-origin", origin.encode()),
+                (b"access-control-allow-methods", b"GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"),
+                (b"access-control-allow-headers", b"content-type, authorization, x-requested-with, accept, origin"),
+                (b"access-control-allow-credentials", b"true"),
+                (b"access-control-max-age", b"86400"),
+                (b"content-length", b"0"),
+            ]
+            await send({"type": "http.response.start", "status": 200, "headers": cors_headers})
+            await send({"type": "http.response.body", "body": b""})
+            return
+
+        # ── Normal requests — inject CORS headers if not already present ──
+        async def send_with_cors(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                existing = {k.lower() for k, _ in headers}
+                if b"access-control-allow-origin" not in existing:
+                    headers.append((b"access-control-allow-origin", origin.encode()))
+                if b"access-control-allow-credentials" not in existing:
+                    headers.append((b"access-control-allow-credentials", b"true"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_cors)
+
+
+# Mount Socket.IO on the FastAPI app, then wrap with outer CORS
+_raw_socket_app = socketio.ASGIApp(sio, app)
+socket_app = CORSASGIMiddleware(_raw_socket_app, ALLOWED_ORIGINS)
 
 engine = RoundEngine(db)
 user_manager = UserManager(db)
