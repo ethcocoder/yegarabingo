@@ -152,7 +152,7 @@ async function showCardSelection(roundId, roundData) {
     updateSelectedInfo();
 
     var playerCount = roundData.player_count || 0;
-    var estimatedDerash = Math.round(playerCount * STAKE * 0.75 * 10) / 10;
+    var estimatedDerash = Math.round(Math.max(1, playerCount) * STAKE * 0.75 * 10) / 10;
     var el;
     if (el = document.getElementById('cs-stake')) el.textContent = STAKE + ' ETB';
     if (el = document.getElementById('cs-derash')) el.textContent = estimatedDerash + ' ETB';
@@ -242,7 +242,7 @@ async function showCardSelection(roundId, roundData) {
             }
 
             var livePlayerCount = rd.player_count || 0;
-            var liveDerash = Math.round(livePlayerCount * STAKE * 0.75 * 10) / 10;
+            var liveDerash = Math.round(Math.max(1, livePlayerCount) * STAKE * 0.75 * 10) / 10;
             var derashEl;
             if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveDerash + ' ETB';
 

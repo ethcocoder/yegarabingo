@@ -189,6 +189,7 @@ async def _game_loop(round_id: str):
                             'game_started_at': now,
                             'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
                         })
+                        await broadcast_event('rounds', round_id)
                         break
                     else:
                         # Grace period: wait 5s for late joins before cancelling
@@ -212,6 +213,7 @@ async def _game_loop(round_id: str):
                                 'game_started_at': now,
                                 'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
                             })
+                            await broadcast_event('rounds', round_id)
                             break
                         # Still no players — cancel
                         db.collection('rounds').document(round_id).update({
@@ -223,6 +225,7 @@ async def _game_loop(round_id: str):
                             'payout_processed': True,
                             'completed_at': datetime.now(tz=timezone.utc),
                         })
+                        await broadcast_event('rounds', round_id)
                         return
 
             await asyncio.sleep(1)
@@ -246,6 +249,7 @@ async def _game_loop(round_id: str):
                         logger.error(f"[GameLoop] Error distributing prizes for {round_id}: {e}")
                         return  # Don't mark as processed if payout failed
                     db.collection('rounds').document(round_id).update({'payout_processed': True})
+                    await broadcast_event('rounds', round_id)
                 return
 
             already_called = set(data.get('called_numbers', []))
@@ -275,9 +279,8 @@ async def _game_loop(round_id: str):
                     'payout_processed': True,
                     'completed_at': datetime.now(tz=timezone.utc),
                 })
+                await broadcast_event('rounds', round_id)
                 return
-
-            # Call the next number using the Smart Predictor engine
             # After 60 numbers, bypass predictor to ensure a winner is found
             num_called_so_far = len(data.get('called_numbers', []))
             try:
@@ -293,8 +296,10 @@ async def _game_loop(round_id: str):
                         'last_called_at': now_ts,
                         'next_number_at': now_ts + timedelta(seconds=NUMBER_CALL_INTERVAL),
                     })
+                    await broadcast_event('rounds', round_id)
                 else:
                     number = await engine.call_number(round_id)
+                    await broadcast_event('rounds', round_id)
             except Exception as e:
                 logger.warning(f"Smart predictor error for {round_id}: {e}")
                 # Fallback to pure random choice if predictor crashes
@@ -309,6 +314,7 @@ async def _game_loop(round_id: str):
                     'last_called_at': now,
                     'next_number_at': now + timedelta(seconds=NUMBER_CALL_INTERVAL),
                 })
+                await broadcast_event('rounds', round_id)
                 
             if number is None:
                 await asyncio.sleep(NUMBER_CALL_INTERVAL)
@@ -360,12 +366,14 @@ async def _game_loop(round_id: str):
                     'prize_per_winner': prize_per_winner,
                     'completed_at': now,
                 })
+                await broadcast_event('rounds', round_id)
                 # Process payout (handles wallet credit, wins/losses tracking)
                 try:
                     await engine.end_round(round_id, [int(bingo_winner_id)])
                 except Exception as e:
                     logger.error(f"[GameLoop] Error distributing prizes: {e}")
                 db.collection('rounds').document(round_id).update({'payout_processed': True})
+                await broadcast_event('rounds', round_id)
                 logger.info(f"[GameLoop] BINGO! Player {bingo_winner_id} won round {round_id} with cartela {bingo_cartela}")
                 return
 
