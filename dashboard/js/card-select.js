@@ -473,13 +473,9 @@ async function confirmSelection() {
         hideLoading();
         var pc = document.getElementById('cs-preview-container');
         if (pc) pc.classList.add('hidden');
-        var cs = document.getElementById('card-select-screen');
-        if (cs) cs.classList.add('hidden');
         stopSelectionCountdown();
-        await navigateTo('game');
-        setupGameBoard();
-        listenToRound(currentRoundId);
         showToast('Joined! Waiting for game to start...');
+        // Stay on card-select screen — onSnapshot will navigate to game when round becomes 'playing'
     } catch (err) {
         hideLoading();
         console.error('Error joining round:', err);

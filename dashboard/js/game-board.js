@@ -264,7 +264,7 @@ function listenToRound(roundId) {
             var gc = document.getElementById('game-countdown');
             if (gc) {
                 gc.classList.remove('hidden');
-                gc.textContent = 'Game starting soon...';
+                gc.textContent = 'Waiting for players...';
             }
         } else if (data.status === 'playing') {
             var gc2 = document.getElementById('game-countdown');
