@@ -166,11 +166,17 @@ class WriteBatch:
         self._operations.append(lambda: ref.delete())
 
     def commit(self):
+        import time as _time
+        logger.debug(f"[CART-DBG] WriteBatch.commit() START - {len(self._operations)} ops, skip_events={self._skip_events}")
+        t0 = _time.monotonic()
         try:
-            for op in self._operations:
+            for i, op in enumerate(self._operations):
                 op()
+            logger.debug(f"[CART-DBG] All {len(self._operations)} ops executed in {round(_time.monotonic()-t0, 3)}s, committing session...")
             self._session.commit()
-        except Exception:
+            logger.debug(f"[CART-DBG] WriteBatch.commit() DONE in {round(_time.monotonic()-t0, 3)}s")
+        except Exception as e:
+            logger.error(f"[CART-DBG] WriteBatch.commit() FAILED: {e}")
             self._session.rollback()
             raise
         finally:

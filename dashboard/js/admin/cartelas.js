@@ -20,36 +20,42 @@ function generateOneCartela() {
 
 async function generateCartelaPool() {
     if (!confirm('Generate the 500 fixed cartelas? This will call the API.')) return;
+    console.log('[CART-DBG] API_BASE:', API_BASE);
     var MAX_RETRIES = 2;
     var RETRY_DELAY = 3000;
     var TIMEOUT_MS = 300000;
-    console.log('Generating cartelas, please wait...');
     for (var attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
+            var url = API_BASE + '/api/cartelas/generate';
+            console.log('[CART-DBG] Attempt ' + (attempt + 1) + '/' + (MAX_RETRIES + 1) + ' - POST', url);
             var controller = new AbortController();
             var timeoutId = setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
-            var res = await fetch(API_BASE + '/api/cartelas/generate', {
-                method: 'POST',
-                signal: controller.signal
-            });
+            var t0 = Date.now();
+            var res = await fetch(url, { method: 'POST', signal: controller.signal });
+            var fetchMs = Date.now() - t0;
             clearTimeout(timeoutId);
+            console.log('[CART-DBG] Status:', res.status, res.statusText, '| Time:', fetchMs + 'ms');
+            console.log('[CART-DBG] Content-Type:', res.headers.get('content-type'));
+            console.log('[CART-DBG] Content-Length:', res.headers.get('content-length'));
             if (!res.ok) {
                 var errText = '';
                 try { errText = await res.text(); } catch (_) {}
+                console.log('[CART-DBG] Error body:', errText.substring(0, 500));
                 throw new Error(errText || ('Server error: ' + res.status));
             }
             var raw = await res.text();
+            console.log('[CART-DBG] Response length:', raw.length, 'chars');
+            console.log('[CART-DBG] Response preview:', raw.substring(0, 200));
             if (!raw) throw new Error('Empty response from server');
             var data = JSON.parse(raw);
-            console.log('Cartela generation result:', data);
+            console.log('[CART-DBG] Parsed OK:', JSON.stringify(data).substring(0, 300));
             alert(data.status === 'already_exists' ? 'Cartelas already exist.' : 'Generated 500 cartelas successfully!');
             return;
         } catch (e) {
-            console.error(e);
+            console.error('[CART-DBG] Attempt ' + (attempt + 1) + ' FAILED:', e.name, e.message);
             var isNetworkError = e.name === 'TypeError';
             var isTimeout = e.name === 'AbortError';
             var isParseError = e instanceof SyntaxError;
-            var isServerError = !isNetworkError && !isTimeout && !isParseError;
             var errorMsg;
             if (isTimeout) {
                 errorMsg = 'Request timed out after 5 minutes.';
@@ -61,7 +67,7 @@ async function generateCartelaPool() {
                 errorMsg = 'Server error: ' + e.message;
             }
             if (attempt < MAX_RETRIES && (isNetworkError || !raw)) {
-                console.log('Retrying in ' + (RETRY_DELAY / 1000) + ' seconds... (attempt ' + (attempt + 1) + '/' + MAX_RETRIES + ')');
+                console.log('[CART-DBG] Retrying in ' + (RETRY_DELAY / 1000) + 's...');
                 await new Promise(function (r) { setTimeout(r, RETRY_DELAY); });
                 continue;
             }

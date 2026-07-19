@@ -62,17 +62,24 @@ class RoundEngine:
         return await asyncio.to_thread(self._generate_all_cartelas_sync)
 
     def _generate_all_cartelas_sync(self) -> dict:
-        logger.info("Checking for existing cartelas...")
+        import threading, time as _time
+        t_start = _time.monotonic()
+        logger.info(f"[CART-DBG] _sync ENTERED thread={threading.current_thread().name}")
+        logger.info("[CART-DBG] Checking for existing cartelas...")
+        t0 = _time.monotonic()
         existing = list(self.master_ref.limit(1).get())
+        logger.info(f"[CART-DBG] Existence check took {round(_time.monotonic()-t0, 2)}s, found={len(existing)}")
         if existing:
+            t0 = _time.monotonic()
             count = len(list(self.master_ref.get()))
-            logger.info(f"Cartelas already exist, count={count}")
+            logger.info(f"[CART-DBG] Cartelas already exist, count={count} (count query took {round(_time.monotonic()-t0, 2)}s)")
             return {'status': 'already_exists', 'count': count}
 
-        logger.info("Starting generation of 500 cartelas...")
+        logger.info("[CART-DBG] Starting generation of 500 cartelas...")
         batch_size = 100
         generated = 0
         for start in range(1, TOTAL_CARTELAS + 1, batch_size):
+            t_batch = _time.monotonic()
             batch = self.db.batch(skip_events=True)
             end = min(start + batch_size, TOTAL_CARTELAS + 1)
             for num in range(start, end):
@@ -85,9 +92,10 @@ class RoundEngine:
                 })
                 generated += 1
             batch.commit()
-            logger.info(f"Batch committed: {generated}/{TOTAL_CARTELAS}")
+            logger.info(f"[CART-DBG] Batch {start}-{end-1} committed in {round(_time.monotonic()-t_batch, 2)}s ({generated}/{TOTAL_CARTELAS})")
 
-        logger.info(f"Successfully generated {generated} cartelas")
+        total = round(_time.monotonic() - t_start, 2)
+        logger.info(f"[CART-DBG] Generated {generated} cartelas in {total}s")
         return {'status': 'generated', 'count': generated}
 
     async def get_all_cartelas(self) -> List[dict]:

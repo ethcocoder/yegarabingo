@@ -265,25 +265,34 @@ async def start_background_monitor():
 # ═══════════════════════════════════════════════════════════════
 @app.post("/api/cartelas/generate")
 async def generate_cartelas():
+    import threading
     start = time.monotonic()
+    thread_name = threading.current_thread().name
+    logger.info(f"[CART-DBG] ENDPOINT ENTERED thread={thread_name}")
     try:
-        logger.info("Cartela generation requested")
+        logger.info("[CART-DBG] Calling engine.generate_all_cartelas()...")
         result = await engine.generate_all_cartelas()
-        elapsed = round(time.monotonic() - start, 2)
-        count = len(result) if isinstance(result, dict) and "cartelas" in result else 0
-        logger.info(f"Cartela generation complete in {elapsed}s: count={count}")
+        elapsed_gen = round(time.monotonic() - start, 2)
+        logger.info(f"[CART-DBG] Engine returned in {elapsed_gen}s: type={type(result).__name__}")
+        logger.info(f"[CART-DBG] Result content: {result}")
         if not isinstance(result, dict) or result is None:
-            result = {"cartelas": [], "count": 0, "elapsed": elapsed}
-        result["elapsed"] = elapsed
+            logger.warning("[CART-DBG] Result is not a dict, creating fallback")
+            result = {"cartelas": [], "count": 0, "elapsed": elapsed_gen}
+        result["elapsed"] = elapsed_gen
         try:
             asyncio.create_task(broadcast_cartelas_update())
+            logger.info("[CART-DBG] Broadcast task scheduled OK")
         except Exception as broadcast_err:
-            logger.warning(f"Failed to schedule cartela broadcast: {broadcast_err}")
+            logger.warning(f"[CART-DBG] Failed to schedule broadcast: {broadcast_err}")
+        total_elapsed = round(time.monotonic() - start, 2)
+        logger.info(f"[CART-DBG] Returning response: {result} (total {total_elapsed}s)")
         return result
     except Exception as e:
         elapsed = round(time.monotonic() - start, 2)
-        logger.error(f"Error generating cartelas after {elapsed}s: {e}", exc_info=True)
-        return {"cartelas": [], "count": 0, "error": str(e), "elapsed": elapsed}
+        logger.error(f"[CART-DBG] EXCEPTION after {elapsed}s: {e}", exc_info=True)
+        fallback = {"cartelas": [], "count": 0, "error": str(e), "elapsed": elapsed}
+        logger.info(f"[CART-DBG] Returning error response: {fallback}")
+        return fallback
 
 
 @app.get("/api/cartelas")
