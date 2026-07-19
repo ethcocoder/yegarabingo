@@ -75,7 +75,7 @@ class CORSMiddleware:
 
 
 # ─── Socket.IO Server ───
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins=ALLOWED_ORIGINS)
 
 app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
 
@@ -1059,4 +1059,4 @@ if os.path.isdir(os.path.join(DASHBOARD_DIR, "public", "audio")):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(socket_app, host="0.0.0.0", port=port)
