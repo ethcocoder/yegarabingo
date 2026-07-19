@@ -331,7 +331,6 @@ async function renderCardSelectPreview(num) {
         });
     }
 }
-}
 
 function updateSelectedInfo() {
     var count = selectedCartelas.length;
