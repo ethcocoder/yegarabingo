@@ -1109,6 +1109,88 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# 🆘 Support (slash command)
+# ═══════════════════════════════════════════════════════════════════
+async def handle_support_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.effective_message.reply_text(
+        f"🆘 Need help?\n\n"
+        f"👇 For any questions or feedback 👇\n\n"
+        f"👤 @{SUPPORT_USERNAME}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 🏆 Leaderboard
+# ═══════════════════════════════════════════════════════════════════
+async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    leaders = await user_manager.get_leaderboard(10)
+    if not leaders:
+        await update.effective_message.reply_text("🏆 No games played yet. Be the first!", reply_markup=MAIN_KEYBOARD)
+        return
+
+    lines = ["🏆 *Top Players*\n"]
+    medals = ["🥇", "🥈", "🥉"]
+    for i, u in enumerate(leaders):
+        prefix = medals[i] if i < 3 else f" {i+1}."
+        name = u.get('first_name', 'Unknown')
+        wins = u.get('wins', 0)
+        lines.append(f"{prefix} *{name}* — {wins} wins")
+
+    await update.effective_message.reply_text("\n".join(lines), reply_markup=MAIN_KEYBOARD, parse_mode='Markdown')
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 📜 History
+# ═══════════════════════════════════════════════════════════════════
+async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    history = await user_manager.get_user_history(uid, 10)
+    if not history:
+        await update.effective_message.reply_text("📜 No game history yet. Play a game first!", reply_markup=MAIN_KEYBOARD)
+        return
+
+    lines = ["📜 *Your Recent Games*\n"]
+    for g in history:
+        result = "✅ Won" if g.get('won') else "❌ Lost"
+        stake = g.get('stake', 0)
+        prize = g.get('prize', 0)
+        date = g.get('created_at', '')
+        if hasattr(date, 'strftime'):
+            date = date.strftime('%m/%d %H:%M')
+        lines.append(f"• {result} — Stake: {stake} ETB, Prize: {prize} ETB  {date}")
+
+    await update.effective_message.reply_text("\n".join(lines), reply_markup=MAIN_KEYBOARD, parse_mode='Markdown')
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 📊 Stats
+# ═══════════════════════════════════════════════════════════════════
+async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    u = await user_manager.get_user(uid)
+    if not u:
+        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        return
+
+    total = u.get('total_games', 0)
+    wins = u.get('wins', 0)
+    losses = u.get('losses', 0)
+    win_rate = f"{(wins / total * 100):.1f}%" if total > 0 else "N/A"
+
+    text = (
+        f"📊 *Your Stats*\n\n"
+        f"🎮 Games Played: {total}\n"
+        f"✅ Wins: {wins}\n"
+        f"❌ Losses: {losses}\n"
+        f"📈 Win Rate: {win_rate}\n\n"
+        f"💰 Main Wallet: {u.get('balance', 0):.1f} ETB\n"
+        f"🎮 Play Wallet: {u.get('play_wallet', 0):.1f} ETB\n"
+        f"🪙 Bonus Coins: {u.get('bonus', 0)}"
+    )
+    await update.effective_message.reply_text(text, reply_markup=MAIN_KEYBOARD, parse_mode='Markdown')
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════
 def main():
@@ -1116,9 +1198,30 @@ def main():
 
     async def _pre_start():
         from telegram import Bot
+        from telegram import BotCommand
         import asyncio as _aio
         b = Bot(token=BOT_TOKEN)
         await b.delete_webhook(drop_pending_updates=True)
+
+        commands = [
+            BotCommand("start", "Start the bot / Welcome"),
+            BotCommand("play", "Open the Bingo game"),
+            BotCommand("register", "Register with your phone number"),
+            BotCommand("balance", "Check your wallets"),
+            BotCommand("deposit", "Deposit ETB via TeleBirr"),
+            BotCommand("withdraw", "Withdraw ETB to TeleBirr"),
+            BotCommand("transfer", "Send ETB to another user"),
+            BotCommand("invite", "Get your referral link"),
+            BotCommand("leaderboard", "Top players by wins"),
+            BotCommand("history", "Your recent game history"),
+            BotCommand("stats", "Your personal game stats"),
+            BotCommand("support", "Contact support"),
+            BotCommand("help", "How to play"),
+            BotCommand("cancel", "Cancel current action"),
+        ]
+        await b.set_my_commands(commands)
+        logger.info("✅ Bot commands registered in Telegram menu")
+
         await _aio.sleep(5)
         me = await b.get_me()
         logger.info(f"✅ Game bot connected: @{me.username}")
@@ -1135,6 +1238,11 @@ def main():
     app.add_handler(CommandHandler("balance", handle_balance))
     app.add_handler(CommandHandler("invite", handle_invite))
     app.add_handler(CommandHandler("help", handle_instruction))
+    app.add_handler(CommandHandler("cancel", cancel))
+    app.add_handler(CommandHandler("support", handle_support_cmd))
+    app.add_handler(CommandHandler("leaderboard", handle_leaderboard))
+    app.add_handler(CommandHandler("history", handle_history))
+    app.add_handler(CommandHandler("stats", handle_stats))
 
     # ─── Simple menu handlers (no conversation needed) ───
     app.add_handler(MessageHandler(filters.Regex("^💵 Check Balance$"), handle_balance))
