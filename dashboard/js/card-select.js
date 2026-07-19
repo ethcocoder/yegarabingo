@@ -152,10 +152,10 @@ async function showCardSelection(roundId, roundData) {
     updateSelectedInfo();
 
     var playerCount = roundData.player_count || 0;
-    var estimatedDerash = Math.round(Math.max(1, playerCount) * STAKE * 0.75 * 10) / 10;
+    var estimatedETB = Math.round(Math.max(1, playerCount) * STAKE * 0.75 * 10) / 10;
     var el;
     if (el = document.getElementById('cs-stake')) el.textContent = STAKE + ' ETB';
-    if (el = document.getElementById('cs-derash')) el.textContent = estimatedDerash + ' ETB';
+    if (el = document.getElementById('cs-derash')) el.textContent = estimatedETB + ' ETB';
     if (el = document.getElementById('cs-main-wallet')) el.textContent = (currentUser.balance || 0) + ' ETB';
     if (el = document.getElementById('cs-play-wallet')) el.textContent = (currentUser.play_wallet || 0) + ' ETB';
     if (el = document.getElementById('cs-preview-container')) el.classList.add('hidden');
@@ -242,9 +242,9 @@ async function showCardSelection(roundId, roundData) {
             }
 
             var livePlayerCount = rd.player_count || 0;
-            var liveDerash = Math.round(Math.max(1, livePlayerCount) * STAKE * 0.75 * 10) / 10;
+            var liveETB = Math.round(Math.max(1, livePlayerCount) * STAKE * 0.75 * 10) / 10;
             var derashEl;
-            if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveDerash + ' ETB';
+            if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveETB + ' ETB';
 
             if (rd.status === 'completed' || rd.status === 'cancelled') {
                 var selectScreen = document.getElementById('card-select-screen');

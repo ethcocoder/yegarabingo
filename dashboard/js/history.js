@@ -71,7 +71,7 @@ async function loadHistory() {
                     '</div>' +
                     '</div>' +
                     '<div class="text-right">' +
-                    '<div class="text-sm font-bold text-bingo-green">' + w.prize + ' Derash</div>' +
+                    '<div class="text-sm font-bold text-bingo-green">' + w.prize + ' ETB</div>' +
                     '<div class="text-[10px] text-amber-400/60">Winner!</div>' +
                     '</div>';
                 list.appendChild(el);
@@ -113,7 +113,7 @@ async function loadHistory() {
                     '</div>' +
                     '<div class="flex items-center justify-between text-xs text-white/60">' +
                     '<span>Players: ' + (d.player_count || 0) + '</span>' +
-                    '<span>Prize: ' + prize + ' Derash</span>' +
+                    '<span>Prize: ' + prize + ' ETB</span>' +
                     '</div>';
                 list.appendChild(el);
             });

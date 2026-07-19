@@ -54,6 +54,7 @@ function playWinSound() {
 
 function playBingoAnnouncement(cartelaNum) {
     if (!voiceEnabled) return;
+    if (_lastNumberAudio) { try { _lastNumberAudio.pause(); _lastNumberAudio.src = ''; _lastNumberAudio = null; } catch(e) {} }
     try {
         var num = parseInt(cartelaNum);
         if (num >= 1 && num <= 500) {

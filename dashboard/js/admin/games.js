@@ -40,7 +40,7 @@ function renderGames() {
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Stake</p><p class="text-xs font-bold text-[#FF8C00]">' + (g.stake || 0) + ' ETB</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Called</p><p class="text-xs font-bold text-[#3B82F6]">' + calledCount + '/75</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Players</p><p class="text-xs font-bold text-[#8B5CF6]">' + (g.player_count || 0) + '</p></div>' +
-                '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Derash</p><p class="text-xs font-bold text-[#14B8A6]">' + derash + '</p></div>' +
+                '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">ETB</p><p class="text-xs font-bold text-[#14B8A6]">' + derash + '</p></div>' +
                 '</div>' +
                 '</div>';
         }).join('');
