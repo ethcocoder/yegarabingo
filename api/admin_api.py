@@ -989,14 +989,14 @@ async def broadcast_cartelas_update():
     """Safely broadcast cartela pool update to all admin dashboards."""
     try:
         def _read_cartelas():
-            docs = db.collection('cartemas_master').get()
+            docs = db.collection('cartelas_master').get()
             return [{"id": d.id, "data": d.to_dict()} for d in docs]
         cartela_list = await asyncio.to_thread(_read_cartelas)
         await sio.emit('query_snapshot', {
             "type": "query_snapshot",
-            "collection": "cartemas_master",
+            "collection": "cartelas_master",
             "docs": cartela_list,
-        }, room="cartemas_master")
+        }, room="cartelas_master")
     except Exception as e:
         logger.warning(f"Error broadcasting cartelas update: {e}")
 

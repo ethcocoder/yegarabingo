@@ -10,3 +10,15 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
     autoDeploy: true
+
+  - type: web
+    name: yegarabingo-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    autoDeploy: true
