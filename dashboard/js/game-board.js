@@ -2,6 +2,7 @@
 function setupGameBoard() {
     const nums = Object.keys(myCartelas).map(Number);
     calledNumbers = new Set();
+    _bingoDetected = false;
     stopGameCountdown();
 
     var el;
@@ -331,40 +332,17 @@ function showNumberAnnouncement(num) {
 }
 
 // ==================== BINGO CHECK ====================
+var _bingoDetected = false;
 async function checkMyBingo() {
+    if (_bingoDetected) return;
     try {
         var calledArr = Array.from(calledNumbers);
         for (var cartelaNum in myCartelas) {
             if (myCartelas.hasOwnProperty(cartelaNum)) {
                 if (checkBingoLocal(myCartelas[cartelaNum], calledArr)) {
-                    try {
-                        var roundRef = db.collection('rounds').doc(currentRoundId);
-                        var uidStr = String(currentUser.id);
-
-                        await db.runTransaction(async function(txn) {
-                            var roundSnap = await txn.get(roundRef);
-                            if (!roundSnap.exists) return;
-                            var rd = roundSnap.data();
-                            if (rd.status === 'completed') return;
-                            var currentWinners = rd.winners || [];
-                            if (currentWinners.includes(uidStr)) return;
-
-                            var newWinners = currentWinners.concat([uidStr]);
-                            var playerCount = rd.player_count || 1;
-                            var prizePerWinner = Math.round((playerCount * STAKE * 0.75) / newWinners.length);
-                            
-                            txn.update(roundRef, {
-                                status: 'completed',
-                                winners: newWinners,
-                                winner_name: currentUser.first_name || 'Player',
-                                winning_cartela: parseInt(cartelaNum),
-                                prize_per_winner: prizePerWinner,
-                                completed_at: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                        });
-                    } catch (err) {
-                        console.error('Error claiming bingo:', err);
-                    }
+                    _bingoDetected = true;
+                    playWinSound();
+                    showToast('BINGO! Waiting for confirmation...');
                     return;
                 }
             }

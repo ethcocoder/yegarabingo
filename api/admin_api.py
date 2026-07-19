@@ -256,8 +256,23 @@ async def _game_loop(round_id: str):
                 return
 
             # Call the next number using the Smart Predictor engine
+            # After 60 numbers, bypass predictor to ensure a winner is found
+            num_called_so_far = len(data.get('called_numbers', []))
             try:
-                number = await engine.call_number(round_id)
+                if num_called_so_far >= 60:
+                    import random as _rand
+                    number = _rand.choice(available)
+                    now_ts = datetime.now(tz=timezone.utc)
+                    called_list = list(data.get('called_numbers', []))
+                    called_list.append(number)
+                    db.collection('rounds').document(round_id).update({
+                        'called_numbers': called_list,
+                        'last_called_number': number,
+                        'last_called_at': now_ts,
+                        'next_number_at': now_ts + timedelta(seconds=NUMBER_CALL_INTERVAL),
+                    })
+                else:
+                    number = await engine.call_number(round_id)
             except Exception as e:
                 logger.warning(f"Smart predictor error for {round_id}: {e}")
                 # Fallback to pure random choice if predictor crashes
@@ -274,9 +289,63 @@ async def _game_loop(round_id: str):
                 })
                 
             if number is None:
-                # Could not call number (none available, or round status changed)
                 await asyncio.sleep(NUMBER_CALL_INTERVAL)
                 continue
+
+            # ── SERVER-SIDE BINGO CHECK (authoritative) ──
+            round_doc = db.collection('rounds').document(round_id).get()
+            if not round_doc.exists:
+                return
+            rd_after = round_doc.to_dict()
+            if rd_after.get('status') != 'playing':
+                # Client already completed it; handle payout
+                winners = rd_after.get('winners', [])
+                if winners and not rd_after.get('payout_processed'):
+                    try:
+                        await engine.end_round(round_id, [int(w) for w in winners])
+                    except Exception as e:
+                        logger.error(f"[GameLoop] Error distributing prizes: {e}")
+                    db.collection('rounds').document(round_id).update({'payout_processed': True})
+                return
+
+            called_now = rd_after.get('called_numbers', [])
+            players = rd_after.get('players', {})
+            bingo_winner_id = None
+            bingo_cartela = None
+
+            for uid_str, p_info in players.items():
+                for cnum in p_info.get('cartelas', []):
+                    cartela_doc = db.collection('cartelas_master').document(str(cnum)).get()
+                    if not cartela_doc.exists:
+                        continue
+                    flat = cartela_doc.to_dict().get('cartela', [])
+                    if engine.check_bingo_for_cartela(flat, called_now):
+                        bingo_winner_id = uid_str
+                        bingo_cartela = cnum
+                        break
+                if bingo_winner_id:
+                    break
+
+            if bingo_winner_id:
+                now = datetime.now(tz=timezone.utc)
+                player_count = rd_after.get('player_count', 1)
+                prize_per_winner = round(player_count * STAKE * 0.75)
+                db.collection('rounds').document(round_id).update({
+                    'status': 'completed',
+                    'winners': [bingo_winner_id],
+                    'winner_name': players.get(bingo_winner_id, {}).get('name', 'Player'),
+                    'winning_cartela': int(bingo_cartela),
+                    'prize_per_winner': prize_per_winner,
+                    'completed_at': now,
+                })
+                # Process payout (handles wallet credit, wins/losses tracking)
+                try:
+                    await engine.end_round(round_id, [int(bingo_winner_id)])
+                except Exception as e:
+                    logger.error(f"[GameLoop] Error distributing prizes: {e}")
+                db.collection('rounds').document(round_id).update({'payout_processed': True})
+                logger.info(f"[GameLoop] BINGO! Player {bingo_winner_id} won round {round_id} with cartela {bingo_cartela}")
+                return
 
             await asyncio.sleep(NUMBER_CALL_INTERVAL)
 
@@ -1011,7 +1080,7 @@ async def broadcast_cartela_pool(round_id: str):
             "round_id": round_id,
             "taken_cartelas": rd.get('taken_cartelas', []),
             "player_count": rd.get('player_count', 0),
-        }, room=f"round:{round_id}")
+        }, room=f"rounds:{round_id}")
 
 
 # ─── Background event broadcaster ───
