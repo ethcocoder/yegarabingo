@@ -12,7 +12,7 @@ services:
     autoDeploy: true
 
   - type: web
-    name: yegarabingo-api
+    name: yegara-bingo-api
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile

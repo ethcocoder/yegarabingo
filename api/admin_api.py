@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_ORIGINS = [
     "https://yegarabingo.onrender.com",
-    "https://yegarabingo-api.onrender.com",
+    "https://yegara-bingo-api.onrender.com",
 ]
 
 
