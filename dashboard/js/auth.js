@@ -135,5 +135,6 @@ function startStatsListener() {
         }).catch(function() {});
     }
     refreshCompletedStats();
-    setInterval(refreshCompletedStats, 30000);
+    if (statsInterval) clearInterval(statsInterval);
+    statsInterval = setInterval(refreshCompletedStats, 10000);
 }

@@ -5,6 +5,7 @@ var currentRoundId = null;
 var roundUnsubscribe = null;
 var userUnsubscribe = null;
 var statsUnsubscribe = null;
+var statsInterval = null;
 var selectedCartelas = [];
 var myCartelas = {};
 var autoMarkEnabled = false;

@@ -248,6 +248,9 @@ async def _game_loop(round_id: str):
                     except Exception as e:
                         logger.error(f"[GameLoop] Error distributing prizes for {round_id}: {e}")
                         return  # Don't mark as processed if payout failed
+                    for uid in winners:
+                        try: await broadcast_event('users', str(uid))
+                        except: pass
                     db.collection('rounds').document(round_id).update({'payout_processed': True})
                     await broadcast_event('rounds', round_id)
                 return
@@ -372,6 +375,10 @@ async def _game_loop(round_id: str):
                     await engine.end_round(round_id, [int(bingo_winner_id)])
                 except Exception as e:
                     logger.error(f"[GameLoop] Error distributing prizes: {e}")
+                # Broadcast user updates so frontend sees balance/wins change
+                for uid in list(players.keys()) + [bingo_winner_id]:
+                    try: await broadcast_event('users', str(uid))
+                    except: pass
                 db.collection('rounds').document(round_id).update({'payout_processed': True})
                 await broadcast_event('rounds', round_id)
                 logger.info(f"[GameLoop] BINGO! Player {bingo_winner_id} won round {round_id} with cartela {bingo_cartela}")
