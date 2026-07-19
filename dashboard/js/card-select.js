@@ -248,6 +248,7 @@ async function showCardSelection(roundId, roundData) {
 
             if (rd.status === 'completed' || rd.status === 'cancelled') {
                 var selectScreen = document.getElementById('card-select-screen');
+                if (selectScreen && selectScreen.classList.contains('hidden')) return;
                 if (selectScreen && !selectScreen.classList.contains('hidden')) {
                     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
                     stopSelectionCountdown();
@@ -261,6 +262,8 @@ async function showCardSelection(roundId, roundData) {
             }
 
             if (rd.status === 'playing') {
+                var cs = document.getElementById('card-select-screen');
+                if (cs && cs.classList.contains('hidden')) return;
                 var livePC = rd.player_count || 0;
                 if (livePC <= 0) {
                     // 0-player round started playing — cancel and restart
@@ -520,6 +523,7 @@ async function confirmSelection() {
         var cs = document.getElementById('card-select-screen');
         if (cs) cs.classList.add('hidden');
         stopSelectionCountdown();
+        if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
         await navigateTo('game');
         setupGameBoard();
         listenToRound(currentRoundId);
