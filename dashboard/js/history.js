@@ -10,18 +10,32 @@ async function loadHistory() {
     if (empty) empty.classList.add('hidden');
     
     try {
-        // 1. Get 3 most recent winners (motivational)
         var winnerSnap = await db.collection('rounds')
             .where('status', '==', 'completed')
-            .orderBy('created_at', 'desc')
-            .limit(30).get();
+            .limit(50).get();
         
         if (loading) loading.classList.add('hidden');
         
-        var recentWinners = [];
+        var allRounds = [];
         winnerSnap.forEach(function(doc) {
-            var d = doc.data();
-            if (d.winners && d.winners.length > 0 && d.winner_name) {
+            allRounds.push({ id: doc.id, data: doc.data() });
+        });
+
+        allRounds.sort(function(a, b) {
+            var da = a.data.completed_at;
+            var db2 = b.data.completed_at;
+            var ta = da && da.toDate ? da.toDate().getTime() : (da ? new Date(da).getTime() : 0);
+            var tb = db2 && db2.toDate ? db2.toDate().getTime() : (db2 ? new Date(db2).getTime() : 0);
+            return tb - ta;
+        });
+        
+        if (!list) return;
+        list.innerHTML = '';
+        
+        var recentWinners = [];
+        allRounds.forEach(function(item) {
+            var d = item.data;
+            if (d.winners && d.winners.length > 0 && d.winner_name && d.winner_name !== 'No players') {
                 var date = '';
                 if (d.completed_at) {
                     var dt = d.completed_at.toDate ? d.completed_at.toDate() : new Date(d.completed_at);
@@ -38,10 +52,6 @@ async function loadHistory() {
             }
         });
         
-        if (!list) return;
-        list.innerHTML = '';
-        
-        // Render winners section
         if (recentWinners.length > 0) {
             var winnersHeader = document.createElement('div');
             winnersHeader.className = 'mb-3';
@@ -54,10 +64,10 @@ async function loadHistory() {
                 var el = document.createElement('div');
                 el.className = 'glass rounded-xl p-3 flex items-center justify-between';
                 el.innerHTML = '<div class="flex items-center gap-3">' +
-                    '<div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style="background: linear-gradient(135deg, #FFD700, #FF8C00); color: #1a1a2e;">🏆</div>' +
+                    '<div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style="background: linear-gradient(135deg, #FFD700, #FF8C00); color: #1a1a2e;">&#127942;</div>' +
                     '<div>' +
                     '<div class="text-sm font-bold text-white">' + w.name + '</div>' +
-                    '<div class="text-[10px] text-white/40">Cartela #' + w.cartela + ' · ' + w.date + '</div>' +
+                    '<div class="text-[10px] text-white/40">Cartela #' + w.cartela + ' &middot; ' + w.date + '</div>' +
                     '</div>' +
                     '</div>' +
                     '<div class="text-right">' +
@@ -72,13 +82,12 @@ async function loadHistory() {
             list.appendChild(divider);
         }
         
-        // 2. Individual history
         var uidStr = String(currentUser.id);
         var myRounds = [];
-        winnerSnap.forEach(function(doc) {
-            var d = doc.data();
+        allRounds.forEach(function(item) {
+            var d = item.data;
             var wasPlayer = d.players && d.players[uidStr];
-            if (wasPlayer) myRounds.push({ id: doc.id, data: d });
+            if (wasPlayer && (d.player_count || 0) > 0) myRounds.push({ id: item.id, data: d });
         });
         
         if (myRounds.length > 0) {
@@ -99,7 +108,7 @@ async function loadHistory() {
                     date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 }
                 el.innerHTML = '<div class="flex items-center justify-between mb-1">' +
-                    '<span class="text-sm font-bold ' + (isWinner ? 'text-bingo-green' : 'text-red-400') + '">' + (isWinner ? '🏆 Won!' : '❌ Lost') + '</span>' +
+                    '<span class="text-sm font-bold ' + (isWinner ? 'text-bingo-green' : 'text-red-400') + '">' + (isWinner ? '&#127942; Won!' : '&#10060; Lost') + '</span>' +
                     '<span class="text-xs text-white/40">' + date + '</span>' +
                     '</div>' +
                     '<div class="flex items-center justify-between text-xs text-white/60">' +
@@ -114,5 +123,6 @@ async function loadHistory() {
     } catch (err) {
         if (loading) loading.classList.add('hidden');
         console.error('History error:', err);
+        if (empty) empty.classList.remove('hidden');
     }
 }
