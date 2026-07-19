@@ -27,7 +27,7 @@
             console.warn('[Yegara Bingo] Socket.IO library not loaded (CDN failed). Real-time updates disabled.');
         } else if (API_BASE && API_BASE !== 'null' && API_BASE !== 'about:' && API_BASE !== 'about:blank' && API_BASE !== '') {
             socket = io(API_BASE, {
-                transports: ['websocket', 'polling'],
+                transports: ['polling'],
                 reconnection: true,
                 reconnectionDelay: 1000,
                 reconnectionAttempts: Infinity,
