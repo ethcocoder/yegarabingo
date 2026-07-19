@@ -52,6 +52,9 @@ _active_game_tasks = {}  # round_id -> asyncio.Task
 BINGO_NUMBERS = list(range(1, 76))
 NUMBER_CALL_INTERVAL = 5  # seconds
 
+# Cartela generation progress tracking
+_cartela_gen_progress = {"status": "idle", "generated": 0, "total": 500, "error": None}
+
 
 # ─── Models ───
 class JoinRoundRequest(BaseModel):
@@ -265,34 +268,63 @@ async def start_background_monitor():
 # ═══════════════════════════════════════════════════════════════
 @app.post("/api/cartelas/generate")
 async def generate_cartelas():
+    global _cartela_gen_progress
     import threading
-    start = time.monotonic()
-    thread_name = threading.current_thread().name
-    logger.info(f"[CART-DBG] ENDPOINT ENTERED thread={thread_name}")
-    try:
-        logger.info("[CART-DBG] Calling engine.generate_all_cartelas()...")
-        result = await engine.generate_all_cartelas()
-        elapsed_gen = round(time.monotonic() - start, 2)
-        logger.info(f"[CART-DBG] Engine returned in {elapsed_gen}s: type={type(result).__name__}")
-        logger.info(f"[CART-DBG] Result content: {result}")
-        if not isinstance(result, dict) or result is None:
-            logger.warning("[CART-DBG] Result is not a dict, creating fallback")
-            result = {"cartelas": [], "count": 0, "elapsed": elapsed_gen}
-        result["elapsed"] = elapsed_gen
+    logger.info(f"[CART-DBG] ENDPOINT ENTERED thread={threading.current_thread().name}")
+    
+    # If already generating, return current status
+    if _cartela_gen_progress["status"] == "generating":
+        logger.info("[CART-DBG] Already generating, returning current progress")
+        return {"status": "generating", "generated": _cartela_gen_progress["generated"], "total": _cartela_gen_progress["total"]}
+    
+    # Check if cartelas already exist
+    existing = list(engine.master_ref.limit(1).get())
+    if existing:
+        count = len(list(engine.master_ref.get()))
+        logger.info(f"[CART-DBG] Cartelas already exist, count={count}")
+        return {"status": "already_exists", "count": count}
+    
+    # Start background generation
+    _cartela_gen_progress = {"status": "generating", "generated": 0, "total": 500, "error": None}
+    logger.info("[CART-DBG] Starting background cartela generation")
+    
+    def _run_generation():
+        global _cartela_gen_progress
         try:
-            asyncio.create_task(broadcast_cartelas_update())
-            logger.info("[CART-DBG] Broadcast task scheduled OK")
-        except Exception as broadcast_err:
-            logger.warning(f"[CART-DBG] Failed to schedule broadcast: {broadcast_err}")
-        total_elapsed = round(time.monotonic() - start, 2)
-        logger.info(f"[CART-DBG] Returning response: {result} (total {total_elapsed}s)")
-        return result
-    except Exception as e:
-        elapsed = round(time.monotonic() - start, 2)
-        logger.error(f"[CART-DBG] EXCEPTION after {elapsed}s: {e}", exc_info=True)
-        fallback = {"cartelas": [], "count": 0, "error": str(e), "elapsed": elapsed}
-        logger.info(f"[CART-DBG] Returning error response: {fallback}")
-        return fallback
+            result = engine._generate_all_cartelas_sync()
+            _cartela_gen_progress["status"] = "done"
+            _cartela_gen_progress["generated"] = result.get("count", 0)
+            logger.info(f"[CART-DBG] Background generation complete: {result}")
+            # Schedule broadcast
+            try:
+                asyncio.get_event_loop().call_soon_threadsafe(
+                    lambda: asyncio.ensure_future(broadcast_cartelas_update())
+                )
+            except Exception as broadcast_err:
+                logger.warning(f"[CART-DBG] Failed to schedule broadcast: {broadcast_err}")
+        except Exception as e:
+            _cartela_gen_progress["status"] = "error"
+            _cartela_gen_progress["error"] = str(e)
+            logger.error(f"[CART-DBG] Background generation FAILED: {e}", exc_info=True)
+    
+    thread = threading.Thread(target=_run_generation, daemon=True)
+    thread.start()
+    
+    return {"status": "generating", "generated": 0, "total": 500}
+
+
+@app.get("/api/cartelas/status")
+async def cartela_status():
+    """Check cartela generation progress."""
+    return _cartela_gen_progress
+
+
+@app.post("/api/cartelas/reset")
+async def reset_cartela_status():
+    """Reset cartela generation status (admin use)."""
+    global _cartela_gen_progress
+    _cartela_gen_progress = {"status": "idle", "generated": 0, "total": 500, "error": None}
+    return {"status": "reset"}
 
 
 @app.get("/api/cartelas")

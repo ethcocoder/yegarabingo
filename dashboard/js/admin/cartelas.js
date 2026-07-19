@@ -21,60 +21,66 @@ function generateOneCartela() {
 async function generateCartelaPool() {
     if (!confirm('Generate the 500 fixed cartelas? This will call the API.')) return;
     console.log('[CART-DBG] API_BASE:', API_BASE);
-    var MAX_RETRIES = 2;
-    var RETRY_DELAY = 3000;
-    var TIMEOUT_MS = 300000;
-    for (var attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            var url = API_BASE + '/api/cartelas/generate';
-            console.log('[CART-DBG] Attempt ' + (attempt + 1) + '/' + (MAX_RETRIES + 1) + ' - POST', url);
-            var controller = new AbortController();
-            var timeoutId = setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
-            var t0 = Date.now();
-            var res = await fetch(url, { method: 'POST', signal: controller.signal });
-            var fetchMs = Date.now() - t0;
-            clearTimeout(timeoutId);
-            console.log('[CART-DBG] Status:', res.status, res.statusText, '| Time:', fetchMs + 'ms');
-            console.log('[CART-DBG] Content-Type:', res.headers.get('content-type'));
-            console.log('[CART-DBG] Content-Length:', res.headers.get('content-length'));
-            if (!res.ok) {
-                var errText = '';
-                try { errText = await res.text(); } catch (_) {}
-                console.log('[CART-DBG] Error body:', errText.substring(0, 500));
-                throw new Error(errText || ('Server error: ' + res.status));
-            }
-            var raw = await res.text();
-            console.log('[CART-DBG] Response length:', raw.length, 'chars');
-            console.log('[CART-DBG] Response preview:', raw.substring(0, 200));
-            if (!raw) throw new Error('Empty response from server');
-            var data = JSON.parse(raw);
-            console.log('[CART-DBG] Parsed OK:', JSON.stringify(data).substring(0, 300));
-            alert(data.status === 'already_exists' ? 'Cartelas already exist.' : 'Generated 500 cartelas successfully!');
-            return;
-        } catch (e) {
-            console.error('[CART-DBG] Attempt ' + (attempt + 1) + ' FAILED:', e.name, e.message);
-            var isNetworkError = e.name === 'TypeError';
-            var isTimeout = e.name === 'AbortError';
-            var isParseError = e instanceof SyntaxError;
-            var errorMsg;
-            if (isTimeout) {
-                errorMsg = 'Request timed out after 5 minutes.';
-            } else if (isNetworkError) {
-                errorMsg = 'Network error. Please check your connection.';
-            } else if (isParseError) {
-                errorMsg = 'Invalid response format from server.';
-            } else {
-                errorMsg = 'Server error: ' + e.message;
-            }
-            if (attempt < MAX_RETRIES && (isNetworkError || !raw)) {
-                console.log('[CART-DBG] Retrying in ' + (RETRY_DELAY / 1000) + 's...');
-                await new Promise(function (r) { setTimeout(r, RETRY_DELAY); });
-                continue;
-            }
-            alert('Error generating cartelas: ' + errorMsg);
+    
+    try {
+        var url = API_BASE + '/api/cartelas/generate';
+        console.log('[CART-DBG] POST', url);
+        var res = await fetch(url, { method: 'POST' });
+        console.log('[CART-DBG] Status:', res.status);
+        var raw = await res.text();
+        console.log('[CART-DBG] Response:', raw.substring(0, 300));
+        if (!raw) throw new Error('Empty response from server');
+        var data = JSON.parse(raw);
+        
+        if (data.status === 'already_exists') {
+            alert('Cartelas already exist (' + (data.count || 0) + ' cartelas).');
             return;
         }
+        
+        if (data.status === 'generating') {
+            console.log('[CART-DBG] Generation started, polling for progress...');
+            alert('Cartela generation started. Monitoring progress...');
+            await _pollCartelaProgress();
+            return;
+        }
+        
+        alert('Generated 500 cartelas successfully!');
+    } catch (e) {
+        console.error('[CART-DBG] FAILED:', e.name, e.message);
+        alert('Error generating cartelas: ' + e.message);
     }
+}
+
+async function _pollCartelaProgress() {
+    var statusUrl = API_BASE + '/api/cartelas/status';
+    var maxPolls = 150; // 5 minutes max (2s intervals)
+    for (var i = 0; i < maxPolls; i++) {
+        await new Promise(function (r) { setTimeout(r, 2000); });
+        try {
+            var res = await fetch(statusUrl);
+            var raw = await res.text();
+            if (!raw) continue;
+            var status = JSON.parse(raw);
+            console.log('[CART-DBG] Progress:', status.generated + '/' + status.total, 'status=' + status.status);
+            
+            if (status.status === 'done') {
+                alert('Generated ' + (status.generated || 500) + ' cartelas successfully!');
+                return;
+            }
+            if (status.status === 'error') {
+                alert('Error generating cartelas: ' + (status.error || 'Unknown error'));
+                return;
+            }
+            if (status.status === 'idle') {
+                alert('Cartela generation completed!');
+                return;
+            }
+            // Still generating - continue polling
+        } catch (e) {
+            console.warn('[CART-DBG] Poll error:', e.message);
+        }
+    }
+    alert('Timed out waiting for cartela generation. Check server logs.');
 }
 
 function loadCartelaPool() {
