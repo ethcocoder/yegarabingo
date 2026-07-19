@@ -3,7 +3,7 @@ body { background: #0D1117; color: white; overflow-x: hidden; }
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-.screen { display: none; min-height: 100vh; padding-bottom: 80px; }
+.screen { display: none; min-height: 100vh; padding-bottom: 80px; overflow-y: auto; overflow-x: hidden; }
 .screen.active { display: block; }
 .glass { background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
 .gradient-green { background: linear-gradient(135deg, #10B981, #14B8A6); }

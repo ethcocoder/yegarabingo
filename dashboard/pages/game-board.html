@@ -1,29 +1,29 @@
     <div class="flex flex-col" style="min-height: calc(100vh - 56px); padding-bottom: 80px;">
-        <!-- Game stats bar - horizontal scrollable -->
-        <div class="px-2 py-1.5 flex gap-1.5 overflow-x-auto" id="game-info-bar" style="scrollbar-width: none;">
-            <div class="flex-shrink-0 rounded-xl px-3 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(255,140,0,0.15), rgba(255,140,0,0.05)); border: 1px solid rgba(255,140,0,0.3);">
+        <!-- Game stats bar - fixed 2-row grid, no scroll -->
+        <div class="px-2 py-1.5 grid grid-cols-3 gap-1.5" id="game-info-bar">
+            <div class="rounded-xl px-2 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(255,140,0,0.15), rgba(255,140,0,0.05)); border: 1px solid rgba(255,140,0,0.3);">
                 <div class="stat-label" style="color: rgba(255,140,0,0.6);">GAME</div>
-                <div id="game-id-display" class="stat-value" style="color: #FF8C00; font-size: 11px; font-weight: 900;">#---</div>
+                <div id="game-id-display" class="stat-value" style="color: #FF8C00; font-size: 10px; font-weight: 900;">#---</div>
             </div>
-            <div class="flex-shrink-0 rounded-xl px-3 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.3);">
+            <div class="rounded-xl px-2 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.3);">
                 <div class="stat-label" style="color: rgba(16,185,129,0.6);">PLAYERS</div>
-                <div id="game-players" class="stat-value" style="color: #10B981; font-size: 11px; font-weight: 900;">1</div>
+                <div id="game-players" class="stat-value" style="color: #10B981; font-size: 10px; font-weight: 900;">1</div>
             </div>
-            <div class="flex-shrink-0 rounded-xl px-3 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); border: 1px solid rgba(59,130,246,0.3);">
+            <div class="rounded-xl px-2 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); border: 1px solid rgba(59,130,246,0.3);">
                 <div class="stat-label" style="color: rgba(59,130,246,0.6);">BET</div>
-                <div id="game-stake" class="stat-value" style="color: #3B82F6; font-size: 11px; font-weight: 900;">0</div>
+                <div id="game-stake" class="stat-value" style="color: #3B82F6; font-size: 10px; font-weight: 900;">0</div>
             </div>
-            <div class="flex-shrink-0 rounded-xl px-3 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(168,85,247,0.05)); border: 1px solid rgba(168,85,247,0.3);">
+            <div class="rounded-xl px-2 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(168,85,247,0.05)); border: 1px solid rgba(168,85,247,0.3);">
                 <div class="stat-label" style="color: rgba(168,85,247,0.6);">PRIZE</div>
-                <div id="game-derash" class="stat-value" style="color: #A855F7; font-size: 11px; font-weight: 900;">0</div>
+                <div id="game-derash" class="stat-value" style="color: #A855F7; font-size: 10px; font-weight: 900;">0</div>
             </div>
-            <div class="flex-shrink-0 rounded-xl px-3 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(20,184,166,0.15), rgba(20,184,166,0.05)); border: 1px solid rgba(20,184,166,0.3);">
+            <div class="rounded-xl px-2 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(20,184,166,0.15), rgba(20,184,166,0.05)); border: 1px solid rgba(20,184,166,0.3);">
                 <div class="stat-label" style="color: rgba(20,184,166,0.6);">CALLED</div>
-                <div id="game-called-count" class="stat-value" style="color: #14B8A6; font-size: 11px; font-weight: 900;">0</div>
+                <div id="game-called-count" class="stat-value" style="color: #14B8A6; font-size: 10px; font-weight: 900;">0</div>
             </div>
-            <div class="flex-shrink-0 rounded-xl px-3 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); border: 1px solid rgba(239,68,68,0.3);">
+            <div class="rounded-xl px-2 py-1.5 stat-pill" style="background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); border: 1px solid rgba(239,68,68,0.3);">
                 <div class="stat-label" style="color: rgba(239,68,68,0.6);">TIMER</div>
-                <div id="game-timer" class="stat-value" style="color: #EF4444; font-size: 11px; font-weight: 900;">--</div>
+                <div id="game-timer" class="stat-value" style="color: #EF4444; font-size: 10px; font-weight: 900;">--</div>
             </div>
         </div>
 
@@ -46,18 +46,8 @@
                 <div class="grid grid-cols-5 gap-px flex-1 master-grid-compact" id="master-grid"></div>
             </div>
 
-            <!-- RIGHT: Called Tags + Number Circle + Cartela -->
-            <div class="w-[55%] rounded-2xl p-2 flex flex-col gap-1.5 order-2" style="background: rgba(26,26,46,0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06);">
-                <!-- Called number tags + Voice controls -->
-                <div class="flex items-center gap-1 overflow-x-auto" style="scrollbar-width: none; min-height: 24px;">
-                    <div class="flex gap-1 flex-1 overflow-x-auto" id="called-tags" style="scrollbar-width: none; flex-wrap: nowrap;"></div>
-                    <button onclick="toggleVoice()" class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);">
-                        <svg id="voice-icon" class="w-4 h-4 text-white/70" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                    </button>
-                    <button onclick="toggleMusic()" class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);">
-                        <span id="music-icon" class="text-[10px]">&#128263;</span>
-                    </button>
-                </div>
+            <!-- RIGHT: Number Circle + Called Tags + Cartela(s) -->
+            <div class="w-[55%] rounded-2xl p-2 flex flex-col order-2" style="background: rgba(26,26,46,0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06);">
 
                 <!-- Number announcement circle -->
                 <div class="flex items-center justify-center py-1" style="min-height: 50px;">
@@ -73,6 +63,18 @@
                     </div>
                 </div>
 
+                <!-- Called Numbers Strip -->
+                <div class="section-separator"></div>
+                <div class="flex items-center gap-1 overflow-x-auto py-1" style="scrollbar-width: none; min-height: 24px;">
+                    <div class="flex gap-1 flex-1 overflow-x-auto" id="called-tags" style="scrollbar-width: none; flex-wrap: nowrap;"></div>
+                    <button onclick="toggleVoice()" class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);">
+                        <svg id="voice-icon" class="w-4 h-4 text-white/70" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    </button>
+                    <button onclick="toggleMusic()" class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);">
+                        <span id="music-icon" class="text-[10px]">&#128263;</span>
+                    </button>
+                </div>
+
                 <!-- Spectator mode message -->
                 <div id="spectator-message" class="hidden flex-1 flex flex-col items-center justify-center text-center px-2 py-4">
                     <div class="text-3xl mb-2 float-anim">&#128064;</div>
@@ -80,9 +82,10 @@
                     <div class="text-white/40 text-xs">Join next round to play!</div>
                 </div>
 
-                <!-- Cartela(s) -->
+                <!-- Cartela 1 -->
                 <div id="cartela-area" class="flex-1 flex flex-col gap-1.5 min-h-0">
                     <div id="cartela-wrap-1" class="hidden rounded-xl overflow-hidden" style="border: 1px solid rgba(255,140,0,0.3);">
+                        <div class="section-separator"></div>
                         <div class="text-center py-1 text-[10px] font-black text-white tracking-wider" style="background: linear-gradient(135deg, #FF8C00, #FF6B00); text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
                             CARTELA NO: <span id="cartela-number-1">0</span>
                         </div>
@@ -95,7 +98,10 @@
                         </div>
                         <div class="grid grid-cols-5 gap-px" id="cartela-grid-1" style="background: rgba(26,26,46,0.5);"></div>
                     </div>
+
+                    <!-- Cartela 2 -->
                     <div id="cartela-wrap-2" class="hidden rounded-xl overflow-hidden" style="border: 1px solid rgba(255,140,0,0.3);">
+                        <div class="section-separator"></div>
                         <div class="text-center py-1 text-[10px] font-black text-white tracking-wider" style="background: linear-gradient(135deg, #FF8C00, #FF6B00); text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
                             CARTELA NO: <span id="cartela-number-2">0</span>
                         </div>
@@ -111,6 +117,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- Separator before bottom bar -->
+        <div class="section-separator mx-2"></div>
 
         <!-- Bottom bar -->
         <div class="px-2 py-2 mt-auto">
