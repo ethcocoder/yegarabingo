@@ -5,7 +5,6 @@ import logging
 import time
 import socketio
 from fastapi import FastAPI, HTTPException, Query as FastAPIQuery
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
@@ -23,21 +22,65 @@ from telegram import Bot
 
 logger = logging.getLogger(__name__)
 
+ALLOWED_ORIGINS = [
+    "https://yegarabingo.onrender.com",
+    "https://yegarabingo-api.onrender.com",
+]
+
+
+class CORSMiddleware:
+    """ASGI middleware that adds CORS headers to every response,
+    including Socket.IO responses (which bypass FastAPI middleware)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        origin = None
+        for hdr_name, hdr_value in scope.get("headers", []):
+            if hdr_name == b"origin":
+                origin = hdr_value.decode()
+                break
+
+        is_preflight = (
+            scope["method"] == "OPTIONS"
+            and any(h[0] == b"access-control-request-method" for h in scope.get("headers", []))
+        )
+
+        if origin and origin in ALLOWED_ORIGINS:
+            if is_preflight:
+                response = Response(status_code=204)
+                response.headers["access-control-allow-origin"] = origin
+                response.headers["access-control-allow-credentials"] = "true"
+                response.headers["access-control-allow-methods"] = "*"
+                response.headers["access-control-allow-headers"] = "*"
+                response.headers["access-control-max-age"] = "600"
+                await response(scope, receive, send)
+                return
+
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    headers = message.get("headers", [])
+                    headers.append((b"access-control-allow-origin", origin.encode()))
+                    headers.append((b"access-control-allow-credentials", b"true"))
+                    message["headers"] = headers
+                await send(message)
+
+            return await self.app(scope, receive, send_wrapper)
+
+        return await self.app(scope, receive, send)
+
+
 # ─── Socket.IO Server ───
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
 
 app = FastAPI(title="Yegara Bingo Admin API", version="2.0.0")
 
-# Mount Socket.IO on the FastAPI app
-socket_app = socketio.ASGIApp(sio, app)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://yegarabingo.onrender.com", "https://yegarabingo-api.onrender.com"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Mount Socket.IO on the FastAPI app, then wrap with CORS at ASGI level
+socket_app = CORSMiddleware(socketio.ASGIApp(sio, app))
 
 engine = RoundEngine(db)
 user_manager = UserManager(db)
