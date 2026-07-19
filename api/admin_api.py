@@ -2,6 +2,7 @@ import os
 import random
 import asyncio
 import logging
+import time
 import socketio
 from fastapi import FastAPI, HTTPException, Query as FastAPIQuery
 from fastapi.middleware.cors import CORSMiddleware
@@ -261,20 +262,25 @@ async def start_background_monitor():
 # ═══════════════════════════════════════════════════════════════
 @app.post("/api/cartelas/generate")
 async def generate_cartelas():
-    """Generate 500 fixed cartelas (idempotent)."""
+    start = time.monotonic()
     try:
         logger.info("Cartela generation requested")
         result = await engine.generate_all_cartelas()
-        logger.info(f"Cartela generation complete: {result}")
-        # Broadcast cartela pool update (fire-and-forget, wrapped safely)
+        elapsed = round(time.monotonic() - start, 2)
+        count = len(result) if isinstance(result, dict) and "cartelas" in result else 0
+        logger.info(f"Cartela generation complete in {elapsed}s: count={count}")
+        if not isinstance(result, dict) or result is None:
+            result = {"cartelas": [], "count": 0, "elapsed": elapsed}
+        result["elapsed"] = elapsed
         try:
             asyncio.create_task(broadcast_cartelas_update())
         except Exception as broadcast_err:
             logger.warning(f"Failed to schedule cartela broadcast: {broadcast_err}")
         return result
     except Exception as e:
-        logger.error(f"Error generating cartelas: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        elapsed = round(time.monotonic() - start, 2)
+        logger.error(f"Error generating cartelas after {elapsed}s: {e}", exc_info=True)
+        return {"cartelas": [], "count": 0, "error": str(e), "elapsed": elapsed}
 
 
 @app.get("/api/cartelas")

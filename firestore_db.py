@@ -138,14 +138,17 @@ class WriteBatch:
 
     def set(self, ref, data, merge=False):
         ref._session = self._session
+        ref._in_batch = True
         self._operations.append(lambda: ref.set(data, merge=merge))
 
     def update(self, ref, data):
         ref._session = self._session
+        ref._in_batch = True
         self._operations.append(lambda: ref.update(data))
 
     def delete(self, ref):
         ref._session = self._session
+        ref._in_batch = True
         self._operations.append(lambda: ref.delete())
 
     def commit(self):
@@ -288,6 +291,7 @@ class DocumentRef:
         self.collection_name = collection_name
         self.id = str(doc_id)
         self._session = session
+        self._in_batch = False
 
     def get(self, transaction=None):
         sess = self._session or SessionLocal()
@@ -333,7 +337,6 @@ class DocumentRef:
                 )
                 sess.add(db_doc)
             
-            # Add to update stream
             event = SystemEvent(
                 id=str(uuid.uuid4()),
                 collection=self.collection_name,
@@ -341,7 +344,10 @@ class DocumentRef:
                 event_type='set'
             )
             sess.add(event)
-            sess.commit()
+            if not self._in_batch:
+                sess.commit()
+            else:
+                self._in_batch = False
         except Exception:
             sess.rollback()
             raise
@@ -362,7 +368,6 @@ class DocumentRef:
             curr = json.loads(db_doc.data) if db_doc.data else {}
             
             for k, v in data.items():
-                # Dotted key path updates (e.g. 'ocr.status')
                 parts = k.split('.')
                 target = curr
                 for part in parts[:-1]:
@@ -386,7 +391,6 @@ class DocumentRef:
             
             db_doc.data = json.dumps(curr)
             
-            # Log modify event
             event = SystemEvent(
                 id=str(uuid.uuid4()),
                 collection=self.collection_name,
@@ -394,7 +398,10 @@ class DocumentRef:
                 event_type='update'
             )
             sess.add(event)
-            sess.commit()
+            if not self._in_batch:
+                sess.commit()
+            else:
+                self._in_batch = False
         except Exception:
             sess.rollback()
             raise
@@ -412,7 +419,6 @@ class DocumentRef:
             if db_doc:
                 sess.delete(db_doc)
             
-            # Log deletion event
             event = SystemEvent(
                 id=str(uuid.uuid4()),
                 collection=self.collection_name,
@@ -420,7 +426,10 @@ class DocumentRef:
                 event_type='delete'
             )
             sess.add(event)
-            sess.commit()
+            if not self._in_batch:
+                sess.commit()
+            else:
+                self._in_batch = False
         except Exception:
             sess.rollback()
             raise

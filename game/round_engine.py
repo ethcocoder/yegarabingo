@@ -59,6 +59,9 @@ class RoundEngine:
 
     async def generate_all_cartelas(self) -> dict:
         """Generate 500 fixed cartelas in cartelas_master. Idempotent."""
+        return await asyncio.to_thread(self._generate_all_cartelas_sync)
+
+    def _generate_all_cartelas_sync(self) -> dict:
         logger.info("Checking for existing cartelas...")
         existing = list(self.master_ref.limit(1).get())
         if existing:

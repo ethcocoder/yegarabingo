@@ -20,30 +20,53 @@ function generateOneCartela() {
 
 async function generateCartelaPool() {
     if (!confirm('Generate the 500 fixed cartelas? This will call the API.')) return;
-    try {
-        var controller = new AbortController();
-        var timeoutId = setTimeout(function () { controller.abort(); }, 120000);
-        var res = await fetch(API_BASE + '/api/cartelas/generate', {
-            method: 'POST',
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (!res.ok) {
-            var errText = '';
-            try { errText = await res.text(); } catch (_) {}
-            throw new Error(errText || ('Server error: ' + res.status));
-        }
-        var raw = await res.text();
-        if (!raw) throw new Error('Empty response from server');
-        var data = JSON.parse(raw);
-        alert(data.status === 'already_exists' ? 'Cartelas already exist.' : 'Generated 500 cartelas successfully!');
-        // onSnapshot listener will auto-update the UI
-    } catch (e) {
-        console.error(e);
-        if (e.name === 'AbortError') {
-            alert('Error generating cartelas: Request timed out after 2 minutes.');
-        } else {
-            alert('Error generating cartelas: ' + e.message);
+    var MAX_RETRIES = 2;
+    var RETRY_DELAY = 3000;
+    var TIMEOUT_MS = 300000;
+    console.log('Generating cartelas, please wait...');
+    for (var attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
+            var res = await fetch(API_BASE + '/api/cartelas/generate', {
+                method: 'POST',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!res.ok) {
+                var errText = '';
+                try { errText = await res.text(); } catch (_) {}
+                throw new Error(errText || ('Server error: ' + res.status));
+            }
+            var raw = await res.text();
+            if (!raw) throw new Error('Empty response from server');
+            var data = JSON.parse(raw);
+            console.log('Cartela generation result:', data);
+            alert(data.status === 'already_exists' ? 'Cartelas already exist.' : 'Generated 500 cartelas successfully!');
+            return;
+        } catch (e) {
+            console.error(e);
+            var isNetworkError = e.name === 'TypeError';
+            var isTimeout = e.name === 'AbortError';
+            var isParseError = e instanceof SyntaxError;
+            var isServerError = !isNetworkError && !isTimeout && !isParseError;
+            var errorMsg;
+            if (isTimeout) {
+                errorMsg = 'Request timed out after 5 minutes.';
+            } else if (isNetworkError) {
+                errorMsg = 'Network error. Please check your connection.';
+            } else if (isParseError) {
+                errorMsg = 'Invalid response format from server.';
+            } else {
+                errorMsg = 'Server error: ' + e.message;
+            }
+            if (attempt < MAX_RETRIES && (isNetworkError || !raw)) {
+                console.log('Retrying in ' + (RETRY_DELAY / 1000) + ' seconds... (attempt ' + (attempt + 1) + '/' + MAX_RETRIES + ')');
+                await new Promise(function (r) { setTimeout(r, RETRY_DELAY); });
+                continue;
+            }
+            alert('Error generating cartelas: ' + errorMsg);
+            return;
         }
     }
 }
