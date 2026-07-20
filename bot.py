@@ -21,6 +21,7 @@ from config import (
 )
 from telegram import Bot
 from handlers.user_manager import UserManager
+from handlers.bot_content import get_bot_text, invalidate_cache
 from firestore_db import FieldFilter, Increment
 
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +34,7 @@ ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
 REG_NAME, REG_CONTACT = 0, 1
 AWAIT_PHOTO = 3
 DEPOSIT_AMOUNT, DEPOSIT_TELEBIRR_NAME = 11, 12
-DEPOSIT_CONFIRM = 14
+DEPOSIT_CONFIRM, DEPOSIT_TXN_NUMBER = 14, 15
 WITHDRAW_AMOUNT, WITHDRAW_TELEBIRR_NAME = 4, 13
 TRANSFER_ID, TRANSFER_AMOUNT, TRANSFER_CONFIRM = 6, 7, 8
 BONUS_CONFIRM = 9
@@ -80,12 +81,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Already registered — skip registration, show play directly
         pw = u.get('play_wallet', 0)
         bal = u.get('balance', 0)
-        text = (
-            f"👋 Welcome back, {user.first_name}!\n\n"
-            f"💰 Main Wallet: *{bal} ETB*\n"
-            f"🎮 Play Wallet: *{pw} ETB*\n\n"
-            f"Tap Play to start the game!"
-        )
+        text = get_bot_text('welcome_registered', db, name=user.first_name, balance=bal, play_wallet=pw)
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🎮 Play", callback_data="menu_play")],
             [InlineKeyboardButton("💰 Wallet", callback_data="menu_balance"),
@@ -94,7 +90,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(text, reply_markup=kb, parse_mode='Markdown')
     else:
         # New user — needs registration, show banner
-        text = "👋 Welcome to Yegara Bingo! Choose an Option below."
+        text = get_bot_text('welcome_new', db)
         kb = MAIN_INLINE_KEYBOARD
         banner_path = os.path.join(ASSETS_DIR, 'welcome_banner.png')
         try:
@@ -115,8 +111,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_message.reply_text(text, reply_markup=kb)
 
         await update.effective_message.reply_text(
-            "🎮 ጨዋታውን ለመጀመር ከታች ያለውን Play የሚለውን ይጫኑ::\n"
-            "(Click Play below to start the game)"
+            get_bot_text('welcome_new_amharic', db)
         )
 
 
@@ -131,7 +126,13 @@ async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.effective_message.reply_text("Please /start first.")
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📝 Register Now", callback_data="menu_register")],
+        ])
+        await update.effective_message.reply_text(
+            get_bot_text('register_ask_contact', db),
+            reply_markup=kb,
+        )
         return
 
     pw = u.get('play_wallet', 0)
@@ -139,10 +140,7 @@ async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎮 Play Now — 10 ETB", web_app=WebAppInfo(url=WEBAPP_URL))],
     ])
     await update.effective_message.reply_text(
-        f"💰 Your Play Wallet: *{pw} ETB*\n\n"
-        f"🎯 Stake: *10 ETB* per cartela (max 2)\n"
-        f"🏆 Prize: *(Players × Stake × 0.75) / Winners*\n\n"
-        f"Tap below to open the game:",
+        get_bot_text('play_wallet_info', db, play_wallet=pw),
         reply_markup=kb, parse_mode='Markdown',
     )
 
@@ -157,9 +155,7 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await user_manager.is_registered(uid):
         u = await user_manager.get_user(uid)
         await update.effective_message.reply_text(
-            f"✅ You are already registered!\n\n"
-            f"Name: {u.get('first_name', '')}\n"
-            f"Phone: {u.get('phone', '')}",
+            get_bot_text('register_already', db, name=u.get('first_name', ''), phone=u.get('phone', '')),
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
@@ -169,7 +165,7 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         one_time_keyboard=True, resize_keyboard=True,
     )
     await update.effective_message.reply_text(
-        "📱 Tap the button below to share your contact:",
+        get_bot_text('register_ask_contact', db),
         reply_markup=kb,
     )
     return REG_CONTACT
@@ -178,7 +174,7 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reg_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     contact = update.message.contact
     if not contact:
-        await update.message.reply_text("❌ Please tap the Share Contact button below.")
+        await update.message.reply_text(get_bot_text('register_ask_contact', db))
         return REG_CONTACT
 
     phone = contact.phone_number
@@ -188,9 +184,7 @@ async def reg_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name or ''
     await user_manager.register_user(update.effective_user.id, name, phone, '')
     await update.message.reply_text(
-        f"✅ Registration complete!\n\n"
-        f"Name: {name}\n"
-        f"Phone: {phone}",
+        get_bot_text('register_complete', db, name=name, phone=phone),
         reply_markup=MAIN_KEYBOARD,
     )
     return ConversationHandler.END
@@ -241,21 +235,20 @@ async def _show_deposit_flow_msg(update: Update, context: ContextTypes.DEFAULT_T
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     # Check pending deposits limit
     pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
         await update.effective_message.reply_text(
-            "⚠️ You have too many pending deposits.\nWait for them to be processed.",
+            get_bot_text('deposit_too_many', db),
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
     await update.effective_message.reply_text(
-        "💰 Please enter your TeleBirr name\n"
-        "(The name registered on your TeleBirr account):"
+        get_bot_text('deposit_ask_name', db)
     )
     return DEPOSIT_TELEBIRR_NAME
 
@@ -265,35 +258,31 @@ async def _show_deposit_flow(query, context):
     u = await user_manager.get_user(uid)
     if not u:
         try:
-            await query.edit_message_text("Please /start first.")
+            await query.edit_message_text(get_bot_text('play_need_start', db))
         except Exception:
-            await context.bot.send_message(chat_id=query.message.chat_id, text="Please /start first.")
+            await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('play_need_start', db))
         return ConversationHandler.END
     pending = db.collection('deposits').where('userId', '==', str(uid)).where('status', '==', 'pending').get()
     if len(list(pending)) >= 3:
         try:
-            await query.edit_message_text("⚠️ Too many pending deposits. Wait for processing.")
+            await query.edit_message_text(get_bot_text('deposit_too_many', db))
         except Exception:
-            await context.bot.send_message(chat_id=query.message.chat_id, text="⚠️ Too many pending deposits. Wait for processing.")
+            await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('deposit_too_many', db))
         return ConversationHandler.END
 
     try:
-        await query.edit_message_text(
-            "💰 Please enter your TeleBirr name\n"
-            "(The name registered on your TeleBirr account):"
-        )
+        await query.edit_message_text(get_bot_text('deposit_ask_name', db))
     except Exception:
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="💰 Please enter your TeleBirr name\n"
-            "(The name registered on your TeleBirr account):"
+            text=get_bot_text('deposit_ask_name', db)
         )
     return DEPOSIT_TELEBIRR_NAME
 
 
 async def deposit_telebirr_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['telebirr_name'] = update.message.text.strip()
-    await update.effective_message.reply_text("💰 Enter deposit amount (ETB):")
+    await update.effective_message.reply_text(get_bot_text('deposit_ask_amount', db))
     return DEPOSIT_AMOUNT
 
 
@@ -301,75 +290,49 @@ async def deposit_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = float(update.message.text.strip())
         if amount < 10:
-            await update.effective_message.reply_text("⚠️ Minimum deposit is 10 ETB. Enter again:")
+            await update.effective_message.reply_text(get_bot_text('deposit_min_amount', db))
             return DEPOSIT_AMOUNT
     except ValueError:
-        await update.effective_message.reply_text("❌ Enter a valid number:")
+        await update.effective_message.reply_text(get_bot_text('deposit_invalid_number', db))
         return DEPOSIT_AMOUNT
 
     context.user_data['deposit_amount'] = amount
-    uid = update.effective_user.id
-    await user_manager.set_awaiting_screenshot(uid, True)
     await update.effective_message.reply_text(
-        f"📸 Send your TeleBirr payment screenshot.\n\n"
-        f"Send to *{TELEBIRR_NUMBER}* first, then send the confirmation screenshot here.",
-        parse_mode='Markdown',
+        get_bot_text('deposit_ask_txn', db),
     )
-    return AWAIT_PHOTO
+    return DEPOSIT_TXN_NUMBER
 
 
-async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def deposit_txn_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
 
-    if not u or not u.get('awaiting_screenshot'):
-        return
+    if not u:
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
+        return ConversationHandler.END
+
+    txn_number = update.message.text.strip()
+    if not txn_number or len(txn_number) < 3:
+        await update.effective_message.reply_text(get_bot_text('deposit_invalid_number', db))
+        return DEPOSIT_TXN_NUMBER
 
     # Check admin online
     admin_online = await _is_admin_online()
     if not admin_online:
         await update.effective_message.reply_text(
-            "⚠️ Admin is offline. Please try again later.",
+            get_bot_text('deposit_admin_offline', db),
             reply_markup=MAIN_KEYBOARD,
         )
-        await user_manager.set_awaiting_screenshot(uid, False)
         return ConversationHandler.END
 
-    photo = update.message.photo
-    if not photo:
-        await update.effective_message.reply_text("Please send a photo (screenshot).")
-        return AWAIT_PHOTO
-
-    await update.effective_message.reply_text("⏳ Processing your deposit...")
-
-    # Download and hash image
-    file = await photo[-1].get_file()
-    image_bytes = await file.download_as_bytearray()
-    image_hash = hashlib.sha256(bytes(image_bytes)).hexdigest()
-
-    # Check duplicate image
-    existing = db.collection('deposits').where('imageHash', '==', image_hash).limit(1).get()
-    if existing:
-        await update.effective_message.reply_text("❌ This screenshot was already submitted.", reply_markup=MAIN_KEYBOARD)
-        await user_manager.set_awaiting_screenshot(uid, False)
-        return ConversationHandler.END
-
-    # OCR extraction (for admin verification)
-    extracted = await asyncio.to_thread(_extract_text_from_image, bytes(image_bytes))
-
-    # Use the amount user entered, not OCR amount
     amount = context.user_data.get('deposit_amount', 0)
     telebirr_name = context.user_data.get('telebirr_name', '')
-    txn_id = extracted.get('transaction_ref') or f"IMG-{image_hash[:12]}"
-    sender_name = extracted.get('receiver_name') or extracted.get('sender_name') or (u.get('first_name', 'Unknown') if u else 'Unknown')
 
-    # Check duplicate transaction ID
-    if txn_id and not txn_id.startswith("IMG-"):
-        dup = db.collection('deposits').where('transactionId', '==', txn_id).limit(1).get()
-        if dup:
-            await update.effective_message.reply_text("❌ This transaction was already submitted.", reply_markup=MAIN_KEYBOARD)
-            await user_manager.set_awaiting_screenshot(uid, False)
-            return ConversationHandler.END
+    # Check duplicate transaction number
+    dup = db.collection('deposits').where('transactionId', '==', txn_number).limit(1).get()
+    if dup:
+        await update.effective_message.reply_text(get_bot_text('deposit_duplicate_txn', db), reply_markup=MAIN_KEYBOARD)
+        return ConversationHandler.END
 
     deposit_data = {
         'userId': str(uid),
@@ -377,22 +340,9 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'firstName': update.message.from_user.first_name or '',
         'telebirrName': telebirr_name,
         'amount': amount,
-        'transactionId': txn_id,
-        'senderName': sender_name,
+        'transactionId': txn_number,
+        'senderName': u.get('first_name', 'Unknown') if u else 'Unknown',
         'status': 'pending',
-        'imageHash': image_hash,
-        'imageFileId': photo[-1].file_id,
-        'ocr': {
-            'status': extracted.get('status', 'unknown'),
-            'amount': extracted.get('amount', 0),
-            'transactionDate': extracted.get('transaction_date'),
-            'transactionType': extracted.get('transaction_type'),
-            'receiverName': extracted.get('receiver_name'),
-            'transactionRef': extracted.get('transaction_ref'),
-            'senderName': extracted.get('sender_name'),
-            'rawText': extracted.get('raw_text', ''),
-            'confidence': extracted.get('confidence', 0.0),
-        },
         'createdAt': datetime.now(tz=timezone.utc),
         'processedAt': None,
         'adminNote': '',
@@ -401,19 +351,11 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     deposit_ref.set(deposit_data)
     deposit_id = deposit_ref.id
 
-    await user_manager.set_awaiting_screenshot(uid, False)
     context.user_data.pop('deposit_amount', None)
     context.user_data.pop('telebirr_name', None)
 
-    ref_text = txn_id if not txn_id.startswith("IMG-") else "not detected"
-
     await update.effective_message.reply_text(
-        f"✅ Deposit request submitted!\n\n"
-        f"💵 Amount: {amount} ETB\n"
-        f"👤 Name: {telebirr_name}\n"
-        f"🔖 Reference: {ref_text}\n"
-        f"🆔 `{deposit_id}`\n\n"
-        f"Admin will review and approve shortly.",
+        get_bot_text('deposit_submitted', db, amount=amount, telebirr_name=telebirr_name, transaction_id=txn_number, deposit_id=deposit_id),
         parse_mode='Markdown', reply_markup=MAIN_KEYBOARD,
     )
 
@@ -435,19 +377,19 @@ async def _show_withdraw_flow_msg(update: Update, context: ContextTypes.DEFAULT_
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     bal = u.get('balance', 0)
     if bal < MIN_WITHDRAW:
         await update.effective_message.reply_text(
-            f"❌ Minimum withdrawal is {MIN_WITHDRAW} ETB.\nYour balance: {bal} ETB",
+            get_bot_text('withdraw_min_not_met', db, min_withdraw=MIN_WITHDRAW, balance=bal),
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
     await update.effective_message.reply_text(
-        f"🎰 *Withdraw*\n\nYour balance: *{bal} ETB*\nMinimum: {MIN_WITHDRAW} ETB\n\nEnter amount:",
+        get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW),
         reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown',
     )
     return WITHDRAW_AMOUNT
@@ -458,21 +400,21 @@ async def _show_withdraw_flow(query, context):
     u = await user_manager.get_user(uid)
     if not u:
         try:
-            await query.edit_message_text("Please /start first.")
+            await query.edit_message_text(get_bot_text('play_need_start', db))
         except Exception:
-            await context.bot.send_message(chat_id=query.message.chat_id, text="Please /start first.")
+            await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('play_need_start', db))
         return ConversationHandler.END
     bal = u.get('balance', 0)
     if bal < MIN_WITHDRAW:
         try:
-            await query.edit_message_text(f"❌ Minimum {MIN_WITHDRAW} ETB. Balance: {bal} ETB")
+            await query.edit_message_text(get_bot_text('withdraw_min_not_met', db, min_withdraw=MIN_WITHDRAW, balance=bal))
         except Exception:
-            await context.bot.send_message(chat_id=query.message.chat_id, text=f"❌ Minimum {MIN_WITHDRAW} ETB. Balance: {bal} ETB")
+            await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('withdraw_min_not_met', db, min_withdraw=MIN_WITHDRAW, balance=bal))
         return ConversationHandler.END
     try:
-        await query.edit_message_text(f"🎰 Withdraw — Balance: {bal} ETB\n\nEnter amount:")
+        await query.edit_message_text(get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW))
     except Exception:
-        await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎰 Withdraw — Balance: {bal} ETB\n\nEnter amount:")
+        await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW))
     return WITHDRAW_AMOUNT
 
 
@@ -480,7 +422,7 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = float(update.message.text.strip())
     except ValueError:
-        await update.effective_message.reply_text("❌ Enter a valid number.")
+        await update.effective_message.reply_text(get_bot_text('withdraw_invalid_number', db))
         return WITHDRAW_AMOUNT
 
     uid = update.effective_user.id
@@ -488,13 +430,12 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bal = u.get('balance', 0) if u else 0
 
     if amount < MIN_WITHDRAW or amount > bal:
-        await update.effective_message.reply_text(f"❌ Enter amount between {MIN_WITHDRAW} and {bal} ETB.")
+        await update.effective_message.reply_text(get_bot_text('withdraw_invalid_range', db, min_withdraw=MIN_WITHDRAW, balance=bal))
         return WITHDRAW_AMOUNT
 
     context.user_data['withdraw_amount'] = amount
     await update.effective_message.reply_text(
-        "💰 Please enter your TeleBirr name\n"
-        "(The name registered on your TeleBirr account):"
+        get_bot_text('withdraw_ask_name', db)
     )
     return WITHDRAW_TELEBIRR_NAME
 
@@ -525,14 +466,8 @@ async def _process_withdraw(update, context, uid, amount, phone):
     ref = db.collection('withdrawals').document()
     ref.set(withdrawal_data)
 
-    await user_manager.deduct_balance(uid, amount)
-
     await update.effective_message.reply_text(
-        f"✅ Withdrawal request submitted!\n\n"
-        f"Amount: {amount} ETB\n"
-        f"Phone: {phone}\n"
-        f"ID: `{ref.id}`\n\n"
-        f"Admin will process it shortly.",
+        get_bot_text('withdraw_submitted', db, amount=amount, phone=phone, withdrawal_id=ref.id),
         reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
     )
 
@@ -549,19 +484,19 @@ async def handle_transfer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     bal = u.get('balance', 0)
     if bal < 1:
         await update.effective_message.reply_text(
-            f"❌ No balance to transfer.\nYour balance: {bal} ETB",
+            get_bot_text('transfer_no_balance', db, balance=bal),
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
     await update.effective_message.reply_text(
-        f"🎁 *Transfer*\nYour balance: *{bal} ETB*\n\nEnter recipient's Telegram User ID:",
+        get_bot_text('transfer_ask_id', db, balance=bal),
         reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown',
     )
     return TRANSFER_ID
@@ -571,24 +506,23 @@ async def transfer_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         recipient_id = int(update.message.text.strip())
     except ValueError:
-        await update.effective_message.reply_text("❌ Enter a valid numeric User ID.")
+        await update.effective_message.reply_text(get_bot_text('transfer_invalid_id', db))
         return TRANSFER_ID
 
     if recipient_id == update.effective_user.id:
-        await update.effective_message.reply_text("❌ You cannot transfer to yourself.")
+        await update.effective_message.reply_text(get_bot_text('transfer_self', db))
         return TRANSFER_ID
 
     recipient = await user_manager.get_user(recipient_id)
     if not recipient:
-        await update.effective_message.reply_text("❌ User not found. Check the ID and try again.")
+        await update.effective_message.reply_text(get_bot_text('transfer_not_found', db))
         return TRANSFER_ID
 
     context.user_data['transfer_to'] = recipient_id
     context.user_data['transfer_to_name'] = recipient.get('first_name', 'Unknown')
 
     await update.effective_message.reply_text(
-        f"👤 Recipient: {recipient.get('first_name', 'Unknown')}\n"
-        f"Enter amount to send (ETB):"
+        get_bot_text('transfer_ask_amount', db, name=recipient.get('first_name', 'Unknown'))
     )
     return TRANSFER_AMOUNT
 
@@ -597,7 +531,7 @@ async def transfer_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = float(update.message.text.strip())
     except ValueError:
-        await update.effective_message.reply_text("❌ Enter a valid number.")
+        await update.effective_message.reply_text(get_bot_text('transfer_invalid_amount', db))
         return TRANSFER_AMOUNT
 
     uid = update.effective_user.id
@@ -605,7 +539,7 @@ async def transfer_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bal = u.get('balance', 0) if u else 0
 
     if amount < 1 or amount > bal:
-        await update.effective_message.reply_text(f"❌ Enter amount between 1 and {bal} ETB.")
+        await update.effective_message.reply_text(get_bot_text('transfer_amount_range', db, balance=bal))
         return TRANSFER_AMOUNT
 
     context.user_data['transfer_amount'] = amount
@@ -616,7 +550,7 @@ async def transfer_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("❌ Cancel", callback_data="tf_no")],
     ])
     await update.effective_message.reply_text(
-        f"🎁 Send *{amount} ETB* to *{to_name}*?",
+        get_bot_text('transfer_confirm', db, amount=amount, name=to_name),
         reply_markup=kb, parse_mode='Markdown',
     )
     return TRANSFER_CONFIRM
@@ -627,7 +561,7 @@ async def transfer_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "tf_no":
-        await query.edit_message_text("❌ Transfer cancelled.")
+        await query.edit_message_text(get_bot_text('transfer_cancelled', db))
         return ConversationHandler.END
 
     uid = query.from_user.id
@@ -638,11 +572,11 @@ async def transfer_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if success:
         to_name = context.user_data.get('transfer_to_name', 'Unknown')
         await query.edit_message_text(
-            f"✅ Sent *{amount} ETB* to *{to_name}* successfully!",
+            get_bot_text('transfer_sent', db, amount=amount, name=to_name),
             parse_mode='Markdown',
         )
     else:
-        await query.edit_message_text("❌ Transfer failed. Check your balance and try again.")
+        await query.edit_message_text(get_bot_text('transfer_failed', db))
     return ConversationHandler.END
 
 
@@ -655,12 +589,12 @@ async def handle_convert_bonus(update: Update, context: ContextTypes.DEFAULT_TYP
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     coins = u.get('bonus', 0)
     if coins <= 0:
-        await update.effective_message.reply_text("❌ No bonus coins to convert.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('bonus_no_coins', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
     etb = coins / BONUS_TO_ETB_RATE
@@ -672,10 +606,7 @@ async def handle_convert_bonus(update: Update, context: ContextTypes.DEFAULT_TYP
          InlineKeyboardButton("❌ Cancel", callback_data="bonus_no")],
     ])
     await update.effective_message.reply_text(
-        f"🔄 *Convert Bonus*\n\n"
-        f"You have: *{coins} coins*\n"
-        f"Rate: {BONUS_TO_ETB_RATE} coins = 1 ETB\n"
-        f"You will receive: *{etb} ETB* in Play Wallet",
+        get_bot_text('bonus_convert_info', db, coins=coins, rate=BONUS_TO_ETB_RATE, etb=etb),
         reply_markup=kb, parse_mode='Markdown',
     )
     return BONUS_CONFIRM
@@ -686,15 +617,15 @@ async def bonus_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "bonus_no":
-        await query.edit_message_text("❌ Cancelled.")
+        await query.edit_message_text(get_bot_text('bonus_cancelled', db))
         return ConversationHandler.END
 
     uid = query.from_user.id
     etb = await user_manager.convert_bonus(uid, BONUS_TO_ETB_RATE)
     if etb is not None:
-        await query.edit_message_text(f"✅ Converted! +{etb} ETB added to your Play Wallet.")
+        await query.edit_message_text(get_bot_text('bonus_converted', db, etb=etb))
     else:
-        await query.edit_message_text("❌ Conversion failed. No bonus available.")
+        await query.edit_message_text(get_bot_text('bonus_convert_failed', db))
     return ConversationHandler.END
 
 
@@ -707,10 +638,7 @@ async def handle_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     link = f"https://t.me/yegarabingobot?start=ref_{uid}"
     await update.effective_message.reply_text(
-        f"🔗 *Your Referral Link*\n\n"
-        f"{link}\n\n"
-        f"📤 Share this link with friends!\n"
-        f"💰 You earn *{REFERRAL_BONUS} ETB* for each friend who registers.",
+        get_bot_text('invite_link', db, link=link, referral_bonus=REFERRAL_BONUS),
         reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
     )
 
@@ -722,21 +650,7 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if update.callback_query:
         await update.callback_query.answer()
     await update.effective_message.reply_text(
-        "📖 *How to Play Yegara Bingo*\n\n"
-        "1️⃣ Click *Play* and choose your stake (10 or 20 ETB)\n"
-        "2️⃣ Select up to *3 cartelas* (bingo cards)\n"
-        "3️⃣ The game board opens — numbers are called every 4 seconds\n"
-        "4️⃣ Tap numbers on your card to mark them (or use Auto Mark)\n"
-        "5️⃣ Complete a full line (row, column, or diagonal) to win!\n\n"
-        "🎯 *Winning:* Complete any row, column, or diagonal\n"
-        "🏆 *Prize:* 1.5x your stake\n"
-        "⭐ *Free Space:* Center cell is always free\n\n"
-        "💰 *Wallets:*\n"
-        "• Main Wallet — deposit here via TeleBirr\n"
-        "• Play Wallet — transfer from main to play\n"
-        "• Bonus — earned from referrals\n\n"
-        "📤 *Transfer:* Send funds to any user by ID\n"
-        "🔄 *Convert Bonus:* Turn bonus coins into Play Wallet",
+        get_bot_text('instruction', db),
         reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
     )
 
@@ -759,68 +673,38 @@ async def handle_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════
 async def _notify_admin_deposit(deposit_data, deposit_id, context):
     try:
-        ocr = deposit_data.get('ocr', {})
-        status_icon = "✅" if ocr.get('status') == 'success' else "❌" if ocr.get('status') == 'failed' else "❓"
-        date_text = ocr.get('transactionDate') or 'N/A'
-        ref_text = deposit_data.get('transactionId', 'N/A')
-        receiver_text = ocr.get('receiverName') or deposit_data.get('senderName', 'N/A')
-        type_text = ocr.get('transactionType') or 'N/A'
-        confidence = ocr.get('confidence', 0)
-
-        text = (
-            f"💵 *New Deposit Request*\n\n"
-            f"👤 *User:* {deposit_data.get('firstName', 'Unknown')} (@{deposit_data.get('username', '')})\n"
-            f"📱 *TeleBirr Name:* {deposit_data.get('telebirrName', 'N/A')}\n\n"
-            f"━━━ *Screenshot Parsed* ━━━\n"
-            f"{status_icon} *Status:* {ocr.get('status', 'unknown')}\n"
-            f"💵 *Amount:* {deposit_data.get('amount', 0)} ETB\n"
-            f"📅 *Date:* {date_text}\n"
-            f"🔖 *Reference:* {ref_text}\n"
-            f"👤 *Receiver:* {receiver_text}\n"
-            f"📋 *Type:* {type_text}\n"
-            f"📊 *Confidence:* {int(confidence * 100)}%"
-        )
-        if deposit_data.get('amountMismatch'):
-            text += (
-                f"\n\n🚨 *AMOUNT MISMATCH* 🚨\n"
-                f"User entered: {deposit_data.get('userDeclaredAmount', 0)} ETB\n"
-                f"Screenshot shows: {ocr.get('amount', 0)} ETB\n"
-                f"⚠️ Review carefully before approving!"
-            )
-        text += (
-            f"\n\n🆔 `{deposit_id}`\n"
-            f"🕐 {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
+        text = get_bot_text('admin_deposit_notification', db,
+            first_name=deposit_data.get('firstName', 'Unknown'),
+            username=deposit_data.get('username', ''),
+            telebirr_name=deposit_data.get('telebirrName', 'N/A'),
+            amount=deposit_data.get('amount', 0),
+            transaction_id=deposit_data.get('transactionId', 'N/A'),
+            deposit_id=deposit_id,
+            timestamp=datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{deposit_id}"),
              InlineKeyboardButton("❌ Reject", callback_data=f"reject_{deposit_id}")],
         ])
         bot = Bot(token=ADMIN_BOT_TOKEN) if ADMIN_BOT_TOKEN else context.bot
-        file_id = deposit_data.get('imageFileId')
-        if file_id:
-            await bot.send_photo(
-                chat_id=_admin_id(), photo=file_id,
-                caption=text, reply_markup=kb, parse_mode='Markdown',
-            )
-        else:
-            await bot.send_message(
-                chat_id=_admin_id(), text=text,
-                reply_markup=kb, parse_mode='Markdown',
-            )
+        await bot.send_message(
+            chat_id=_admin_id(), text=text,
+            reply_markup=kb, parse_mode='Markdown',
+        )
     except Exception as e:
         logger.error(f"Failed to notify admin (deposit): {e}")
 
 
 async def _notify_admin_withdrawal(withdrawal_data, withdrawal_id, context):
     try:
-        text = (
-            f"🎰 *New Withdrawal Request*\n\n"
-            f"👤 {withdrawal_data.get('firstName', 'Unknown')} (@{withdrawal_data.get('username', '')})\n"
-            f"💰 TeleBirr Name: {withdrawal_data.get('telebirrName', 'N/A')}\n"
-            f"💵 Amount: {withdrawal_data.get('amount', 0)} ETB\n"
-            f"📱 Phone: {withdrawal_data.get('phone', 'N/A')}\n"
-            f"🆔 {withdrawal_id}\n"
-            f"🕐 {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
+        text = get_bot_text('admin_withdrawal_notification', db,
+            first_name=withdrawal_data.get('firstName', 'Unknown'),
+            username=withdrawal_data.get('username', ''),
+            telebirr_name=withdrawal_data.get('telebirrName', 'N/A'),
+            amount=withdrawal_data.get('amount', 0),
+            phone=withdrawal_data.get('phone', 'N/A'),
+            withdrawal_id=withdrawal_id,
+            timestamp=datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_withdraw_{withdrawal_id}"),
@@ -850,133 +734,6 @@ async def _is_admin_online() -> bool:
     return await asyncio.to_thread(_check)
 
 
-def _extract_text_from_image(image_bytes: bytes) -> dict:
-    """Parse TeleBirr payment screenshot via OCR. Extracts all 6 fields."""
-    try:
-        from PIL import Image
-        import pytesseract
-        import io
-        img = Image.open(io.BytesIO(image_bytes))
-        raw_text = pytesseract.image_to_string(img)
-    except Exception as e:
-        logger.warning(f"OCR failed: {e}")
-        return {
-            "raw_text": "OCR not available",
-            "status": "unknown",
-            "amount": 0,
-            "transaction_date": None,
-            "transaction_type": None,
-            "receiver_name": None,
-            "transaction_ref": None,
-            "sender_name": None,
-            "confidence": 0.0,
-        }
-
-    result = {
-        "raw_text": raw_text,
-        "status": "unknown",
-        "amount": 0,
-        "transaction_date": None,
-        "transaction_type": None,
-        "receiver_name": None,
-        "transaction_ref": None,
-        "sender_name": None,
-        "confidence": 0.0,
-    }
-
-    # ── 1. Status (success/failure) ──
-    if re.search(r'ተሳክቷል|Success|Completed|✅|TAALA', raw_text, re.IGNORECASE):
-        result["status"] = "success"
-    elif re.search(r'አልተሳካም|Failed|Rejected|❌', raw_text, re.IGNORECASE):
-        result["status"] = "failed"
-
-    # ── 2. Amount ──
-    for pattern in [
-        r'(-?[\d,]+\.?\d*)\s*(?:ETB|ብር)',
-        r'(-?[\d,]+\.?\d*)\s*\(',                           # -550.00 (nc) pattern
-        r'(?:Amount|Total|ETB|መጠን|ብር)[:\s]*(-?[\d,]+\.?\d*)',
-        r'(-[\d,]+\.?\d*)',
-    ]:
-        m = re.search(pattern, raw_text, re.IGNORECASE)
-        if m:
-            try:
-                raw_num = m.group(1)
-                # Handle comma as decimal separator (Ethiopian: 550,00 = 550.00)
-                if re.search(r',\d{1,2}$', raw_num):
-                    raw_num = raw_num.replace(',', '.')
-                else:
-                    raw_num = raw_num.replace(',', '')
-                result["amount"] = abs(float(raw_num))
-                break
-            except ValueError:
-                continue
-
-    # ── 3. Transaction Date (የግብይቱ ቀን) ──
-    for pattern in [
-        r'የግብይቱ\s*ቀን[:\s]*(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',
-        r'PIN\s*LT\s*LH[:\s]*(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',  # garbled OCR
-        r'(?:Date|Time|Transaction\s*Date)[:\s]*(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',
-        r'(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})',
-    ]:
-        m = re.search(pattern, raw_text, re.IGNORECASE)
-        if m:
-            result["transaction_date"] = m.group(1).strip()
-            break
-
-    # ── 4. Transaction Type (የግብይቱ ዓይነት) ──
-    for pattern in [
-        r'የግብይቱ\s*ዓይነት[:\s]*([\w\s\u1200-\u137F]+)',
-        r'PINLt\s*ALI[:\s]*([\w\s\u1200-\u137F]+)',           # garbled OCR
-        r'(?:Type|Transaction\s*Type)[:\s]*([\w\s]+)',
-    ]:
-        m = re.search(pattern, raw_text, re.IGNORECASE)
-        if m:
-            result["transaction_type"] = m.group(1).strip()
-            break
-
-    # ── 5. Receiver Name (ለምፅብ ስም / ለ接收方) ──
-    for pattern in [
-        r'ለምፅብ\s*ስም[:\s]*([A-Za-z\s]+)',
-        r'WMNLt\s*OL[:\s]*([A-Za-z\s]+)',                     # garbled OCR
-        r'ለ接收方\s*ስም[:\s]*([A-Za-z\s]+)',
-        r'(?:Receiver|To|Beneficiary)[:\s]*([A-Za-z\s]+)',
-    ]:
-        m = re.search(pattern, raw_text, re.IGNORECASE)
-        if m:
-            name = m.group(1).strip()
-            if len(name) >= 2:
-                result["receiver_name"] = name
-                break
-
-    # ── 6. Transaction Reference (የግብይት ማጣቀሻ) ──
-    for pattern in [
-        r'የግብይት\s*ማጣቀሻ[:\s]*([A-Za-z0-9]{8,12})',
-        r'PINLTE\s*RNC[:\s]*([A-Za-z0-9]{8,12})',             # garbled OCR
-        r'(?:Transaction\s*Ref|TXN|Ref|Reference)[:\s]*([A-Za-z0-9]{8,12})',
-        r'\b([A-Z0-9]{8,12})\b',
-    ]:
-        m = re.search(pattern, raw_text, re.IGNORECASE)
-        if m:
-            result["transaction_ref"] = m.group(1).strip()
-            break
-
-    # ── Sender (legacy fallback) ──
-    m = re.search(r'(?:From|Sender|Payer)[:\s]*([A-Za-z\s]+)', raw_text, re.IGNORECASE)
-    if m:
-        result["sender_name"] = m.group(1).strip()
-
-    # ── Confidence score ──
-    fields_found = sum(1 for v in [
-        result["status"] != "unknown",
-        result["amount"] > 0,
-        result["transaction_date"] is not None,
-        result["transaction_ref"] is not None,
-    ] if v)
-    result["confidence"] = round(fields_found / 4.0, 2)
-
-    return result
-
-
 # ═══════════════════════════════════════════════════════════════════
 # Admin approve/reject (fallback when ADMIN_BOT_TOKEN not set)
 # ═══════════════════════════════════════════════════════════════════
@@ -990,11 +747,11 @@ async def admin_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
         ref = db.collection('deposits').document(deposit_id)
         doc = ref.get()
         if not doc.exists:
-            await query.edit_message_text("❌ Deposit not found.")
+            await query.edit_message_text(get_bot_text('admin_deposit_not_found', db))
             return
         data = doc.to_dict()
         if data.get('status') != 'pending':
-            await query.edit_message_text(f"Already {data.get('status')}.")
+            await query.edit_message_text(get_bot_text('admin_already_processed', db, status=data.get('status')))
             return
         ref.update({'status': 'approved', 'processedAt': datetime.now(tz=timezone.utc)})
         user_id = data.get('userId')
@@ -1003,13 +760,13 @@ async def admin_approve_deposit(update: Update, context: ContextTypes.DEFAULT_TY
             user_ref = db.collection('users').document(str(user_id))
             user_ref.update({'balance': Increment(amount), 'updated_at': datetime.now(tz=timezone.utc)})
             try:
-                await context.bot.send_message(chat_id=int(user_id), text=f"✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.")
+                await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('deposit_approved', db, amount=amount))
             except Exception:
                 pass
-        await query.edit_message_text(f"✅ Deposit approved\nUser: {data.get('firstName', '?')} | {amount} ETB")
+        await query.edit_message_text(get_bot_text('admin_deposit_approved', db, first_name=data.get('firstName', '?'), amount=amount))
     except Exception as e:
         logger.error(f"Error approving deposit: {e}")
-        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+        await query.edit_message_text(get_bot_text('admin_error', db, error=str(e)[:100]))
 
 
 async def admin_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1022,23 +779,23 @@ async def admin_reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYP
         ref = db.collection('deposits').document(deposit_id)
         doc = ref.get()
         if not doc.exists:
-            await query.edit_message_text("❌ Deposit not found.")
+            await query.edit_message_text(get_bot_text('admin_deposit_not_found', db))
             return
         data = doc.to_dict()
         if data.get('status') != 'pending':
-            await query.edit_message_text(f"Already {data.get('status')}.")
+            await query.edit_message_text(get_bot_text('admin_already_processed', db, status=data.get('status')))
             return
         ref.update({'status': 'rejected', 'processedAt': datetime.now(tz=timezone.utc)})
         user_id = data.get('userId')
         if user_id:
             try:
-                await context.bot.send_message(chat_id=int(user_id), text="❌ Deposit rejected.\nPlease contact support if you need help.")
+                await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('deposit_rejected', db))
             except Exception:
                 pass
-        await query.edit_message_text(f"❌ Deposit rejected\nUser: {data.get('firstName', '?')}")
+        await query.edit_message_text(get_bot_text('admin_deposit_rejected', db, first_name=data.get('firstName', '?')))
     except Exception as e:
         logger.error(f"Error rejecting deposit: {e}")
-        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+        await query.edit_message_text(get_bot_text('admin_error', db, error=str(e)[:100]))
 
 
 async def admin_approve_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1051,24 +808,26 @@ async def admin_approve_withdraw(update: Update, context: ContextTypes.DEFAULT_T
         ref = db.collection('withdrawals').document(wid)
         doc = ref.get()
         if not doc.exists:
-            await query.edit_message_text("❌ Withdrawal not found.")
+            await query.edit_message_text(get_bot_text('admin_withdrawal_not_found', db))
             return
         data = doc.to_dict()
         if data.get('status') != 'pending':
-            await query.edit_message_text(f"Already {data.get('status')}.")
+            await query.edit_message_text(get_bot_text('admin_already_processed', db, status=data.get('status')))
             return
         ref.update({'status': 'approved', 'processedAt': datetime.now(tz=timezone.utc)})
         user_id = data.get('userId')
         amount = data.get('amount', 0)
-        if user_id:
+        if user_id and amount > 0:
+            user_ref = db.collection('users').document(str(user_id))
+            user_ref.update({'balance': Increment(-amount), 'updated_at': datetime.now(tz=timezone.utc)})
             try:
-                await context.bot.send_message(chat_id=int(user_id), text=f"✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.")
+                await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('withdraw_approved', db, amount=amount))
             except Exception:
                 pass
-        await query.edit_message_text(f"✅ Withdrawal approved\nUser: {data.get('firstName', '?')} | {amount} ETB")
+        await query.edit_message_text(get_bot_text('admin_withdrawal_approved', db, first_name=data.get('firstName', '?'), amount=amount))
     except Exception as e:
         logger.error(f"Error approving withdrawal: {e}")
-        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+        await query.edit_message_text(get_bot_text('admin_error', db, error=str(e)[:100]))
 
 
 async def admin_reject_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1081,30 +840,28 @@ async def admin_reject_withdraw(update: Update, context: ContextTypes.DEFAULT_TY
         ref = db.collection('withdrawals').document(wid)
         doc = ref.get()
         if not doc.exists:
-            await query.edit_message_text("❌ Withdrawal not found.")
+            await query.edit_message_text(get_bot_text('admin_withdrawal_not_found', db))
             return
         data = doc.to_dict()
         if data.get('status') != 'pending':
-            await query.edit_message_text(f"Already {data.get('status')}.")
+            await query.edit_message_text(get_bot_text('admin_already_processed', db, status=data.get('status')))
             return
         ref.update({'status': 'rejected', 'processedAt': datetime.now(tz=timezone.utc)})
         user_id = data.get('userId')
         amount = data.get('amount', 0)
-        if user_id and amount > 0:
-            user_ref = db.collection('users').document(str(user_id))
-            user_ref.update({'balance': Increment(amount), 'updated_at': datetime.now(tz=timezone.utc)})
+        if user_id:
             try:
-                await context.bot.send_message(chat_id=int(user_id), text=f"❌ Withdrawal rejected.\n💰 {amount} ETB has been refunded to your balance.")
+                await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('withdraw_rejected', db))
             except Exception:
                 pass
-        await query.edit_message_text(f"❌ Withdrawal rejected\nUser: {data.get('firstName', '?')} | {amount} ETB")
+        await query.edit_message_text(get_bot_text('admin_withdrawal_rejected', db, first_name=data.get('firstName', '?'), amount=amount))
     except Exception as e:
         logger.error(f"Error rejecting withdrawal: {e}")
-        await query.edit_message_text(f"❌ Error: {str(e)[:100]}")
+        await query.edit_message_text(get_bot_text('admin_error', db, error=str(e)[:100]))
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.effective_message.reply_text("Cancelled.", reply_markup=MAIN_KEYBOARD)
+    await update.effective_message.reply_text(get_bot_text('cancel', db), reply_markup=MAIN_KEYBOARD)
     return ConversationHandler.END
 
 
@@ -1113,9 +870,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════
 async def handle_support_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(
-        f"🆘 Need help?\n\n"
-        f"👇 For any questions or feedback 👇\n\n"
-        f"👤 @{SUPPORT_USERNAME}"
+        get_bot_text('support_info', db, support_username=SUPPORT_USERNAME)
     )
 
 
@@ -1125,10 +880,10 @@ async def handle_support_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     leaders = await user_manager.get_leaderboard(10)
     if not leaders:
-        await update.effective_message.reply_text("🏆 No games played yet. Be the first!", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('leaderboard_no_games', db), reply_markup=MAIN_KEYBOARD)
         return
 
-    lines = ["🏆 *Top Players*\n"]
+    lines = [get_bot_text('leaderboard_title', db)]
     medals = ["🥇", "🥈", "🥉"]
     for i, u in enumerate(leaders):
         prefix = medals[i] if i < 3 else f" {i+1}."
@@ -1146,10 +901,10 @@ async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     history = await user_manager.get_user_history(uid, 10)
     if not history:
-        await update.effective_message.reply_text("📜 No game history yet. Play a game first!", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('history_no_games', db), reply_markup=MAIN_KEYBOARD)
         return
 
-    lines = ["📜 *Your Recent Games*\n"]
+    lines = [get_bot_text('history_title', db)]
     for g in history:
         result = "✅ Won" if g.get('won') else "❌ Lost"
         stake = g.get('stake', 0)
@@ -1157,7 +912,7 @@ async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         date = g.get('created_at', '')
         if hasattr(date, 'strftime'):
             date = date.strftime('%m/%d %H:%M')
-        lines.append(f"• {result} — Stake: {stake} ETB, Prize: {prize} ETB  {date}")
+        lines.append(f"• {result} — Stake: {stake} ETB, Derash: {prize} ETB  {date}")
 
     await update.effective_message.reply_text("\n".join(lines), reply_markup=MAIN_KEYBOARD, parse_mode='Markdown')
 
@@ -1169,7 +924,7 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
     if not u:
-        await update.effective_message.reply_text("Please /start first.", reply_markup=MAIN_KEYBOARD)
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return
 
     total = u.get('total_games', 0)
@@ -1177,16 +932,8 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     losses = u.get('losses', 0)
     win_rate = f"{(wins / total * 100):.1f}%" if total > 0 else "N/A"
 
-    text = (
-        f"📊 *Your Stats*\n\n"
-        f"🎮 Games Played: {total}\n"
-        f"✅ Wins: {wins}\n"
-        f"❌ Losses: {losses}\n"
-        f"📈 Win Rate: {win_rate}\n\n"
-        f"💰 Main Wallet: {u.get('balance', 0):.1f} ETB\n"
-        f"🎮 Play Wallet: {u.get('play_wallet', 0):.1f} ETB\n"
-        f"🪙 Bonus Coins: {u.get('bonus', 0)}"
-    )
+    text = get_bot_text('stats_title', db, total=total, wins=wins, losses=losses,
+        win_rate=win_rate, balance=u.get('balance', 0), play_wallet=u.get('play_wallet', 0), bonus=u.get('bonus', 0))
     await update.effective_message.reply_text(text, reply_markup=MAIN_KEYBOARD, parse_mode='Markdown')
 
 
@@ -1282,7 +1029,7 @@ def main():
         states={
             DEPOSIT_TELEBIRR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_telebirr_name)],
             DEPOSIT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_amount)],
-            AWAIT_PHOTO: [MessageHandler(filters.PHOTO, handle_screenshot)],
+            DEPOSIT_TXN_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, deposit_txn_number)],
         },
         fallbacks=[
             CommandHandler("start", start),

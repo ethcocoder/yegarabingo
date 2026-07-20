@@ -27,7 +27,12 @@ function animateNum(el, target, dur) {
 function fmtTime(ts) {
     if (!ts) return '-';
     try {
-        var d = ts.toDate ? ts.toDate() : new Date(ts);
+        var d;
+        if (ts.toDate) { d = ts.toDate(); }
+        else if (ts.seconds) { d = new Date(ts.seconds * 1000); }
+        else if (typeof ts === 'string' || typeof ts === 'number') { d = new Date(ts); }
+        else { return '-'; }
+        if (isNaN(d.getTime())) return '-';
         return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (e) { return '-'; }
 }

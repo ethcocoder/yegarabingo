@@ -6,7 +6,8 @@ var sectionTitles = {
     cartelas: 'Cartela Pool',
     reports: 'Reports',
     payments: 'Payments',
-    settings: 'Settings'
+    settings: 'Settings',
+    botcontent: 'Bot Content'
 };
 
 function switchSection(name) {
@@ -30,6 +31,7 @@ function switchSection(name) {
     document.getElementById('userDropdown').classList.add('hidden');
     if (name === 'cartelas') loadCartelaPool();
     if (name === 'payments') loadPayments();
+    if (name === 'botcontent') loadBotCategory('welcome');
 }
 
 // Restore section from URL hash on page load

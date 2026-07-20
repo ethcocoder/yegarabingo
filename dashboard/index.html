@@ -85,6 +85,7 @@
         .nav-item{transition:all .2s ease;cursor:pointer;}
         .nav-item:hover{background:rgba(255,140,0,.1);}
         .nav-item.active{background:rgba(255,140,0,.15);border-right:3px solid #FF8C00;color:#FF8C00;}
+        .botcat-tab.active{background:rgba(255,140,0,.15);color:#FF8C00;border:1px solid rgba(255,140,0,.3);}
         .nav-item .nav-icon{transition:all .3s ease;}
 
         .tbl-row{transition:all .2s ease;}
@@ -170,6 +171,10 @@
             <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="settings" onclick="switchSection('settings')">
                 <span class="nav-icon text-lg w-6 text-center flex-shrink-0">⚙️</span>
                 <span class="nav-label whitespace-nowrap overflow-hidden">Settings</span>
+            </a>
+            <a class="nav-item flex items-center gap-3 px-5 py-3 text-sm font-medium border-r-3 text-gray-400" data-section="botcontent" onclick="switchSection('botcontent')">
+                <span class="nav-icon text-lg w-6 text-center flex-shrink-0">🤖</span>
+                <span class="nav-label whitespace-nowrap overflow-hidden">Bot Content</span>
             </a>
         </div>
     </nav>
@@ -413,12 +418,13 @@
                     <thead>
                         <tr class="border-b border-white/5">
                             <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Game ID</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Players</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Stake</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Winner</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
+                            <th class="text-center text-xs font-semibold text-gray-500 uppercase px-4 py-3">Players</th>
+                            <th class="text-center text-xs font-semibold text-gray-500 uppercase px-4 py-3">Stake</th>
+                            <th class="text-center text-xs font-semibold text-gray-500 uppercase px-4 py-3">Derash</th>
+                            <th class="text-center text-xs font-semibold text-gray-500 uppercase px-4 py-3">Winner</th>
+                            <th class="text-center text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
                             <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Created</th>
-                            <th class="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
+                            <th class="text-right text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
                         </tr>
                     </thead>
                     <tbody id="gamesHistoryTable"></tbody>
@@ -710,6 +716,43 @@
     </div>
 </div>
 
+<!-- ==================== BOT CONTENT SECTION ==================== -->
+<div id="section-botcontent" class="section">
+    <div class="max-w-[900px] mx-auto mt-6">
+        <div class="mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-2xl font-bold">Bot Content</h3>
+                    <p class="text-gray-500 text-sm mt-1">Edit all Telegram bot messages. Changes take effect within 60 seconds.</p>
+                </div>
+                <button onclick="seedBotContent()" class="px-4 py-2 rounded-xl bg-[#FF8C00]/20 text-[#FF8C00] text-sm font-semibold hover:bg-[#FF8C00]/30 transition-all">Seed Defaults</button>
+            </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div class="flex gap-2 mb-6 overflow-x-auto pb-2" id="botContentTabs">
+            <button onclick="loadBotCategory('welcome')" class="botcat-tab active px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all" data-cat="welcome">Welcome</button>
+            <button onclick="loadBotCategory('deposit')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="deposit">Deposit</button>
+            <button onclick="loadBotCategory('withdraw')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="withdraw">Withdraw</button>
+            <button onclick="loadBotCategory('transfer')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="transfer">Transfer</button>
+            <button onclick="loadBotCategory('bonus')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="bonus">Bonus</button>
+            <button onclick="loadBotCategory('invite')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="invite">Invite</button>
+            <button onclick="loadBotCategory('support')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="support">Support</button>
+            <button onclick="loadBotCategory('admin')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="admin">Admin</button>
+            <button onclick="loadBotCategory('play')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="play">Play</button>
+            <button onclick="loadBotCategory('register')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="register">Register</button>
+            <button onclick="loadBotCategory('stats')" class="botcat-tab px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all text-gray-400" data-cat="stats">Stats</button>
+        </div>
+
+        <!-- Messages Editor -->
+        <div class="glass rounded-2xl p-6">
+            <div id="botContentEditor">
+                <div class="text-center py-8 text-gray-600 text-sm">Select a category to edit messages.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </div> <!-- end mainContent -->
 
 <!-- ==================== MODALS ==================== -->
@@ -884,6 +927,7 @@
 <script src="js/admin/reports.js"></script>
 <script src="js/admin/settings.js"></script>
 <script src="js/admin/payments.js"></script>
+<script src="js/admin/botcontent.js"></script>
 <script src="js/admin/listeners.js"></script>
 </body>
 </html>

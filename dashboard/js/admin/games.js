@@ -40,7 +40,7 @@ function renderGames() {
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Stake</p><p class="text-xs font-bold text-[#FF8C00]">' + (g.stake || 0) + ' ETB</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Called</p><p class="text-xs font-bold text-[#3B82F6]">' + calledCount + '/75</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Players</p><p class="text-xs font-bold text-[#8B5CF6]">' + (g.player_count || 0) + '</p></div>' +
-                '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">ETB</p><p class="text-xs font-bold text-[#14B8A6]">' + derash + '</p></div>' +
+                '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">DERASH</p><p class="text-xs font-bold text-[#14B8A6]">' + derash + ' ETB</p></div>' +
                 '</div>' +
                 '</div>';
         }).join('');
@@ -68,17 +68,17 @@ function renderGames() {
             var statusLabel = hasWinner ? 'won' : 'no winner';
             var stake = g.stake || 0;
             var players = g.player_count || 0;
-            var totalPool = stake * players;
-            return '<tr class="tbl-row border-b border-white/[0.03]">' +
+            var derash = g.derash || Math.round(players * stake * 0.75 * 10) / 10;
+            var created = fmtTime(g.created_at);
+            return '<tr class="tbl-row border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">' +
                 '<td class="px-4 py-3 text-sm font-mono text-gray-400">#' + shortId + '</td>' +
-                '<td class="px-4 py-3 text-sm">' + players + '</td>' +
-                '<td class="px-4 py-3 text-sm text-[#FF8C00] font-semibold">' + stake + ' ETB</td>' +
-                '<td class="px-4 py-3 text-sm text-gray-400">' + totalPool + ' ETB</td>' +
-                '<td class="px-4 py-3 text-sm text-[#10B981]">' + escHtml(g.winner_name || (hasWinner ? g.winners[0].substring(0, 6) : '-')) + '</td>' +
-                '<td class="px-4 py-3 text-sm text-[#8B5CF6]">' + (g.prize_per_winner || 0) + ' ETB</td>' +
+                '<td class="px-4 py-3 text-sm text-center">' + players + '</td>' +
+                '<td class="px-4 py-3 text-sm text-[#FF8C00] font-semibold text-center">' + stake + ' ETB</td>' +
+                '<td class="px-4 py-3 text-sm text-[#A855F7] font-semibold text-center">' + derash + ' ETB</td>' +
+                '<td class="px-4 py-3 text-sm text-[#10B981] text-center">' + escHtml(g.winner_name || (hasWinner ? g.winners[0].substring(0, 8) : '-')) + '</td>' +
                 '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ' + statusColor + '">' + statusLabel + '</span></td>' +
-                '<td class="px-4 py-3 text-xs text-gray-500">' + fmtTime(g.created_at) + '</td>' +
-                '<td class="px-4 py-3"><button onclick="requestDeleteRound(\'' + id + '\',\'' + shortId + '\')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20">Delete</button></td>' +
+                '<td class="px-4 py-3 text-xs text-gray-500">' + created + '</td>' +
+                '<td class="px-4 py-3 text-right"><button onclick="requestDeleteRound(\'' + id + '\',\'' + shortId + '\')" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20">Delete</button></td>' +
                 '</tr>';
         }).join('');
     }

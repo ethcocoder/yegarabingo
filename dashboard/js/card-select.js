@@ -247,8 +247,8 @@ async function showCardSelection(roundId, roundData) {
 
             var livePlayerCount = rd.player_count || 0;
             var liveETB = Math.round(Math.max(1, livePlayerCount) * currentStake * 0.75 * 10) / 10;
-            var derashEl;
-            if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveETB + ' ETB';
+    var derashEl;
+    if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveETB + ' ETB';
 
             if (rd.status === 'completed' || rd.status === 'cancelled') {
                 var selectScreen = document.getElementById('card-select-screen');

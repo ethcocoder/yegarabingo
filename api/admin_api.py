@@ -865,6 +865,14 @@ async def admin_approve_withdrawal(withdrawal_id: str, req: DepositActionRequest
         'processedAt': datetime.now(tz=timezone.utc).isoformat(),
         'adminNote': req.note or 'Approved by admin'
     })
+    # Deduct balance on approval
+    user_snap = db.collection('users').document(user_id).get()
+    if user_snap.exists:
+        u = user_snap.to_dict()
+        db.collection('users').document(user_id).update({
+            'balance': (u.get('balance', 0) or 0) - amount,
+            'updated_at': datetime.now(tz=timezone.utc).isoformat()
+        })
     try:
         bot = Bot(token=BOT_TOKEN)
         await bot.send_message(
@@ -884,18 +892,10 @@ async def admin_reject_withdrawal(withdrawal_id: str, req: DepositActionRequest)
     d = snap.to_dict()
     if d.get('status') != 'pending':
         raise HTTPException(status_code=400, detail=f"Already {d.get('status')}")
-    user_id = str(d.get('userId', ''))
     amount = d.get('amount', 0)
+    user_id = str(d.get('userId', ''))
     note = req.note or 'Rejected by admin'
 
-    # Refund balance
-    user_snap = db.collection('users').document(user_id).get()
-    if user_snap.exists:
-        u = user_snap.to_dict()
-        db.collection('users').document(user_id).update({
-            'balance': (u.get('balance', 0) or 0) + amount,
-            'updated_at': datetime.now(tz=timezone.utc).isoformat()
-        })
     db.collection('withdrawals').document(withdrawal_id).update({
         'status': 'rejected',
         'processedAt': datetime.now(tz=timezone.utc).isoformat(),
@@ -905,7 +905,7 @@ async def admin_reject_withdrawal(withdrawal_id: str, req: DepositActionRequest)
         bot = Bot(token=BOT_TOKEN)
         await bot.send_message(
             chat_id=int(user_id),
-            text=f"❌ Withdrawal rejected.\nAmount {amount} ETB has been refunded.\nReason: {note}"
+            text=f"❌ Withdrawal rejected.\nReason: {note}"
         )
     except Exception:
         pass
@@ -964,6 +964,40 @@ async def admin_get_settings():
 @app.post("/api/admin/settings")
 async def admin_save_settings(req: SettingsRequest):
     db.collection('settings').document('game').set(req.data, merge=True)
+    return {"ok": True}
+
+
+@app.post("/api/admin/bot-content/seed")
+async def seed_bot_content():
+    """Seed the bot_content collection with all default messages."""
+    from handlers.bot_content import DEFAULTS, invalidate_cache
+    count = 0
+    for key, value in DEFAULTS.items():
+        cat = key.split('_')[0]
+        db.collection('bot_content').document(key).set({
+            'key': key,
+            'content': value,
+            'category': cat,
+            'updatedAt': datetime.now(tz=timezone.utc).isoformat(),
+        })
+        count += 1
+    invalidate_cache()
+    return {"ok": True, "seeded": count}
+
+
+@app.get("/api/admin/bot-content")
+async def get_bot_content():
+    """Get all bot content messages."""
+    docs = db.collection('bot_content').get()
+    return [{"id": d.id, **d.to_dict()} for d in docs]
+
+
+@app.post("/api/admin/bot-content/{key}")
+async def save_bot_content(key: str, req: DocSetRequest):
+    """Save a bot content message."""
+    from handlers.bot_content import invalidate_cache
+    db.collection('bot_content').document(key).set(req.data, merge=True)
+    invalidate_cache(key)
     return {"ok": True}
 
 

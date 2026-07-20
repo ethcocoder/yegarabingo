@@ -115,7 +115,7 @@ async function loadHistory() {
                     '</div>' +
                     '<div class="flex items-center justify-between text-xs text-white/60">' +
                     '<span>Players: ' + (d.player_count || 0) + '</span>' +
-                    '<span>Prize: ' + prize + ' ETB</span>' +
+                    '<span>Derash: ' + prize + ' ETB</span>' +
                     '</div>';
                 list.appendChild(el);
             });

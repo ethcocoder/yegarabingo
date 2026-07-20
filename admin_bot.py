@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 from config import db
 import firestore_db as firestore
+from handlers.bot_content import get_bot_text
 
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
@@ -48,41 +49,20 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for doc in pending:
         d = doc.to_dict()
         did = doc.id
-        ocr = d.get('ocr', {})
-        status_icon = "✅" if ocr.get('status') == 'success' else "❌" if ocr.get('status') == 'failed' else "❓"
-        date_text = ocr.get('transactionDate') or 'N/A'
-        receiver_text = ocr.get('receiverName') or d.get('senderName', 'N/A')
-        type_text = ocr.get('transactionType') or 'N/A'
-        confidence = ocr.get('confidence', 0)
 
-        text = (
-            f"💵 *Deposit #{did[:8]}*\n\n"
-            f"👤 {d.get('firstName', '?')} (@{d.get('username', '?')})\n"
-            f"💰 TeleBirr Name: {d.get('telebirrName', 'N/A')}\n"
-            f"━━━ *Screenshot Parsed* ━━━\n"
-            f"{status_icon} *Status:* {ocr.get('status', 'unknown')}\n"
-            f"💵 *Amount:* {d.get('amount', 0)} ETB\n"
-            f"📅 *Date:* {date_text}\n"
-            f"🔖 *Reference:* {d.get('transactionId', 'N/A')}\n"
-            f"👤 *Receiver:* {receiver_text}\n"
-            f"📋 *Type:* {type_text}\n"
-            f"📊 *Confidence:* {int(confidence * 100)}%\n"
-            f"🕐 {d.get('createdAt', 'N/A')}"
+        text = get_bot_text('admin_deposit_notification', db,
+            first_name=d.get('firstName', '?'),
+            username=d.get('username', '?'),
+            telebirr_name=d.get('telebirrName', 'N/A'),
+            amount=d.get('amount', 0),
+            transaction_id=d.get('transactionId', 'N/A'),
+            deposit_id=did,
+            timestamp=d.get('createdAt', 'N/A')
         )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{did}"),
              InlineKeyboardButton("❌ Reject", callback_data=f"reject_{did}")],
         ])
-        file_id = d.get('imageFileId')
-        if file_id:
-            try:
-                await context.bot.send_photo(
-                    chat_id=ADMIN_CHAT_ID, photo=file_id,
-                    caption=text, reply_markup=kb, parse_mode='Markdown',
-                )
-                continue
-            except Exception:
-                pass
         await context.bot.send_message(
             chat_id=ADMIN_CHAT_ID, text=text,
             reply_markup=kb, parse_mode='Markdown',
@@ -103,13 +83,14 @@ async def withdrawals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for doc in pending:
         w = doc.to_dict()
         wid = doc.id
-        text = (
-            f"🎰 *Withdrawal #{wid[:8]}*\n\n"
-            f"👤 {w.get('firstName', '?')} (@{w.get('username', '?')})\n"
-            f"💰 TeleBirr Name: {w.get('telebirrName', 'N/A')}\n"
-            f"💵 {w.get('amount', 0)} ETB\n"
-            f"📱 Phone: {w.get('phone', 'N/A')}\n"
-            f"🕐 {w.get('createdAt', 'N/A')}"
+        text = get_bot_text('admin_withdrawal_notification', db,
+            first_name=w.get('firstName', '?'),
+            username=w.get('username', '?'),
+            telebirr_name=w.get('telebirrName', 'N/A'),
+            amount=w.get('amount', 0),
+            phone=w.get('phone', 'N/A'),
+            withdrawal_id=wid,
+            timestamp=w.get('createdAt', 'N/A')
         )
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Approve", callback_data=f"approve_withdraw_{wid}"),
@@ -194,12 +175,12 @@ async def process_deposit(deposit_id, status, query):
             if status == "approved" and user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
-                    text=f"✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.",
+                    text=get_bot_text('deposit_approved', db, amount=amount),
                 )
             elif user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
-                    text=f"❌ Deposit rejected.\nPlease contact support if you need help.",
+                    text=get_bot_text('deposit_rejected', db),
                 )
         except Exception as e:
             logger.error(f"Failed to notify user {user_id}: {e}")
@@ -249,10 +230,10 @@ async def process_withdrawal(wid, status, query, context):
             })
             user_id = data.get('userId')
             amount = data.get('amount', 0)
-            if status == "rejected" and user_id and amount > 0:
+            if status == "approved" and user_id and amount > 0:
                 user_ref = db.collection('users').document(str(user_id))
                 transaction.update(user_ref, {
-                    'balance': firestore.Increment(amount),
+                    'balance': firestore.Increment(-amount),
                     'updated_at': datetime.now(tz=timezone.utc),
                 })
             result['user_id'] = user_id
@@ -272,12 +253,12 @@ async def process_withdrawal(wid, status, query, context):
             if status == "approved" and user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
-                    text=f"✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.",
+                    text=get_bot_text('withdraw_approved', db, amount=amount),
                 )
             elif user_id:
                 await bot.send_message(
                     chat_id=int(user_id),
-                    text=f"❌ Withdrawal rejected.\n💰 {amount} ETB has been refunded to your balance.",
+                    text=get_bot_text('withdraw_rejected', db),
                 )
         except Exception as e:
             logger.error(f"Failed to notify user {user_id}: {e}")

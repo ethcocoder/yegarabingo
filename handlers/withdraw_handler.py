@@ -96,11 +96,6 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("❌ Insufficient balance.")
         return
 
-    user_ref.update({
-        "balance": current_balance - amount,
-        "updatedAt": datetime.now(tz=timezone.utc)
-    })
-
     withdrawal_data = {
         "userId": user.id,
         "username": user.username or "unknown",
@@ -126,7 +121,6 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
 📱 *TeleBirr:* `{telebirr}`
 ⏳ *Status:* Pending
 
-*Note:* Balance has been temporarily deducted.
 You'll receive the money within 24 hours after admin approval.
 
 Request ID: `{withdrawal_id}`"""

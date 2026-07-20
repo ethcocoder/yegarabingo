@@ -92,22 +92,28 @@ function playBingoAnnouncementFallback(cartelaNum) {
 
 function toggleMusic() {
     musicEnabled = !musicEnabled;
-    var el = document.getElementById('music-icon');
-    if (el) el.textContent = musicEnabled ? '\u{1F3B5}' : '\u{1F507}';
+    var btn = document.getElementById('btn-music');
+    var onIcon = document.getElementById('music-on');
+    var offIcon = document.getElementById('music-off');
+    if (btn) {
+        btn.classList.toggle('active', musicEnabled);
+    }
+    if (onIcon) onIcon.classList.toggle('hidden', !musicEnabled);
+    if (offIcon) offIcon.classList.toggle('hidden', musicEnabled);
     if (musicEnabled) startBgMusic(); else stopBgMusic();
     localStorage.setItem('yegara_music', musicEnabled ? '1' : '0');
 }
 
 function toggleVoice() {
     voiceEnabled = !voiceEnabled;
-    var el = document.getElementById('voice-icon');
-    if (el) {
-        if (voiceEnabled) {
-            el.classList.remove('muted');
-        } else {
-            el.classList.add('muted');
-        }
+    var btn = document.getElementById('btn-voice');
+    var onIcon = document.getElementById('voice-on');
+    var offIcon = document.getElementById('voice-off');
+    if (btn) {
+        btn.classList.toggle('active', voiceEnabled);
     }
+    if (onIcon) onIcon.classList.toggle('hidden', !voiceEnabled);
+    if (offIcon) offIcon.classList.toggle('hidden', voiceEnabled);
     localStorage.setItem('yegara_voice', voiceEnabled ? '1' : '0');
 }
 
@@ -134,11 +140,26 @@ function stopBgMusic() {
 }
 
 function restoreAudioSettings() {
-    if (localStorage.getItem('yegara_music') === '1') { musicEnabled = true; var m = document.getElementById('music-icon'); if (m) m.textContent = '\u{1F3B5}'; }
+    if (localStorage.getItem('yegara_music') === '1') {
+        musicEnabled = true;
+        var btn = document.getElementById('btn-music');
+        var onIcon = document.getElementById('music-on');
+        var offIcon = document.getElementById('music-off');
+        if (btn) btn.classList.add('active');
+        if (onIcon) onIcon.classList.remove('hidden');
+        if (offIcon) offIcon.classList.add('hidden');
+    }
     if (localStorage.getItem('yegara_voice') === '0') {
         voiceEnabled = false;
-        var v = document.getElementById('voice-icon');
-        if (v) v.classList.add('muted');
+        var vbtn = document.getElementById('btn-voice');
+        var von = document.getElementById('voice-on');
+        var voff = document.getElementById('voice-off');
+        if (vbtn) vbtn.classList.remove('active');
+        if (von) von.classList.add('hidden');
+        if (voff) voff.classList.remove('hidden');
+    } else {
+        var vbtn2 = document.getElementById('btn-voice');
+        if (vbtn2) vbtn2.classList.add('active');
     }
     var vol = localStorage.getItem('yegara_volume');
     if (vol) { masterVolume = parseInt(vol) / 100; var s = document.getElementById('volume-slider'); if (s) { s.value = vol; s.style.setProperty('--vol-pct', vol + '%'); } }

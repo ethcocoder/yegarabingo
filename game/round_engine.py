@@ -239,9 +239,11 @@ class RoundEngine:
         }
         new_taken = taken + cartela_numbers
 
+        cartela_count = sum(len(p.get('cartelas', [])) for p in players.values())
+
         self.rounds_ref.document(round_id).update({
             'players': players,
-            'player_count': len(players),
+            'player_count': cartela_count,
             'taken_cartelas': new_taken,
         })
 
@@ -249,7 +251,7 @@ class RoundEngine:
             'status': 'joined',
             'cost': total_cost,
             'cartelas': cartela_numbers,
-            'player_count': len(players),
+            'player_count': cartela_count,
         }
 
     async def start_round(self, round_id: str) -> dict:
