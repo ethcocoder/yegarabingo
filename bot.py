@@ -41,6 +41,7 @@ BONUS_CONFIRM = 9
 PLAY_STAKE = 10
 
 MAIN_KEYBOARD = ReplyKeyboardRemove()
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://yegarabingo.onrender.com/game")
 MAIN_INLINE_KEYBOARD = InlineKeyboardMarkup(
     [
         [InlineKeyboardButton("Play 🎮", callback_data="menu_play"), InlineKeyboardButton("Register 📝", callback_data="menu_register")],
@@ -48,6 +49,7 @@ MAIN_INLINE_KEYBOARD = InlineKeyboardMarkup(
         [InlineKeyboardButton("Contact Support ☎️", callback_data="menu_support"), InlineKeyboardButton("Instruction 📖", callback_data="menu_instruction")],
         [InlineKeyboardButton("Transfer 🎁", callback_data="menu_transfer"), InlineKeyboardButton("Withdraw 🤑", callback_data="menu_withdraw")],
         [InlineKeyboardButton("Invite 🔗", callback_data="menu_invite"), InlineKeyboardButton("Convert Bonus 💸", callback_data="menu_bonus")],
+        [InlineKeyboardButton("🚀 Play Now", web_app=WebAppInfo(url=WEBAPP_URL))],
     ]
 )
 
@@ -78,16 +80,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_reg = u.get('registered') or (u.get('phone') and len(u.get('phone')) > 0)
 
     if is_reg:
-        # Already registered — skip registration, show play directly
+        # Already registered — show full menu
         pw = u.get('play_wallet', 0)
         bal = u.get('balance', 0)
         text = get_bot_text('welcome_registered', db, name=user.first_name, balance=bal, play_wallet=pw)
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎮 Play", callback_data="menu_play")],
-            [InlineKeyboardButton("💰 Wallet", callback_data="menu_balance"),
-             InlineKeyboardButton("🔗 Invite", callback_data="menu_invite")],
-        ])
-        await update.effective_message.reply_text(text, reply_markup=kb, parse_mode='Markdown')
+        await update.effective_message.reply_text(text, reply_markup=MAIN_INLINE_KEYBOARD, parse_mode='Markdown')
     else:
         # New user — needs registration, show banner
         text = get_bot_text('welcome_new', db)
@@ -118,7 +115,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════
 # 🎮 Play — Opens the Mini App directly
 # ═══════════════════════════════════════════════════════════════════
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://yegarabingo.onrender.com/game")
 
 async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
@@ -135,6 +131,7 @@ async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_registered:
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("📝 Register Now", callback_data="menu_register")],
+            [InlineKeyboardButton("🏠 Menu", callback_data="menu_back")],
         ])
         await update.effective_message.reply_text(
             get_bot_text('register_ask_contact', db),
@@ -163,7 +160,7 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         u = await user_manager.get_user(uid)
         await update.effective_message.reply_text(
             get_bot_text('register_already', db, name=u.get('first_name', ''), phone=u.get('phone', '')),
-            reply_markup=MAIN_KEYBOARD,
+            reply_markup=MAIN_INLINE_KEYBOARD,
         )
         return ConversationHandler.END
 
@@ -672,9 +669,12 @@ async def handle_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Menu", callback_data="menu_back")],
+    ])
     await update.effective_message.reply_text(
         get_bot_text('instruction', db),
-        reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
+        reply_markup=kb, parse_mode='Markdown',
     )
 
 
@@ -684,11 +684,32 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Menu", callback_data="menu_back")],
+    ])
     await update.effective_message.reply_text(
         f"🆘 ድጋፍ ይፈልጋሉ?\n\n"
         f"👇 ለማንኛውም ጥያቄ ወይም አስተያየት 👇\n\n"
-        f"👤 @{SUPPORT_USERNAME}"
+        f"👤 @{SUPPORT_USERNAME}",
+        reply_markup=kb,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 🏠 Back to Menu
+# ═══════════════════════════════════════════════════════════════════
+async def handle_menu_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
+    uid = update.effective_user.id
+    u = await user_manager.get_user(uid)
+    if not u:
+        await user_manager.get_or_create_user(uid, update.effective_user.first_name, update.effective_user.username or "")
+        u = await user_manager.get_user(uid)
+    pw = u.get('play_wallet', 0)
+    bal = u.get('balance', 0)
+    text = get_bot_text('welcome_registered', db, name=update.effective_user.first_name, balance=bal, play_wallet=pw)
+    await update.effective_message.reply_text(text, reply_markup=MAIN_INLINE_KEYBOARD, parse_mode='Markdown')
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1115,6 +1136,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_invite, pattern="^menu_invite$"))
     app.add_handler(CallbackQueryHandler(handle_instruction, pattern="^menu_instruction$"))
     app.add_handler(CallbackQueryHandler(handle_support, pattern="^menu_support$"))
+    app.add_handler(CallbackQueryHandler(handle_menu_back, pattern="^menu_back$"))
 
     # ─── Admin approve/reject callbacks (fallback when ADMIN_BOT_TOKEN not set) ───
     app.add_handler(CallbackQueryHandler(admin_approve_deposit, pattern="^approve_(?!withdraw_)"))
