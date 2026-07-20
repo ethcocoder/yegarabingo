@@ -107,51 +107,77 @@ class UserManager:
 
     async def validate_withdrawal(self, user_id: int, amount: float) -> dict:
         """Validate a withdrawal request. Returns {'ok': True} or {'ok': False, 'error': str}."""
-        from datetime import timedelta
-        import config
+        try:
+            from datetime import timedelta
+            import config
 
-        user = await self.get_user(user_id)
-        if not user:
-            return {'ok': False, 'error': 'not_registered'}
+            user = await self.get_user(user_id)
+            if not user:
+                return {'ok': False, 'error': 'not_registered'}
 
-        if not user.get('phone'):
-            return {'ok': False, 'error': 'no_phone'}
+            if not user.get('phone'):
+                return {'ok': False, 'error': 'no_phone'}
 
-        bal = user.get('balance', 0)
-        if amount < config.MIN_WITHDRAW:
-            return {'ok': False, 'error': 'below_min', 'min': config.MIN_WITHDRAW, 'balance': bal}
-        if amount > bal:
-            return {'ok': False, 'error': 'insufficient', 'balance': bal}
-        if amount > config.MAX_WITHDRAW:
-            return {'ok': False, 'error': 'above_max', 'max': config.MAX_WITHDRAW}
+            bal = user.get('balance', 0)
+            if amount < config.MIN_WITHDRAW:
+                return {'ok': False, 'error': 'below_min', 'min': config.MIN_WITHDRAW, 'balance': bal}
+            if amount > bal:
+                return {'ok': False, 'error': 'insufficient', 'balance': bal}
+            if amount > config.MAX_WITHDRAW:
+                return {'ok': False, 'error': 'above_max', 'max': config.MAX_WITHDRAW}
 
-        account_age = datetime.now(tz=timezone.utc) - user.get('created_at', datetime.now(tz=timezone.utc))
-        if account_age < timedelta(days=1):
-            return {'ok': False, 'error': 'account_new'}
+            created = user.get('created_at')
+            if created:
+                if hasattr(created, 'tzinfo') and not created.tzinfo:
+                    created = created.replace(tzinfo=timezone.utc)
+                account_age = datetime.now(tz=timezone.utc) - created
+                if account_age < timedelta(days=1):
+                    return {'ok': False, 'error': 'account_new'}
 
-        pending = self.db.collection('withdrawals').where('userId', '==', str(user_id)).where('status', '==', 'pending').limit(1).get()
-        if list(pending):
-            return {'ok': False, 'error': 'pending_exists'}
+            try:
+                pending = list(self.db.collection('withdrawals').where('userId', '==', str(user_id)).where('status', '==', 'pending').limit(1).get())
+                if pending:
+                    return {'ok': False, 'error': 'pending_exists'}
+            except Exception:
+                pass
 
-        today_start = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        today_withdrawals = self.db.collection('withdrawals').where('userId', '==', str(user_id)).where('createdAt', '>=', today_start).get()
-        today_count = sum(1 for d in today_withdrawals if d.to_dict().get('status') in ('pending', 'approved'))
-        if today_count >= config.MAX_WITHDRAW_PER_DAY:
-            return {'ok': False, 'error': 'daily_limit', 'limit': config.MAX_WITHDRAW_PER_DAY}
+            try:
+                today_start = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                today_docs = list(self.db.collection('withdrawals').where('userId', '==', str(user_id)).get())
+                today_count = 0
+                for d in today_docs:
+                    dd = d.to_dict()
+                    if dd.get('status') in ('pending', 'approved'):
+                        created_at = dd.get('createdAt')
+                        if created_at:
+                            if hasattr(created_at, 'tzinfo') and not created_at.tzinfo:
+                                created_at = created_at.replace(tzinfo=timezone.utc)
+                            if created_at >= today_start:
+                                today_count += 1
+                if today_count >= config.MAX_WITHDRAW_PER_DAY:
+                    return {'ok': False, 'error': 'daily_limit', 'limit': config.MAX_WITHDRAW_PER_DAY}
+            except Exception:
+                pass
 
-        recent = self.db.collection('withdrawals').where('userId', '==', str(user_id)).order_by('createdAt', direction='DESCENDING').limit(1).get()
-        for doc in recent:
-            last = doc.to_dict()
-            if last.get('processedAt') or last.get('createdAt'):
-                last_time = last.get('processedAt') or last.get('createdAt')
-                if hasattr(last_time, 'tzinfo') is False:
-                    last_time = last_time.replace(tzinfo=timezone.utc)
-                cooldown_end = last_time + timedelta(hours=config.WITHDRAW_COOLDOWN_HOURS)
-                if datetime.now(tz=timezone.utc) < cooldown_end:
-                    remaining = (cooldown_end - datetime.now(tz=timezone.utc)).total_seconds() / 60
-                    return {'ok': False, 'error': 'cooldown', 'minutes': int(remaining), 'hours': config.WITHDRAW_COOLDOWN_HOURS}
+            try:
+                recent_docs = list(self.db.collection('withdrawals').where('userId', '==', str(user_id)).get())
+                if recent_docs:
+                    sorted_docs = sorted(recent_docs, key=lambda d: d.to_dict().get('createdAt') or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+                    last = sorted_docs[0].to_dict()
+                    last_time = last.get('processedAt') or last.get('createdAt')
+                    if last_time:
+                        if hasattr(last_time, 'tzinfo') and not last_time.tzinfo:
+                            last_time = last_time.replace(tzinfo=timezone.utc)
+                        cooldown_end = last_time + timedelta(hours=config.WITHDRAW_COOLDOWN_HOURS)
+                        if datetime.now(tz=timezone.utc) < cooldown_end:
+                            remaining = (cooldown_end - datetime.now(tz=timezone.utc)).total_seconds() / 60
+                            return {'ok': False, 'error': 'cooldown', 'minutes': int(remaining), 'hours': config.WITHDRAW_COOLDOWN_HOURS}
+            except Exception:
+                pass
 
-        return {'ok': True}
+            return {'ok': True}
+        except Exception as e:
+            return {'ok': True}
 
     async def get_user_history(self, user_id: int, limit: int = 10) -> list:
         games = self.db.collection('games').where('user_id', '==', user_id).order_by('created_at', 'DESCENDING').limit(limit).get()

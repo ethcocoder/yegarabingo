@@ -125,7 +125,14 @@ async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer()
     uid = update.effective_user.id
     u = await user_manager.get_user(uid)
+
     if not u:
+        await user_manager.get_or_create_user(uid, update.effective_user.first_name, update.effective_user.username or "")
+        u = await user_manager.get_user(uid)
+
+    is_registered = u.get('registered') or (u.get('phone') and len(u.get('phone', '')) > 0)
+
+    if not is_registered:
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("📝 Register Now", callback_data="menu_register")],
         ])
@@ -460,6 +467,13 @@ async def withdraw_telebirr_name(update: Update, context: ContextTypes.DEFAULT_T
 
 async def _process_withdraw(update, context, uid, amount, phone):
     u = await user_manager.get_user(uid)
+    if not u:
+        await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
+        return ConversationHandler.END
+
+    user_ref = db.collection('users').document(str(uid))
+    user_ref.update({'balance': Increment(-amount), 'updated_at': datetime.now(tz=timezone.utc)})
+
     withdrawal_data = {
         'userId': str(uid),
         'username': update.effective_user.username or '',
@@ -826,9 +840,7 @@ async def admin_approve_withdraw(update: Update, context: ContextTypes.DEFAULT_T
         ref.update({'status': 'approved', 'processedAt': datetime.now(tz=timezone.utc)})
         user_id = data.get('userId')
         amount = data.get('amount', 0)
-        if user_id and amount > 0:
-            user_ref = db.collection('users').document(str(user_id))
-            user_ref.update({'balance': Increment(-amount), 'updated_at': datetime.now(tz=timezone.utc)})
+        if user_id:
             try:
                 await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('withdraw_approved', db, amount=amount))
             except Exception:
@@ -858,9 +870,12 @@ async def admin_reject_withdraw(update: Update, context: ContextTypes.DEFAULT_TY
         ref.update({'status': 'rejected', 'processedAt': datetime.now(tz=timezone.utc)})
         user_id = data.get('userId')
         amount = data.get('amount', 0)
+        if user_id and amount > 0:
+            user_ref = db.collection('users').document(str(user_id))
+            user_ref.update({'balance': Increment(amount), 'updated_at': datetime.now(tz=timezone.utc)})
         if user_id:
             try:
-                await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('withdraw_rejected', db))
+                await context.bot.send_message(chat_id=int(user_id), text=get_bot_text('withdraw_rejected', db, amount=amount))
             except Exception:
                 pass
         await query.edit_message_text(get_bot_text('admin_withdrawal_rejected', db, first_name=data.get('firstName', '?'), amount=amount))

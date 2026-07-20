@@ -39,7 +39,7 @@ var BOT_CONTENT_DEFAULTS = {
         withdraw_ask_name: { label: 'Ask TeleBirr Name', default: '💰 Please enter your TeleBirr name\n(The name registered on your TeleBirr account):', vars: '' },
         withdraw_submitted: { label: 'Withdrawal Submitted', default: '✅ Withdrawal request submitted!\n\nAmount: {amount} ETB\nPhone: {phone}\nID: `{withdrawal_id}`\n\nAdmin will process it shortly.', vars: 'amount, phone, withdrawal_id' },
         withdraw_approved: { label: 'Withdrawal Approved', default: '✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.', vars: 'amount' },
-        withdraw_rejected: { label: 'Withdrawal Rejected', default: '❌ Withdrawal rejected.\nPlease contact support.', vars: '' },
+        withdraw_rejected: { label: 'Withdrawal Rejected', default: '❌ Withdrawal rejected.\n💰 {amount} ETB has been refunded to your balance.', vars: 'amount' },
         withdraw_no_phone: { label: 'No Phone', default: '❌ Please register with your phone number first.\nUse /register to complete registration.', vars: '' },
         withdraw_above_max: { label: 'Above Maximum', default: '❌ Maximum withdrawal is {max} ETB per request.', vars: 'max' },
         withdraw_account_new: { label: 'Account Too New', default: '❌ Your account is too new.\nPlease wait 24 hours after registration before withdrawing.', vars: '' },

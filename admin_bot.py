@@ -230,10 +230,10 @@ async def process_withdrawal(wid, status, query, context):
             })
             user_id = data.get('userId')
             amount = data.get('amount', 0)
-            if status == "approved" and user_id and amount > 0:
+            if status == "rejected" and user_id and amount > 0:
                 user_ref = db.collection('users').document(str(user_id))
                 transaction.update(user_ref, {
-                    'balance': firestore.Increment(-amount),
+                    'balance': firestore.Increment(amount),
                     'updated_at': datetime.now(tz=timezone.utc),
                 })
             result['user_id'] = user_id

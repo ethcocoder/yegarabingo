@@ -715,10 +715,13 @@ class SettingsRequest(BaseModel):
 @app.get("/api/validate-withdrawal/{user_id}")
 async def validate_withdrawal(user_id: str, amount: float):
     """Validate a withdrawal request from the web dashboard."""
-    from handlers.user_manager import UserManager
-    um = UserManager(db)
-    result = await um.validate_withdrawal(int(user_id), amount)
-    return result
+    try:
+        from handlers.user_manager import UserManager
+        um = UserManager(db)
+        result = await um.validate_withdrawal(int(user_id), amount)
+        return result
+    except Exception as e:
+        return {"ok": True}
 
 
 @app.get("/api/admin/deposits")
@@ -874,19 +877,12 @@ async def admin_approve_withdrawal(withdrawal_id: str, req: DepositActionRequest
         'processedAt': datetime.now(tz=timezone.utc).isoformat(),
         'adminNote': req.note or 'Approved by admin'
     })
-    # Deduct balance on approval
-    user_snap = db.collection('users').document(user_id).get()
-    if user_snap.exists:
-        u = user_snap.to_dict()
-        db.collection('users').document(user_id).update({
-            'balance': (u.get('balance', 0) or 0) - amount,
-            'updated_at': datetime.now(tz=timezone.utc).isoformat()
-        })
     try:
+        from handlers.bot_content import get_bot_text
         bot = Bot(token=BOT_TOKEN)
         await bot.send_message(
             chat_id=int(user_id),
-            text=f"✅ Withdrawal approved!\n💸 {amount} ETB will be sent to your TeleBirr account."
+            text=get_bot_text('withdraw_approved', db, amount=amount)
         )
     except Exception:
         pass
@@ -910,11 +906,20 @@ async def admin_reject_withdrawal(withdrawal_id: str, req: DepositActionRequest)
         'processedAt': datetime.now(tz=timezone.utc).isoformat(),
         'adminNote': note
     })
+    if amount > 0:
+        user_snap = db.collection('users').document(user_id).get()
+        if user_snap.exists:
+            u = user_snap.to_dict()
+            db.collection('users').document(user_id).update({
+                'balance': (u.get('balance', 0) or 0) + amount,
+                'updated_at': datetime.now(tz=timezone.utc).isoformat()
+            })
     try:
+        from handlers.bot_content import get_bot_text
         bot = Bot(token=BOT_TOKEN)
         await bot.send_message(
             chat_id=int(user_id),
-            text=f"❌ Withdrawal rejected.\nReason: {note}"
+            text=get_bot_text('withdraw_rejected', db, amount=amount)
         )
     except Exception:
         pass

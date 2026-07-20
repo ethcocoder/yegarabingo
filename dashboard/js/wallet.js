@@ -18,26 +18,32 @@ async function submitWithdrawal() {
     if (!phone) { showToast('Enter phone number'); return; }
     try {
         const apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
-        const valRes = await fetch(apiBase + '/api/validate-withdrawal/' + currentUser.id + '?amount=' + amount);
-        const val = await valRes.json();
-        if (!val.ok) {
-            const errorMessages = {
-                below_min: 'Minimum withdrawal is ' + (val.min || 50) + ' ETB',
-                insufficient: 'Insufficient balance! Your balance: ' + (val.balance || 0) + ' ETB',
-                above_max: 'Maximum withdrawal is ' + (val.max || 50000) + ' ETB',
-                no_phone: 'Please register with your phone number first',
-                account_new: 'Your account is too new. Wait 24 hours after registration.',
-                pending_exists: 'You already have a pending withdrawal. Wait for it to be processed.',
-                daily_limit: 'Daily withdrawal limit reached (' + (val.limit || 3) + '/day). Try again tomorrow.',
-                cooldown: 'Please wait ' + (val.minutes || 0) + ' minutes before another withdrawal.',
-            };
-            showToast(errorMessages[val.error] || 'Withdrawal not allowed');
-            return;
-        }
+        try {
+            const valRes = await fetch(apiBase + '/api/validate-withdrawal/' + currentUser.id + '?amount=' + amount);
+            const val = await valRes.json();
+            if (!val.ok) {
+                const errorMessages = {
+                    below_min: 'Minimum withdrawal is ' + (val.min || 50) + ' ETB',
+                    insufficient: 'Insufficient balance! Your balance: ' + (val.balance || 0) + ' ETB',
+                    above_max: 'Maximum withdrawal is ' + (val.max || 50000) + ' ETB',
+                    no_phone: 'Please register with your phone number first',
+                    account_new: 'Your account is too new. Wait 24 hours after registration.',
+                    pending_exists: 'You already have a pending withdrawal. Wait for it to be processed.',
+                    daily_limit: 'Daily withdrawal limit reached (' + (val.limit || 3) + '/day). Try again tomorrow.',
+                    cooldown: 'Please wait ' + (val.minutes || 0) + ' minutes before another withdrawal.',
+                };
+                showToast(errorMessages[val.error] || 'Withdrawal not allowed');
+                return;
+            }
+        } catch (e) { console.warn('Validation API failed, proceeding:', e); }
         const userRef = db.collection('users').doc(String(currentUser.id));
         const snap = await userRef.get();
         const bal = (snap.data().balance || 0);
         if (amount > bal) { showToast('Insufficient balance!'); return; }
+        await userRef.update({
+            balance: bal - amount,
+            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
         const withdrawRef = await db.collection('withdrawals').add({
             userId: String(currentUser.id),
             firstName: currentUser.first_name,

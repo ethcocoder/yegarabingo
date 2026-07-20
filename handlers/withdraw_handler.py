@@ -85,6 +85,11 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
         "adminNote": ""
     }
 
+    user_ref = db.collection("users").document(str(uid))
+    user_doc = user_ref.get()
+    current_balance = user_doc.to_dict().get("balance", 0)
+    user_ref.update({"balance": current_balance - amount, "updated_at": datetime.now(tz=timezone.utc)})
+
     doc_ref = db.collection("withdrawals").add(withdrawal_data)
     withdrawal_id = doc_ref[0].id
 

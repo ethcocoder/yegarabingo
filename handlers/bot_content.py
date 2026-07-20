@@ -56,7 +56,7 @@ DEFAULTS = {
     "withdraw_ask_name": "💰 Please enter your TeleBirr name\n(The name registered on your TeleBirr account):",
     "withdraw_submitted": "✅ Withdrawal request submitted!\n\nAmount: {amount} ETB\nPhone: {phone}\nID: `{withdrawal_id}`\n\nAdmin will process it shortly.",
     "withdraw_approved": "✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.",
-    "withdraw_rejected": "❌ Withdrawal rejected.\nPlease contact support.",
+    "withdraw_rejected": "❌ Withdrawal rejected.\n💰 {amount} ETB has been refunded to your balance.",
     "withdraw_no_phone": "❌ Please register with your phone number first.\nUse /register to complete registration.",
     "withdraw_above_max": "❌ Maximum withdrawal is {max} ETB per request.",
     "withdraw_account_new": "❌ Your account is too new.\nPlease wait 24 hours after registration before withdrawing.",
