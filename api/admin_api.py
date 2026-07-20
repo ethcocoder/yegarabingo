@@ -176,7 +176,8 @@ async def _game_loop(round_id: str):
                 if dl_dt.tzinfo is None:
                     dl_dt = dl_dt.replace(tzinfo=timezone.utc)
                 
-                if datetime.now(tz=timezone.utc) >= dl_dt:
+                # Give an extra 5 seconds grace period for large batches of queued auto-join HTTP requests to finish executing
+                if datetime.now(tz=timezone.utc) >= dl_dt + timedelta(seconds=5):
                     # Timer expired — start game if players exist
                     player_count = data.get('player_count', 0)
                     if player_count > 0:
