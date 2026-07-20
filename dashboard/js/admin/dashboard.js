@@ -73,10 +73,12 @@ function buildActivityFeed(sortedRounds) {
         var id = g.id || '';
         var shortId = typeof id === 'string' ? id.substring(0, 8) : id;
         if (g.status === 'completed' && g.winners && g.winners.length > 0) {
+            var winCartela = g.winning_cartela ? ' — Cartela #' + g.winning_cartela : '';
+            var dateStr = fmtTime(g.completed_at || g.created_at);
             items.push({
-                text: '<span class="font-semibold text-[#10B981]">Winner</span> Round #' + shortId + ' — ' + (g.winner_name || 'User') + ' won ' + (g.prize_per_winner || 0) + ' ETB',
+                text: '<span class="font-semibold text-[#10B981]">Winner</span> Round #' + shortId + ' — ' + (g.winner_name || 'User') + ' won ' + (g.prize_per_winner || 0) + ' ETB' + winCartela,
                 border: 'border-[#10B981]',
-                time: fmtTimeShort(g.created_at)
+                time: dateStr !== '-' ? dateStr : fmtTimeShort(g.created_at)
             });
         } else if (g.status === 'playing') {
             items.push({

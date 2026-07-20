@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,6 +12,17 @@ from handlers.user_manager import UserManager
 from handlers.bot_content import get_bot_text
 
 user_manager = UserManager(db)
+
+async def _is_admin_online() -> bool:
+    def _check():
+        try:
+            doc = db.collection('system').document('admin_status').get()
+            if doc.exists:
+                return doc.to_dict().get('online', True)
+        except Exception:
+            pass
+        return True
+    return await asyncio.to_thread(_check)
 
 async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle withdrawal request from game wallet screen"""
@@ -49,6 +61,11 @@ async def process_withdraw_amount(update: Update, context: ContextTypes.DEFAULT_
         error_key = f"withdraw_{val['error']}"
         kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
         await update.message.reply_text(get_bot_text(error_key, db, **kwargs))
+        return
+
+    admin_online = await _is_admin_online()
+    if not admin_online:
+        await update.message.reply_text(get_bot_text('withdraw_admin_offline', db))
         return
 
     context.user_data["withdraw_amount"] = amount

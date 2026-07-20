@@ -26,7 +26,7 @@ var BOT_CONTENT_DEFAULTS = {
         deposit_phone: { label: 'Deposit Phone Number', default: '0911000000', vars: '' },
         deposit_min_amount: { label: 'Min Amount Error', default: '⚠️ Minimum deposit is 10 ETB. Enter again:', vars: '' },
         deposit_invalid_number: { label: 'Invalid Number', default: '❌ Enter a valid number:', vars: '' },
-        deposit_admin_offline: { label: 'Admin Offline', default: '⚠️ Admin is offline. Please try again later.', vars: '' },
+        deposit_admin_offline: { label: 'Deposit - Admin Offline', default: '⚠️ Admin is offline. Please try again later.', vars: '' },
         deposit_submitted: { label: 'Deposit Submitted', default: '✅ Deposit request submitted!\n\n💵 Amount: {amount} ETB\n👤 Name: {telebirr_name}\n🔢 Transaction: {transaction_id}\n🆔 `{deposit_id}`\n\nAdmin will review and approve shortly.', vars: 'amount, telebirr_name, transaction_id, deposit_id' },
         deposit_approved: { label: 'Deposit Approved', default: '✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.', vars: 'amount' },
         deposit_rejected: { label: 'Deposit Rejected', default: '❌ Deposit rejected.\nPlease contact support if you need help.', vars: '' },
@@ -47,6 +47,7 @@ var BOT_CONTENT_DEFAULTS = {
         withdraw_pending_exists: { label: 'Pending Exists', default: '❌ You already have a pending withdrawal.\nWait for it to be processed before requesting another.', vars: '' },
         withdraw_daily_limit: { label: 'Daily Limit', default: '❌ Daily withdrawal limit reached.\nYou can make up to {limit} withdrawals per day. Try again tomorrow.', vars: 'limit' },
         withdraw_cooldown: { label: 'Cooldown', default: '⏳ Please wait {minutes} minutes before making another withdrawal.\n(Cooldown: {hours} hours between requests)', vars: 'minutes, hours' },
+        withdraw_admin_offline: { label: 'Withdraw - Admin Offline', default: '⚠️ Admin is offline. Withdrawals are temporarily unavailable.', vars: '' },
     },
     transfer: {
         transfer_no_balance: { label: 'No Balance', default: '❌ No balance to transfer.\nYour balance: {balance} ETB', vars: 'balance' },

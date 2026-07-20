@@ -1,4 +1,30 @@
 // ==================== HISTORY ====================
+function _fmtDate(ts) {
+    if (!ts) return '';
+    try {
+        var d;
+        if (ts.toDate) { d = ts.toDate(); }
+        else if (ts.seconds) { d = new Date(ts.seconds * 1000); }
+        else if (typeof ts === 'string' || typeof ts === 'number') { d = new Date(ts); }
+        else { return ''; }
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch (e) { return ''; }
+}
+
+function _fmtDateTime(ts) {
+    if (!ts) return '';
+    try {
+        var d;
+        if (ts.toDate) { d = ts.toDate(); }
+        else if (ts.seconds) { d = new Date(ts.seconds * 1000); }
+        else if (typeof ts === 'string' || typeof ts === 'number') { d = new Date(ts); }
+        else { return ''; }
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+}
+
 async function loadHistory() {
     if (!currentUser) return;
     
@@ -22,10 +48,10 @@ async function loadHistory() {
         });
 
         allRounds.sort(function(a, b) {
-            var da = a.data.completed_at;
-            var db2 = b.data.completed_at;
-            var ta = da && da.toDate ? da.toDate().getTime() : (da ? new Date(da).getTime() : 0);
-            var tb = db2 && db2.toDate ? db2.toDate().getTime() : (db2 ? new Date(db2).getTime() : 0);
+            var da = a.data.completed_at || a.data.created_at;
+            var db2 = b.data.completed_at || b.data.created_at;
+            var ta = da && da.toDate ? da.toDate().getTime() : (da && da.seconds ? da.seconds * 1000 : (da ? new Date(da).getTime() : 0));
+            var tb = db2 && db2.toDate ? db2.toDate().getTime() : (db2 && db2.seconds ? db2.seconds * 1000 : (db2 ? new Date(db2).getTime() : 0));
             return tb - ta;
         });
         
@@ -36,11 +62,7 @@ async function loadHistory() {
         allRounds.forEach(function(item) {
             var d = item.data;
             if (d.winners && d.winners.length > 0 && d.winner_name && d.winner_name !== 'No players') {
-                var date = '';
-                if (d.completed_at) {
-                    var dt = d.completed_at.toDate ? d.completed_at.toDate() : new Date(d.completed_at);
-                    date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                }
+                var date = _fmtDate(d.completed_at);
                 if (recentWinners.length < 3) {
                     recentWinners.push({
                         name: d.winner_name,
@@ -104,11 +126,7 @@ async function loadHistory() {
                 el.className = 'glass rounded-xl p-3';
                 var prize = isWinner ? (Math.round((d.prize_per_winner || 0) * 10) / 10) : 0;
                 var stake = d.stake || 10;
-                var date = '';
-                if (d.created_at) {
-                    var dt = d.created_at.toDate ? d.created_at.toDate() : new Date(d.created_at);
-                    date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                }
+                var date = _fmtDate(d.completed_at || d.created_at);
                 el.innerHTML = '<div class="flex items-center justify-between mb-1">' +
                     '<span class="text-sm font-bold ' + (isWinner ? 'text-bingo-green' : 'text-red-400') + '">' + (isWinner ? '&#127942; Won!' : '&#10060; Lost') + '</span>' +
                     '<span class="text-xs text-white/40">' + stake + ' ETB &middot; ' + date + '</span>' +

@@ -49,3 +49,12 @@ db.collection('withdrawals').onSnapshot(function (snap) {
 }, function (err) {
     console.error('Withdrawals snapshot error:', err);
 });
+
+db.collection('system').doc('admin_status').onSnapshot(function (snap) {
+    if (snap.exists) {
+        adminOnline = snap.data().online || false;
+        updateAdminStatusUI();
+    }
+}, function (err) {
+    console.warn('Admin status snapshot error:', err);
+});

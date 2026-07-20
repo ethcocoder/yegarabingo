@@ -40,7 +40,12 @@ function fmtTime(ts) {
 function fmtTimeShort(ts) {
     if (!ts) return '-';
     try {
-        var d = ts.toDate ? ts.toDate() : new Date(ts);
+        var d;
+        if (ts.toDate) { d = ts.toDate(); }
+        else if (ts.seconds) { d = new Date(ts.seconds * 1000); }
+        else if (typeof ts === 'string' || typeof ts === 'number') { d = new Date(ts); }
+        else { return '-'; }
+        if (isNaN(d.getTime())) return '-';
         var now = new Date();
         var diff = Math.floor((now - d) / 1000);
         if (diff < 60) return diff + 's ago';
@@ -48,6 +53,32 @@ function fmtTimeShort(ts) {
         if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
         return Math.floor(diff / 86400) + 'd ago';
     } catch (e) { return '-'; }
+}
+
+function fmtDate(ts) {
+    if (!ts) return '';
+    try {
+        var d;
+        if (ts.toDate) { d = ts.toDate(); }
+        else if (ts.seconds) { d = new Date(ts.seconds * 1000); }
+        else if (typeof ts === 'string' || typeof ts === 'number') { d = new Date(ts); }
+        else { return ''; }
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch (e) { return ''; }
+}
+
+function fmtDateFull(ts) {
+    if (!ts) return 'Unknown';
+    try {
+        var d;
+        if (ts.toDate) { d = ts.toDate(); }
+        else if (ts.seconds) { d = new Date(ts.seconds * 1000); }
+        else if (typeof ts === 'string' || typeof ts === 'number') { d = new Date(ts); }
+        else { return 'Unknown'; }
+        if (isNaN(d.getTime())) return 'Unknown';
+        return d.toLocaleString();
+    } catch (e) { return 'Unknown'; }
 }
 
 function hashStr(s) {

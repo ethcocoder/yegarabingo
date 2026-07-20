@@ -45,6 +45,7 @@ DEFAULTS = {
     "deposit_invalid_number": "❌ Enter a valid number:",
     "deposit_send_to": "📱 Send {amount} ETB to this TeleBirr number:\n\n📞 *{phone}*\n\nAfter sending, enter the Transaction Number from your receipt:",
     "deposit_admin_offline": "⚠️ Admin is offline. Please try again later.",
+    "withdraw_admin_offline": "⚠️ Admin is offline. Withdrawals are temporarily unavailable.",
     "deposit_submitted": "✅ Deposit request submitted!\n\n💵 Amount: {amount} ETB\n👤 Name: {telebirr_name}\n🔢 Transaction: {transaction_id}\n🆔 `{deposit_id}`\n\nAdmin will review and approve shortly.",
     "deposit_approved": "✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.",
     "deposit_rejected": "❌ Deposit rejected.\nPlease contact support if you need help.",

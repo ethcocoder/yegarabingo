@@ -1,10 +1,10 @@
 // ==================== PAYMENTS (SQL REST API) ====================
 
 function toggleAdminOnline() {
-    adminOnline = !adminOnline;
-    api('POST', '/api/admin/status', { online: adminOnline }).then(function () {
+    var newState = !adminOnline;
+    api('POST', '/api/admin/status', { online: newState }).then(function () {
+        adminOnline = newState;
         updateAdminStatusUI();
-        loadPayments();
     }).catch(function (e) { showToast('Error updating status: ' + e.message, 'error'); });
 }
 
@@ -47,7 +47,7 @@ function renderPayments() {
         deposits.forEach(function (d) {
             var id = d.id;
             var amt = d.amount || 0;
-            var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
+            var time = fmtDateFull(d.createdAt);
             var ocrHtml = '';
             if (d.ocr) {
                 var ocr = d.ocr;
@@ -98,9 +98,9 @@ function renderPayments() {
     // 3. Processed deposits history (status != pending)
     var processedDeposits = allDeposits.filter(function (d) { return d.status !== 'pending'; });
     processedDeposits.sort(function (a, b) {
-        var tA = a.processedAt ? new Date(a.processedAt) : 0;
-        var tB = b.processedAt ? new Date(b.processedAt) : 0;
-        return tB - tA;
+        var tA = a.processedAt ? fmtDateFull(a.processedAt) : '';
+        var tB = b.processedAt ? fmtDateFull(b.processedAt) : '';
+        return tB > tA ? 1 : (tB < tA ? -1 : 0);
     });
     var dList = document.getElementById('payProcessedList');
     var dItems = processedDeposits.slice(0, 10).map(function (d) {
@@ -127,7 +127,7 @@ function renderPayments() {
         withdrawals.forEach(function (d) {
             var id = d.id;
             var amt = d.amount || 0;
-            var time = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Unknown';
+            var time = fmtDateFull(d.createdAt);
             wHtml += '<div class="glass rounded-xl p-4 mb-3 anim-slide border border-orange-500/20">' +
                 '<div class="flex flex-col sm:flex-row sm:items-start gap-3">' +
                 '<div class="flex-1">' +
@@ -154,9 +154,9 @@ function renderPayments() {
     // 5. Processed withdrawals history
     var processedWithdrawals = allWithdrawals.filter(function (d) { return d.status !== 'pending'; });
     processedWithdrawals.sort(function (a, b) {
-        var tA = a.processedAt ? new Date(a.processedAt) : 0;
-        var tB = b.processedAt ? new Date(b.processedAt) : 0;
-        return tB - tA;
+        var tA = a.processedAt ? fmtDateFull(a.processedAt) : '';
+        var tB = b.processedAt ? fmtDateFull(b.processedAt) : '';
+        return tB > tA ? 1 : (tB < tA ? -1 : 0);
     });
     var wHistList = document.getElementById('withdrawProcessedList');
     var wHistItems = processedWithdrawals.slice(0, 10).map(function (d) {
