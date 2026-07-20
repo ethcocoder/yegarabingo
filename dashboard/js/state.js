@@ -16,6 +16,7 @@ var selectionCountdownInterval = null;
 var winCountdownInterval = null;
 var listenerReady = false;
 var isSpectator = false;
+var _lastKnownPlayerCount = 0;
 var serverTimeOffset = 0;
 
 var SELECTION_DURATION = 35; // seconds for card selection phase

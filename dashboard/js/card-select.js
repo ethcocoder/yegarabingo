@@ -1,3 +1,10 @@
+// ==================== HELPERS ====================
+function calcDerash(existingCartelas, mySelections, stake) {
+    var totalCartelas = (existingCartelas || 0) + (mySelections || 0);
+    if (totalCartelas < 1) totalCartelas = 1;
+    return Math.round(totalCartelas * (stake || 10) * 0.75 * 10) / 10;
+}
+
 // ==================== PLAY NOW ====================
 async function playNow(stake) {
     if (!currentUser) { showToast('Loading user data...'); return; }
@@ -156,7 +163,8 @@ async function showCardSelection(roundId, roundData) {
     updateSelectedInfo();
 
     var playerCount = roundData.player_count || 0;
-    var estimatedETB = Math.round(Math.max(1, playerCount) * currentStake * 0.75 * 10) / 10;
+    _lastKnownPlayerCount = playerCount;
+    var estimatedETB = calcDerash(playerCount, selectedCartelas.length, currentStake);
     var el;
     if (el = document.getElementById('cs-stake')) el.textContent = currentStake + ' ETB';
     if (el = document.getElementById('cs-derash')) el.textContent = estimatedETB + ' ETB';
@@ -208,6 +216,7 @@ async function showCardSelection(roundId, roundData) {
 
             if (takenSet.has(num)) {
                 cell.classList.add('taken');
+                cell.onclick = (function(n) { return function() { showToast('Card #' + n + ' is already taken by another player'); }; })(num);
             } else {
                 cell.onclick = (function(n, c) { return function() { toggleCardSelection(n, c); }; })(num, cell);
             }
@@ -226,11 +235,12 @@ async function showCardSelection(roundId, roundData) {
                     if (nowTaken.has(n)) {
                         if (!cell.classList.contains('taken')) {
                             cell.className = 'card-tile taken';
-                            cell.onclick = null;
+                            cell.onclick = (function(num) { return function() { showToast('Card #' + num + ' is already taken by another player'); }; })(n);
                             var selIdx = selectedCartelas.indexOf(n);
                             if (selIdx > -1) {
                                 selectedCartelas.splice(selIdx, 1);
                                 changed = true;
+                                showToast('Card #' + n + ' was taken by another player!');
                             }
                         }
                     }
@@ -246,7 +256,8 @@ async function showCardSelection(roundId, roundData) {
             }
 
             var livePlayerCount = rd.player_count || 0;
-            var liveETB = Math.round(Math.max(1, livePlayerCount) * currentStake * 0.75 * 10) / 10;
+            _lastKnownPlayerCount = livePlayerCount;
+            var liveETB = calcDerash(livePlayerCount, selectedCartelas.length, currentStake);
     var derashEl;
     if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveETB + ' ETB';
 
@@ -425,6 +436,11 @@ function updateSelectedInfo() {
         if (st) st.textContent = (count * currentStake) + ' ETB';
     } else {
         if (info) info.classList.add('hidden');
+    }
+    var liveDerashEl = document.getElementById('cs-derash');
+    if (liveDerashEl) {
+        var baseCount = _lastKnownPlayerCount || 0;
+        liveDerashEl.textContent = calcDerash(baseCount, count, currentStake) + ' ETB';
     }
 }
 

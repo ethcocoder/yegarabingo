@@ -100,9 +100,41 @@ var VAR_SAMPLES = {
     minutes: '30', hours: '4', max: '50000'
 };
 
+var VAR_LABELS = {
+    name: 'User Name', balance: 'Balance', play_wallet: 'Play Wallet', phone: 'Phone Number',
+    amount: 'Amount', telebirr_name: 'TeleBirr Name', transaction_id: 'Transaction #',
+    deposit_id: 'Deposit ID', withdrawal_id: 'Withdrawal ID', timestamp: 'Date & Time',
+    first_name: 'First Name', username: 'Username', min_withdraw: 'Min Withdrawal',
+    total: 'Total Games', wins: 'Wins', losses: 'Losses', win_rate: 'Win Rate',
+    bonus: 'Bonus Coins', stake: 'Stake', players: 'Player Count', coins: 'Bonus Coins',
+    rate: 'Conversion Rate', etb: 'ETB Amount', link: 'Referral Link',
+    referral_bonus: 'Referral Bonus', support_username: 'Support Username',
+    limit: 'Daily Limit', minutes: 'Minutes', hours: 'Hours', max: 'Max Amount'
+};
+
+function toDisplay(text) {
+    if (!text) return '';
+    return text.replace(/\{(\w+)\}/g, function(match, key) {
+        var label = VAR_LABELS[key] || key;
+        return '«' + label + '»';
+    });
+}
+
+function toBackend(text) {
+    if (!text) return '';
+    return text.replace(/«([^»]+)»/g, function(match, label) {
+        var key = null;
+        Object.keys(VAR_LABELS).forEach(function(k) {
+            if (VAR_LABELS[k] === label) key = k;
+        });
+        return key ? ('{' + key + '}') : match;
+    });
+}
+
 function generatePreview(text) {
     if (!text) return '';
-    var preview = text;
+    var backendText = toBackend(text);
+    var preview = backendText;
     Object.keys(VAR_SAMPLES).forEach(function(key) {
         var regex = new RegExp('\\{' + key + '\\}', 'g');
         preview = preview.replace(regex, '<span style="color:#A855F7;font-weight:600;">' + VAR_SAMPLES[key] + '</span>');
@@ -139,7 +171,7 @@ function loadBotCategory(cat) {
         var helperHtml = '';
         if (hasVars) {
             helperHtml = '<div class="mt-2 px-1 py-1.5 rounded-lg" style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.1);">' +
-                '<p class="text-[10px] text-purple-300/70">ℹ️ Parts like <span style="color:#A855F7;font-weight:600;">{name}</span> and <span style="color:#A855F7;font-weight:600;">{balance}</span> are filled automatically with real data. Don\'t change them.</p>' +
+                '<p class="text-[10px] text-purple-300/70">ℹ️ Words wrapped like «Balance» and «Name» are filled automatically with real data. Don\'t change them.</p>' +
                 '</div>';
         }
 
@@ -159,7 +191,7 @@ function loadBotCategory(cat) {
                     'class="w-full rounded-lg px-3 py-2.5 text-sm text-white border font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#10B981]/30 focus:border-[#10B981]/50 transition-all" ' +
                     'style="background: #0D1117; border-color: rgba(255,255,255,0.08);" ' +
                     'placeholder="Type your message here..."' +
-                '>' + escHtml(currentVal) + '</textarea>' +
+                '>' + escHtml(toDisplay(currentVal)) + '</textarea>' +
                 helperHtml +
                 '<div class="mt-3">' +
                     '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Preview</label>' +
@@ -186,7 +218,7 @@ function loadBotContentFromFirestore() {
             _botContentCache[doc.id] = doc.data().content;
             var textarea = document.getElementById('bce-' + doc.id);
             if (textarea) {
-                textarea.value = doc.data().content;
+                textarea.value = toDisplay(doc.data().content);
                 updatePreview(doc.id);
             }
         });
@@ -200,14 +232,15 @@ function updatePreview(key) {
     if (!card) return;
     var previewEl = card.querySelector('.rounded-lg.px-3.py-2.5.text-sm.leading-relaxed');
     if (previewEl) {
-        previewEl.innerHTML = generatePreview(textarea.value);
+        previewEl.innerHTML = generatePreview(toBackend(textarea.value));
     }
 }
 
 function saveBotMessage(key) {
     var textarea = document.getElementById('bce-' + key);
     if (!textarea) return;
-    var value = textarea.value.trim();
+    var displayVal = textarea.value.trim();
+    var value = toBackend(displayVal);
     var statusEl = document.getElementById('bce-status-' + key);
 
     db.collection('bot_content').doc(key).set({
@@ -236,7 +269,7 @@ function resetBotMessage(key) {
     if (!msg) return;
     var textarea = document.getElementById('bce-' + key);
     if (textarea) {
-        textarea.value = msg.default;
+        textarea.value = toDisplay(msg.default);
         updatePreview(key);
     }
     db.collection('bot_content').doc(key).delete().catch(function() {});

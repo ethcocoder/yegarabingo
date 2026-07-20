@@ -278,7 +278,7 @@
 .card-tile.taken {
     background: linear-gradient(135deg, #FF8C00, #FF6B00) !important;
     color: white !important;
-    pointer-events: none;
+    cursor: not-allowed;
     box-shadow: 0 2px 8px rgba(255,140,0,0.3);
     opacity: 0.85;
 }
