@@ -656,7 +656,8 @@ async def handle_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
     uid = update.effective_user.id
-    link = f"https://t.me/kelembingobot?start=ref_{uid}"
+    bot_username = context.bot.username if context.bot else "YourBotUsername"
+    link = f"https://t.me/{bot_username}?start=ref_{uid}"
     await update.effective_message.reply_text(
         get_bot_text('invite_link', db, link=link, referral_bonus=REFERRAL_BONUS),
         reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',

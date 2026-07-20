@@ -96,7 +96,7 @@ var VAR_SAMPLES = {
     deposit_id: 'abc123', withdrawal_id: 'xyz789', timestamp: '20/07/2026 14:30',
     first_name: 'Abebe', username: 'abebe123', min_withdraw: '50', total: '25',
     wins: '8', losses: '17', win_rate: '32%', bonus: '150', stake: '10',
-    players: '12', coins: '500', rate: '10', etb: '50', link: 'https://t.me/KelemBingoBot?start=ref_123',
+    players: '12', coins: '500', rate: '10', etb: '50', link: 'https://t.me/YourBotUsername?start=ref_123',
     referral_bonus: '10', support_username: 'kelemsupport', limit: '3',
     minutes: '30', hours: '4', max: '50000'
 };
@@ -167,6 +167,9 @@ function loadBotCategory(cat) {
                 '</div>';
         }
 
+        var lineCount = (currentVal.match(/\n/g) || []).length;
+        var rowCount = Math.max(3, Math.min(15, lineCount + 1));
+
         card.innerHTML =
             '<div class="px-4 py-3 flex items-center justify-between" style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04);">' +
                 '<div>' +
@@ -179,9 +182,10 @@ function loadBotCategory(cat) {
             '</div>' +
             '<div class="p-4">' +
                 '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Message Text</label>' +
-                '<textarea id="bce-' + key + '" rows="3" ' +
+                '<textarea id="bce-' + key + '" rows="' + rowCount + '" ' +
+                    'oninput="this.style.height=\'auto\';this.style.height=(this.scrollHeight)+\'px\';" ' +
                     'class="w-full rounded-lg px-3 py-2.5 text-sm text-white border font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#10B981]/30 focus:border-[#10B981]/50 transition-all" ' +
-                    'style="background: #0D1117; border-color: rgba(255,255,255,0.08);" ' +
+                    'style="background: #0D1117; border-color: rgba(255,255,255,0.08); overflow: hidden;" ' +
                     'placeholder="Type your message here..."' +
                 '>' + escHtml(toDisplay(currentVal)) + '</textarea>' +
                 helperHtml +
