@@ -102,10 +102,10 @@ function listenToUserData() {
 function startStatsListener() {
     if (statsUnsubscribe) statsUnsubscribe();
     statsUnsubscribe = db.collection('rounds').where('status', 'in', ['selecting', 'playing']).onSnapshot(function(snap) {
-        var totalPlayers = 0;
-        snap.forEach(function(doc) { totalPlayers += (doc.data().player_count || 0); });
+        var totalCartelas = 0;
+        snap.forEach(function(doc) { totalCartelas += (doc.data().player_count || 0); });
         var sp = document.getElementById('stat-players');
-        if (sp) sp.textContent = totalPlayers;
+        if (sp) sp.textContent = totalCartelas;
     });
     function refreshCompletedStats() {
         db.collection('rounds').where('status', '==', 'completed').get().then(function(snap) {

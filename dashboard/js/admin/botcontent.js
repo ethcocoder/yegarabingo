@@ -9,7 +9,7 @@ var BOT_CONTENT_DEFAULTS = {
         welcome_new_amharic: { label: 'Welcome Amharic', default: '🎮 ጨዋታውን ለመጀመር ከታች ያለውን Play የሚለውን ይጫኑ::\n(Click Play below to start the game)', vars: '' },
     },
     play: {
-        play_wallet_info: { label: 'Play Button Info', default: '💰 Your Play Wallet: *{play_wallet} ETB*\n\n🎯 Stake: *10 ETB* per cartela (max 2)\n🏆 Derash: *(Players × Stake × 0.75) / Winners*\n\nTap below to open the game:', vars: 'play_wallet' },
+        play_wallet_info: { label: 'Play Button Info', default: '💰 Your Play Wallet: *{play_wallet} ETB*\n\n🎯 Stake: *10 ETB* per cartela (max 2)\n🏆 Derash: *(Cartelas × Stake × 0.75) / Winners*\n\nTap below to open the game:', vars: 'play_wallet' },
         play_need_start: { label: 'Need /start', default: 'Please /start first.', vars: '' },
         instruction: { label: 'How to Play', default: '📖 *How to Play Yegara Bingo*\n\n1️⃣ Click *Play* and choose your stake (10 or 20 ETB)\n2️⃣ Select up to *3 cartelas* (bingo cards)\n3️⃣ The game board opens — numbers are called every 4 seconds\n4️⃣ Tap numbers on your card to mark them (or use Auto Mark)\n5️⃣ Complete a full line (row, column, or diagonal) to win!\n\n🎯 *Winning:* Complete any row, column, or diagonal\n🏆 *Derash:* 1.5x your stake\n⭐ *Free Space:* Center cell is always free\n\n💰 *Wallets:*\n• Main Wallet — deposit here via TeleBirr\n• Play Wallet — transfer from main to play\n• Bonus — earned from referrals\n\n📤 *Transfer:* Send funds to any user by ID\n🔄 *Convert Bonus:* Turn bonus coins into Play Wallet', vars: '' },
     },
@@ -22,9 +22,10 @@ var BOT_CONTENT_DEFAULTS = {
         deposit_too_many: { label: 'Too Many Pending', default: '⚠️ You have too many pending deposits.\nWait for them to be processed.', vars: '' },
         deposit_ask_name: { label: 'Ask TeleBirr Name', default: '💰 Please enter your TeleBirr name\n(The name registered on your TeleBirr account):', vars: '' },
         deposit_ask_amount: { label: 'Ask Amount', default: '💰 Enter deposit amount (ETB):', vars: '' },
+        deposit_send_to: { label: 'Send To (shows phone)', default: '📱 Send {amount} ETB to this TeleBirr number:\n\n📞 *{phone}*\n\nAfter sending, enter the Transaction Number from your receipt:', vars: 'amount, phone' },
+        deposit_phone: { label: 'Deposit Phone Number', default: '0911000000', vars: '' },
         deposit_min_amount: { label: 'Min Amount Error', default: '⚠️ Minimum deposit is 10 ETB. Enter again:', vars: '' },
         deposit_invalid_number: { label: 'Invalid Number', default: '❌ Enter a valid number:', vars: '' },
-        deposit_ask_txn: { label: 'Ask Transaction Number', default: '🔢 Enter the TeleBirr Transaction Number\n(Found on your payment receipt, e.g. DFL35JF5):', vars: '' },
         deposit_admin_offline: { label: 'Admin Offline', default: '⚠️ Admin is offline. Please try again later.', vars: '' },
         deposit_submitted: { label: 'Deposit Submitted', default: '✅ Deposit request submitted!\n\n💵 Amount: {amount} ETB\n👤 Name: {telebirr_name}\n🔢 Transaction: {transaction_id}\n🆔 `{deposit_id}`\n\nAdmin will review and approve shortly.', vars: 'amount, telebirr_name, transaction_id, deposit_id' },
         deposit_approved: { label: 'Deposit Approved', default: '✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.', vars: 'amount' },
@@ -88,6 +89,27 @@ var BOT_CONTENT_DEFAULTS = {
     }
 };
 
+var VAR_SAMPLES = {
+    name: 'Abebe', balance: '500', play_wallet: '200', phone: '+251911234567',
+    amount: '100', telebirr_name: 'Abebe Kebede', transaction_id: 'DFL35JF5',
+    deposit_id: 'abc123', withdrawal_id: 'xyz789', timestamp: '20/07/2026 14:30',
+    first_name: 'Abebe', username: 'abebe123', min_withdraw: '50', total: '25',
+    wins: '8', losses: '17', win_rate: '32%', bonus: '150', stake: '10',
+    players: '12', coins: '500', rate: '10', etb: '50', link: 'https://t.me/YegaraBingoBot?start=ref_123',
+    referral_bonus: '10', support_username: 'yegarasupport', limit: '3',
+    minutes: '30', hours: '4', max: '50000'
+};
+
+function generatePreview(text) {
+    if (!text) return '';
+    var preview = text;
+    Object.keys(VAR_SAMPLES).forEach(function(key) {
+        var regex = new RegExp('\\{' + key + '\\}', 'g');
+        preview = preview.replace(regex, '<span style="color:#A855F7;font-weight:600;">' + VAR_SAMPLES[key] + '</span>');
+    });
+    return preview;
+}
+
 function loadBotCategory(cat) {
     _currentBotCategory = cat;
     document.querySelectorAll('.botcat-tab').forEach(function(t) {
@@ -100,18 +122,6 @@ function loadBotCategory(cat) {
         activeTab.classList.remove('text-gray-400');
     }
 
-    var VAR_DESCRIPTIONS = {
-        name: 'User\'s name', balance: 'Wallet balance', play_wallet: 'Play wallet balance',
-        phone: 'Phone number', amount: 'Amount in ETB', telebirr_name: 'TeleBirr name',
-        transaction_id: 'Transaction number', deposit_id: 'Deposit ID', withdrawal_id: 'Withdrawal ID',
-        timestamp: 'Date & time', first_name: 'User first name', username: 'Telegram username',
-        min_withdraw: 'Min withdrawal', total: 'Total games', wins: 'Win count',
-        losses: 'Loss count', win_rate: 'Win percentage', bonus: 'Bonus coins',
-        stake: 'Stake amount', players: 'Player count', coins: 'Bonus coins',
-        rate: 'Conversion rate', etb: 'ETB amount', link: 'Referral link',
-        referral_bonus: 'Referral bonus amount', support_username: 'Support username',
-    };
-
     var messages = BOT_CONTENT_DEFAULTS[cat] || {};
     var editor = document.getElementById('botContentEditor');
     if (!editor) return;
@@ -120,25 +130,16 @@ function loadBotCategory(cat) {
     Object.keys(messages).forEach(function(key) {
         var msg = messages[key];
         var currentVal = _botContentCache[key] || msg.default;
-        var vars = msg.vars ? msg.vars.split(',').map(function(v) { return v.trim(); }).filter(Boolean) : [];
+        var hasVars = msg.vars && msg.vars.trim().length > 0;
 
         var card = document.createElement('div');
         card.className = 'mb-6 rounded-xl overflow-hidden';
         card.style.cssText = 'background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.06);';
 
-        var varsHtml = '';
-        if (vars.length > 0) {
-            varsHtml = '<div class="flex flex-wrap items-center gap-1.5 mt-2">' +
-                '<span class="text-[10px] text-gray-500 mr-1">Insert:</span>' +
-                vars.map(function(v) {
-                    var desc = VAR_DESCRIPTIONS[v] || v;
-                    return '<button type="button" onclick="insertVar(\'' + key + '\', \'' + v + '\')" ' +
-                        'class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer" ' +
-                        'style="background: rgba(16,185,129,0.1); color: #34D399; border: 1px solid rgba(16,185,129,0.2);" ' +
-                        'onmouseover="this.style.background=\'rgba(16,185,129,0.2)\'" onmouseout="this.style.background=\'rgba(16,185,129,0.1)\'">' +
-                        '<span style="color: #6EE7B7;">{</span>' + escHtml(v) + '<span style="color: #6EE7B7;">}</span>' +
-                        '</button>';
-                }).join('') +
+        var helperHtml = '';
+        if (hasVars) {
+            helperHtml = '<div class="mt-2 px-1 py-1.5 rounded-lg" style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.1);">' +
+                '<p class="text-[10px] text-purple-300/70">ℹ️ Parts like <span style="color:#A855F7;font-weight:600;">{name}</span> and <span style="color:#A855F7;font-weight:600;">{balance}</span> are filled automatically with real data. Don\'t change them.</p>' +
                 '</div>';
         }
 
@@ -146,7 +147,6 @@ function loadBotCategory(cat) {
             '<div class="px-4 py-3 flex items-center justify-between" style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04);">' +
                 '<div>' +
                     '<span class="text-sm font-semibold text-white">' + escHtml(msg.label) + '</span>' +
-                    '<span class="text-[10px] text-gray-500 font-mono ml-2">' + key + '</span>' +
                 '</div>' +
                 '<div class="flex items-center gap-2">' +
                     '<button onclick="saveBotMessage(\'' + key + '\')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.2);">Save</button>' +
@@ -154,32 +154,30 @@ function loadBotCategory(cat) {
                 '</div>' +
             '</div>' +
             '<div class="p-4">' +
+                '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Message Text</label>' +
                 '<textarea id="bce-' + key + '" rows="3" ' +
                     'class="w-full rounded-lg px-3 py-2.5 text-sm text-white border font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#10B981]/30 focus:border-[#10B981]/50 transition-all" ' +
                     'style="background: #0D1117; border-color: rgba(255,255,255,0.08);" ' +
                     'placeholder="Type your message here..."' +
                 '>' + escHtml(currentVal) + '</textarea>' +
-                varsHtml +
+                helperHtml +
+                '<div class="mt-3">' +
+                    '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Preview</label>' +
+                    '<div class="rounded-lg px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap" style="background: #0D1117; border: 1px solid rgba(255,255,255,0.06); color: #D1D5DB;">' +
+                        generatePreview(currentVal) +
+                    '</div>' +
+                '</div>' +
                 '<div id="bce-status-' + key + '" class="text-[10px] text-gray-500 mt-2 h-4"></div>' +
             '</div>';
         editor.appendChild(card);
+
+        var textarea = document.getElementById('bce-' + key);
+        if (textarea) {
+            textarea.addEventListener('input', function() { updatePreview(key); });
+        }
     });
 
     loadBotContentFromFirestore();
-}
-
-function insertVar(key, varName) {
-    var textarea = document.getElementById('bce-' + key);
-    if (!textarea) return;
-    var start = textarea.selectionStart;
-    var end = textarea.selectionEnd;
-    var text = textarea.value;
-    var before = text.substring(0, start);
-    var after = text.substring(end);
-    textarea.value = before + '{' + varName + '}' + after;
-    textarea.selectionStart = textarea.selectionEnd = start + varName.length + 2;
-    textarea.focus();
-    textarea.dispatchEvent(new Event('input'));
 }
 
 function loadBotContentFromFirestore() {
@@ -187,9 +185,23 @@ function loadBotContentFromFirestore() {
         snap.forEach(function(doc) {
             _botContentCache[doc.id] = doc.data().content;
             var textarea = document.getElementById('bce-' + doc.id);
-            if (textarea) textarea.value = doc.data().content;
+            if (textarea) {
+                textarea.value = doc.data().content;
+                updatePreview(doc.id);
+            }
         });
     }).catch(function(e) { console.warn('Failed to load bot_content:', e); });
+}
+
+function updatePreview(key) {
+    var textarea = document.getElementById('bce-' + key);
+    if (!textarea) return;
+    var card = textarea.closest('.mb-6');
+    if (!card) return;
+    var previewEl = card.querySelector('.rounded-lg.px-3.py-2.5.text-sm.leading-relaxed');
+    if (previewEl) {
+        previewEl.innerHTML = generatePreview(textarea.value);
+    }
 }
 
 function saveBotMessage(key) {
@@ -223,7 +235,10 @@ function resetBotMessage(key) {
     var msg = messages[key];
     if (!msg) return;
     var textarea = document.getElementById('bce-' + key);
-    if (textarea) textarea.value = msg.default;
+    if (textarea) {
+        textarea.value = msg.default;
+        updatePreview(key);
+    }
     db.collection('bot_content').doc(key).delete().catch(function() {});
     delete _botContentCache[key];
     var statusEl = document.getElementById('bce-status-' + key);

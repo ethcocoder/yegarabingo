@@ -4,17 +4,17 @@ function updateReports() {
     var completed = validRounds.filter(function (g) { return g.status === 'completed'; });
     var totalGames = validRounds.length;
     var totalStakes = 0;
-    var totalPlayers = 0;
+    var totalCartelas = 0;
     validRounds.forEach(function (g) {
         totalStakes += (g.stake || 0) * (g.player_count || 0);
-        totalPlayers += (g.player_count || 0);
+        totalCartelas += (g.player_count || 0);
     });
-    var avgPlayers = totalGames > 0 ? Math.round(totalPlayers / totalGames) : 0;
+    var avgCartelas = totalGames > 0 ? Math.round(totalCartelas / totalGames) : 0;
     var completionRate = totalGames > 0 ? Math.round((completed.length / totalGames) * 100) : 0;
 
     document.getElementById('reportTotalGames').textContent = totalGames.toLocaleString();
     document.getElementById('reportTotalStakes').textContent = totalStakes.toLocaleString() + ' ETB';
-    document.getElementById('reportAvgPlayers').textContent = avgPlayers;
+    document.getElementById('reportAvgPlayers').textContent = avgCartelas;
     document.getElementById('reportCompletionRate').textContent = completionRate + '%';
 
     var days = [];

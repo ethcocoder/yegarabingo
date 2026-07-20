@@ -114,7 +114,7 @@ async function loadHistory() {
                     '<span class="text-xs text-white/40">' + stake + ' ETB &middot; ' + date + '</span>' +
                     '</div>' +
                     '<div class="flex items-center justify-between text-xs text-white/60">' +
-                    '<span>Players: ' + (d.player_count || 0) + '</span>' +
+                    '<span>Cartelas: ' + (d.player_count || 0) + '</span>' +
                     '<span>Derash: ' + prize + ' ETB</span>' +
                     '</div>';
                 list.appendChild(el);

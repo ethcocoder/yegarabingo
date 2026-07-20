@@ -508,7 +508,7 @@ async function confirmSelection() {
 
             txn.update(roundRef, {
                 players: players,
-                player_count: Object.keys(players).length,
+                player_count: Object.values(players).reduce(function(sum, p) { return sum + (p.cartelas ? p.cartelas.length : 0); }, 0),
                 taken_cartelas: Array.from(takenSet),
             });
         });

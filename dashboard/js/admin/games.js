@@ -23,7 +23,7 @@ function renderGames() {
                     if (pname && typeof pname === 'string') playerNames.push(pname);
                 });
             }
-            var playersDisplay = playerNames.length > 0 ? playerNames.slice(0, 3).join(', ') + (playerNames.length > 3 ? '...' : '') : (g.player_count || 0) + ' players';
+            var playersDisplay = playerNames.length > 0 ? playerNames.slice(0, 3).join(', ') + (playerNames.length > 3 ? '...' : '') : (g.player_count || 0) + ' cartelas';
 
             return '<div class="glass rounded-xl p-4 hover:bg-white/[0.03] transition-all">' +
                 '<div class="flex items-center justify-between mb-3">' +
@@ -39,7 +39,7 @@ function renderGames() {
                 '<div class="grid grid-cols-4 gap-2 mb-3">' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Stake</p><p class="text-xs font-bold text-[#FF8C00]">' + (g.stake || 0) + ' ETB</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Called</p><p class="text-xs font-bold text-[#3B82F6]">' + calledCount + '/75</p></div>' +
-                '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Players</p><p class="text-xs font-bold text-[#8B5CF6]">' + (g.player_count || 0) + '</p></div>' +
+                '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">Cartelas</p><p class="text-xs font-bold text-[#8B5CF6]">' + (g.player_count || 0) + '</p></div>' +
                 '<div class="text-center glass rounded-lg p-2"><p class="text-[10px] text-gray-500">DERASH</p><p class="text-xs font-bold text-[#14B8A6]">' + derash + ' ETB</p></div>' +
                 '</div>' +
                 '</div>';

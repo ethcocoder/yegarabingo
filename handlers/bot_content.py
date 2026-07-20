@@ -24,7 +24,7 @@ DEFAULTS = {
     "welcome_banner_caption": "👋 Welcome to Yegara Bingo! Choose an Option below.",
 
     # ── Play ──
-    "play_wallet_info": "💰 Your Play Wallet: *{play_wallet} ETB*\n\n🎯 Stake: *10 ETB* per cartela (max 2)\n🏆 Derash: *(Players × Stake × 0.75) / Winners*\n\nTap below to open the game:",
+    "play_wallet_info": "💰 Your Play Wallet: *{play_wallet} ETB*\n\n🎯 Stake: *10 ETB* per cartela (max 2)\n🏆 Derash: *(Cartelas × Stake × 0.75) / Winners*\n\nTap below to open the game:",
     "play_need_start": "Please /start first.",
 
     # ── Register ──
@@ -39,9 +39,11 @@ DEFAULTS = {
     "deposit_too_many": "⚠️ You have too many pending deposits.\nWait for them to be processed.",
     "deposit_ask_name": "💰 Please enter your TeleBirr name\n(The name registered on your TeleBirr account):",
     "deposit_ask_amount": "💰 Enter deposit amount (ETB):",
+    "deposit_send_to": "📱 Send {amount} ETB to this TeleBirr number:\n\n📞 *{phone}*\n\nAfter sending, enter the Transaction Number from your receipt:",
+    "deposit_phone": "0911000000",
     "deposit_min_amount": "⚠️ Minimum deposit is 10 ETB. Enter again:",
     "deposit_invalid_number": "❌ Enter a valid number:",
-    "deposit_ask_txn": "🔢 Enter the TeleBirr Transaction Number\n(Found on your payment receipt, e.g. DFL35JF5):",
+    "deposit_send_to": "📱 Send {amount} ETB to this TeleBirr number:\n\n📞 *{phone}*\n\nAfter sending, enter the Transaction Number from your receipt:",
     "deposit_admin_offline": "⚠️ Admin is offline. Please try again later.",
     "deposit_submitted": "✅ Deposit request submitted!\n\n💵 Amount: {amount} ETB\n👤 Name: {telebirr_name}\n🔢 Transaction: {transaction_id}\n🆔 `{deposit_id}`\n\nAdmin will review and approve shortly.",
     "deposit_approved": "✅ Deposit approved!\n💰 {amount} ETB has been added to your wallet.",

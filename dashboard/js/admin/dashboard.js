@@ -80,13 +80,13 @@ function buildActivityFeed(sortedRounds) {
             });
         } else if (g.status === 'playing') {
             items.push({
-                text: '<span class="font-semibold text-[#FF8C00]">Round</span> #' + shortId + ' is playing — ' + (g.player_count || 0) + ' players',
+                text: '<span class="font-semibold text-[#FF8C00]">Round</span> #' + shortId + ' is playing — ' + (g.player_count || 0) + ' cartelas',
                 border: 'border-[#FF8C00]',
                 time: fmtTimeShort(g.created_at)
             });
         } else if (g.status === 'selecting') {
             items.push({
-                text: '<span class="font-semibold text-[#3B82F6]">Round</span> #' + shortId + ' selecting players',
+                text: '<span class="font-semibold text-[#3B82F6]">Round</span> #' + shortId + ' selecting cartelas',
                 border: 'border-[#3B82F6]',
                 time: fmtTimeShort(g.created_at)
             });

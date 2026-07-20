@@ -305,7 +305,7 @@ async def deposit_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data['deposit_amount'] = amount
     await update.effective_message.reply_text(
-        get_bot_text('deposit_ask_txn', db),
+        get_bot_text('deposit_send_to', db, amount=int(amount), phone=get_bot_text('deposit_phone', db)),
     )
     return DEPOSIT_TXN_NUMBER
 
