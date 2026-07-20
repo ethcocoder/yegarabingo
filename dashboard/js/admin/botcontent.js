@@ -113,25 +113,71 @@ var VAR_LABELS = {
     limit: 'Daily Limit', minutes: 'Minutes', hours: 'Hours', max: 'Max Amount'
 };
 
-function toDisplay(text) {
-    if (!text) return '';
-    return text;
-}
+// ── Inject CSS for variable chips ──
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '.bce-editor { min-height: 60px; white-space: pre-wrap; word-wrap: break-word; outline: none; line-height: 1.7; }',
+        '.bce-editor:empty::before { content: attr(data-placeholder); color: #4B5563; }',
+        '.bce-editor:focus { border-color: rgba(16,185,129,0.5) !important; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }',
+        '.var-chip { display: inline; padding: 1px 7px; margin: 0 1px; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: default; user-select: all; -webkit-user-select: all; }',
+        '.var-chip { background: rgba(168,85,247,0.15); color: #C084FC; border: 1px solid rgba(168,85,247,0.3); }',
+        '.var-chip::before { content: attr(data-label) ": "; font-size: 0.85em; opacity: 0.6; font-weight: 400; }',
+    ].join('\n');
+    document.head.appendChild(style);
+})();
 
-function toBackend(text) {
+/**
+ * Convert backend text ({var} placeholders) to rich HTML with variable chips.
+ * Each {var} becomes a styled <span> chip showing the sample value + label.
+ */
+function toDisplayHtml(text) {
     if (!text) return '';
-    return text;
-}
-
-function generatePreview(text) {
-    if (!text) return '';
-    var backendText = toBackend(text);
-    var preview = backendText;
-    Object.keys(VAR_SAMPLES).forEach(function(key) {
-        var regex = new RegExp('\\{' + key + '\\}', 'g');
-        preview = preview.replace(regex, '<span style="color:#A855F7;font-weight:600;">' + VAR_SAMPLES[key] + '</span>');
+    // First escape HTML in the plain text parts
+    var html = escHtml(text);
+    // Replace newlines with <br>
+    html = html.replace(/\n/g, '<br>');
+    // Replace {var} with chips
+    html = html.replace(/\{(\w+)\}/g, function(match, key) {
+        var sample = VAR_SAMPLES[key] || key;
+        var label = VAR_LABELS[key] || key;
+        return '<span class="var-chip" contenteditable="false" data-var="' + key + '" data-label="' + escAttr(label) + '">' + escHtml(sample) + '</span>';
     });
-    return preview;
+    return html;
+}
+
+/**
+ * Convert rich HTML (with chips) back to backend text with {var} placeholders.
+ */
+function toBackendText(editorEl) {
+    if (!editorEl) return '';
+    // Clone the element to avoid modifying the live DOM
+    var clone = editorEl.cloneNode(true);
+    // Replace all var-chip spans with {var}
+    clone.querySelectorAll('.var-chip').forEach(function(chip) {
+        var varName = chip.getAttribute('data-var');
+        chip.replaceWith('{' + varName + '}');
+    });
+    // Convert <br> and <div> to newlines
+    var html = clone.innerHTML;
+    html = html.replace(/<br\s*\/?>/gi, '\n');
+    html = html.replace(/<div>/gi, '\n');
+    html = html.replace(/<\/div>/gi, '');
+    html = html.replace(/<p>/gi, '\n');
+    html = html.replace(/<\/p>/gi, '');
+    html = html.replace(/&amp;/g, '&');
+    html = html.replace(/&lt;/g, '<');
+    html = html.replace(/&gt;/g, '>');
+    html = html.replace(/&quot;/g, '"');
+    html = html.replace(/&#39;/g, "'");
+    html = html.replace(/&nbsp;/g, ' ');
+    // Clean up multiple consecutive newlines from div wrapping
+    html = html.replace(/^\n/, '');
+    return html;
+}
+
+function escAttr(str) {
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function loadBotCategory(cat) {
@@ -162,13 +208,18 @@ function loadBotCategory(cat) {
 
         var helperHtml = '';
         if (hasVars) {
-            helperHtml = '<div class="mt-2 px-1 py-1.5 rounded-lg" style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.1);">' +
-                '<p class="text-[10px] text-purple-300/70">ℹ️ Variables like {balance} and {name} are filled automatically with real data. You can edit them freely.</p>' +
+            // Build list of variable chips used in this message
+            var varList = msg.vars.split(',').map(function(v) { return v.trim(); });
+            var chipExamples = varList.map(function(v) {
+                var label = VAR_LABELS[v] || v;
+                var sample = VAR_SAMPLES[v] || v;
+                return '<span style="display:inline-block;padding:0 5px;border-radius:3px;font-size:10px;font-weight:600;background:rgba(168,85,247,0.15);color:#C084FC;border:1px solid rgba(168,85,247,0.25);margin:0 2px;">' + escHtml(label) + ': ' + escHtml(sample) + '</span>';
+            }).join(' ');
+            helperHtml = '<div class="mt-2 px-2 py-2 rounded-lg" style="background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.1);">' +
+                '<p class="text-[10px] text-purple-300/70 mb-1">ℹ️ The colored chips below are auto-filled with each user\'s real data. Don\'t delete them — edit the text around them.</p>' +
+                '<div class="flex flex-wrap gap-1 mt-1">' + chipExamples + '</div>' +
                 '</div>';
         }
-
-        var lineCount = (currentVal.match(/\n/g) || []).length;
-        var rowCount = Math.max(3, Math.min(15, lineCount + 1));
 
         card.innerHTML =
             '<div class="px-4 py-3 flex items-center justify-between" style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04);">' +
@@ -181,28 +232,17 @@ function loadBotCategory(cat) {
                 '</div>' +
             '</div>' +
             '<div class="p-4">' +
-                '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Message Text</label>' +
-                '<textarea id="bce-' + key + '" rows="' + rowCount + '" ' +
-                    'oninput="this.style.height=\'auto\';this.style.height=(this.scrollHeight)+\'px\';" ' +
-                    'class="w-full rounded-lg px-3 py-2.5 text-sm text-white border font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#10B981]/30 focus:border-[#10B981]/50 transition-all" ' +
-                    'style="background: #0D1117; border-color: rgba(255,255,255,0.08); overflow: hidden;" ' +
-                    'placeholder="Type your message here..."' +
-                '>' + escHtml(toDisplay(currentVal)) + '</textarea>' +
+                '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Message Editor</label>' +
+                '<div id="bce-' + key + '" contenteditable="true" ' +
+                    'class="bce-editor w-full rounded-lg px-3 py-2.5 text-sm text-white border" ' +
+                    'style="background: #0D1117; border-color: rgba(255,255,255,0.08);" ' +
+                    'data-placeholder="Type your message here..." ' +
+                    'data-key="' + key + '"' +
+                '>' + toDisplayHtml(currentVal) + '</div>' +
                 helperHtml +
-                '<div class="mt-3">' +
-                    '<label class="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 block">Preview</label>' +
-                    '<div class="rounded-lg px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap" style="background: #0D1117; border: 1px solid rgba(255,255,255,0.06); color: #D1D5DB;">' +
-                        generatePreview(currentVal) +
-                    '</div>' +
-                '</div>' +
                 '<div id="bce-status-' + key + '" class="text-[10px] text-gray-500 mt-2 h-4"></div>' +
             '</div>';
         editor.appendChild(card);
-
-        var textarea = document.getElementById('bce-' + key);
-        if (textarea) {
-            textarea.addEventListener('input', function() { updatePreview(key); });
-        }
     });
 
     loadBotContentFromFirestore();
@@ -212,31 +252,18 @@ function loadBotContentFromFirestore() {
     db.collection('bot_content').get().then(function(snap) {
         snap.forEach(function(doc) {
             _botContentCache[doc.id] = doc.data().content;
-            var textarea = document.getElementById('bce-' + doc.id);
-            if (textarea) {
-                textarea.value = toDisplay(doc.data().content);
-                updatePreview(doc.id);
+            var editorEl = document.getElementById('bce-' + doc.id);
+            if (editorEl) {
+                editorEl.innerHTML = toDisplayHtml(doc.data().content);
             }
         });
     }).catch(function(e) { console.warn('Failed to load bot_content:', e); });
 }
 
-function updatePreview(key) {
-    var textarea = document.getElementById('bce-' + key);
-    if (!textarea) return;
-    var card = textarea.closest('.mb-6');
-    if (!card) return;
-    var previewEl = card.querySelector('.rounded-lg.px-3.py-2.5.text-sm.leading-relaxed');
-    if (previewEl) {
-        previewEl.innerHTML = generatePreview(toBackend(textarea.value));
-    }
-}
-
 function saveBotMessage(key) {
-    var textarea = document.getElementById('bce-' + key);
-    if (!textarea) return;
-    var displayVal = textarea.value.trim();
-    var value = toBackend(displayVal);
+    var editorEl = document.getElementById('bce-' + key);
+    if (!editorEl) return;
+    var value = toBackendText(editorEl);
     var statusEl = document.getElementById('bce-status-' + key);
 
     db.collection('bot_content').doc(key).set({
@@ -263,10 +290,9 @@ function resetBotMessage(key) {
     var messages = BOT_CONTENT_DEFAULTS[_currentBotCategory] || {};
     var msg = messages[key];
     if (!msg) return;
-    var textarea = document.getElementById('bce-' + key);
-    if (textarea) {
-        textarea.value = toDisplay(msg.default);
-        updatePreview(key);
+    var editorEl = document.getElementById('bce-' + key);
+    if (editorEl) {
+        editorEl.innerHTML = toDisplayHtml(msg.default);
     }
     db.collection('bot_content').doc(key).delete().catch(function() {});
     delete _botContentCache[key];
