@@ -14,7 +14,7 @@ import datetime
 from config import db, BOT_TOKEN
 from firestore_db import MockFirestoreClient, SessionLocal, SystemEvent, FieldFilter, Increment, ArrayUnion
 
-from game.round_engine import RoundEngine, STAKE, SELECTION_DURATION
+from game.round_engine import RoundEngine, DEFAULT_STAKE, VALID_STAKES, SELECTION_DURATION
 from handlers.user_manager import UserManager
 from datetime import datetime, timedelta, timezone
 from telegram import Bot
@@ -181,7 +181,8 @@ async def _game_loop(round_id: str):
                     player_count = data.get('player_count', 0)
                     if player_count > 0:
                         now = datetime.now(tz=timezone.utc)
-                        total_pool = player_count * STAKE
+                        round_stake = data.get('stake', DEFAULT_STAKE)
+                        total_pool = player_count * round_stake
                         derash = total_pool * 0.75
                         db.collection('rounds').document(round_id).update({
                             'status': 'playing',
@@ -205,7 +206,8 @@ async def _game_loop(round_id: str):
                         if recheck_pc > 0:
                             # Player joined during grace period — start the game
                             now = datetime.now(tz=timezone.utc)
-                            total_pool = recheck_pc * STAKE
+                            round_stake = recheck_data.get('stake', DEFAULT_STAKE)
+                            total_pool = recheck_pc * round_stake
                             derash = total_pool * 0.75
                             db.collection('rounds').document(round_id).update({
                                 'status': 'playing',
@@ -360,7 +362,8 @@ async def _game_loop(round_id: str):
             if bingo_winner_id:
                 now = datetime.now(tz=timezone.utc)
                 player_count = rd_after.get('player_count', 1)
-                prize_per_winner = round(player_count * STAKE * 0.75)
+                round_stake = rd_after.get('stake', DEFAULT_STAKE)
+                prize_per_winner = round(player_count * round_stake * 0.75)
                 db.collection('rounds').document(round_id).update({
                     'status': 'completed',
                     'winners': [bingo_winner_id],
@@ -422,11 +425,17 @@ async def start_background_monitor():
                         _start_game_loop(rid)
                         
                 # ── Continuous Loop Enforcement ──
-                # If there are NO active rounds at all, create a new one immediately.
-                if not selecting_docs and not playing_docs:
-                    result = await engine.create_round()
-                    if 'id' in result:
-                        _start_game_loop(result['id'])
+                # Ensure every stake has an active round (selecting or playing).
+                active_stakes = set()
+                for doc in selecting_docs + playing_docs:
+                    rd = doc.to_dict()
+                    s = rd.get('stake', DEFAULT_STAKE)
+                    active_stakes.add(s)
+                for stake_val in VALID_STAKES:
+                    if stake_val not in active_stakes:
+                        result = await engine.create_round(stake=stake_val)
+                        if 'id' in result:
+                            _start_game_loop(result['id'])
                         
             except Exception as e:
                 logger.warning(f"Error in background monitor: {e}")
@@ -530,9 +539,9 @@ async def get_active_round():
 
 
 @app.post("/api/rounds/create")
-async def create_round():
-    """Create a new round (or return existing active one)."""
-    result = await engine.create_round()
+async def create_round(stake: int = FastAPIQuery(default=DEFAULT_STAKE)):
+    """Create a new round (or return existing active one) for a given stake."""
+    result = await engine.create_round(stake=stake)
     if 'id' in result:
         _start_game_loop(result['id'])
     return {"round": result}

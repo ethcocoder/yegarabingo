@@ -23,7 +23,7 @@ function updateAllDisplays() {
     var tg2 = currentUser.total_games || 0;
     var w2 = currentUser.wins || 0;
     setText('profile-winrate', (tg2 > 0 ? Math.round((w2 / tg2) * 100) : 0) + '%');
-    setText('profile-earnings', ((currentUser.wins || 0) * STAKE * 0.75) + ' ETB');
+    setText('profile-earnings', ((currentUser.wins || 0) * currentStake * 0.75) + ' ETB');
 }
 
 // ==================== NAVIGATION ====================

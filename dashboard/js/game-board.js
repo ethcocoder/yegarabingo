@@ -7,7 +7,7 @@ function setupGameBoard() {
 
     var el;
     if (el = document.getElementById('game-id-display')) el.textContent = '#' + (currentRoundId || '---').substring(0, 6);
-    if (el = document.getElementById('game-stake')) el.textContent = STAKE + ' ETB';
+    if (el = document.getElementById('game-stake')) el.textContent = currentStake + ' ETB';
     if (el = document.getElementById('game-called-count')) el.textContent = '0';
     if (el = document.getElementById('game-timer')) el.textContent = '--';
     if (el = document.getElementById('game-players')) el.textContent = '...';
@@ -113,7 +113,7 @@ function startSelectionCountdown(deadlineMs) {
                 var cs = document.getElementById('card-select-screen');
                 if (cs && !cs.classList.contains('hidden')) {
                     cs.classList.add('hidden');
-                    playNow();
+                    playNow(currentStake);
                 }
             }
         }
@@ -250,7 +250,8 @@ function listenToRound(roundId) {
         var data = snap.data();
 
         var playerCount = data.player_count || 0;
-        var derash = Math.round(playerCount * STAKE * 0.75 * 10) / 10;
+        var roundStake = data.stake || currentStake || 10;
+        var derash = Math.round(playerCount * roundStake * 0.75 * 10) / 10;
         var el;
         if (el = document.getElementById('game-players')) el.textContent = playerCount;
         if (el = document.getElementById('game-derash')) el.textContent = derash + ' ETB';
@@ -270,7 +271,7 @@ function listenToRound(roundId) {
                 if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
                 isSpectator = false;
                 showToast('No players in this round. Starting new game...');
-                setTimeout(async function() { await playNow(); }, 1500);
+                setTimeout(async function() { await playNow(currentStake); }, 1500);
                 return;
             }
 
@@ -387,7 +388,7 @@ function handleRoundCompleted(data) {
         if (winnerName === 'No players') {
             isSpectator = false;
             showToast('No players joined. Starting new game...');
-            setTimeout(async function() { await playNow(); }, 1500);
+            setTimeout(async function() { await playNow(currentStake); }, 1500);
             return;
         } else {
             showToast('All numbers called! No winner this round.');
@@ -478,7 +479,8 @@ function loadMyCartelas(roundData) {
         var el;
         if (el = document.getElementById('game-called-count')) el.textContent = called.length;
         var pc = roundData.player_count || 0;
-        var dr = Math.round(pc * STAKE * 0.75 * 10) / 10;
+        var roundStake = roundData.stake || currentStake || 10;
+        var dr = Math.round(pc * roundStake * 0.75 * 10) / 10;
         if (el = document.getElementById('game-players')) el.textContent = pc;
         if (el = document.getElementById('game-derash')) el.textContent = dr + ' ETB';
         called.forEach(function(num, idx) {

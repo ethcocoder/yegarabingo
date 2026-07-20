@@ -2,6 +2,7 @@
 var currentUser = null;
 var currentScreen = 'home';
 var currentRoundId = null;
+var currentStake = 10;
 var roundUnsubscribe = null;
 var userUnsubscribe = null;
 var statsUnsubscribe = null;

@@ -1,13 +1,17 @@
 // ==================== PLAY NOW ====================
-async function playNow() {
+async function playNow(stake) {
     if (!currentUser) { showToast('Loading user data...'); return; }
+    stake = stake || currentStake || 10;
+    if (VALID_STAKES.indexOf(stake) === -1) stake = 10;
+    currentStake = stake;
     var pw = currentUser.play_wallet || 0;
-    var hasBalance = pw >= STAKE;
+    var hasBalance = pw >= stake;
 
     showLoading('Finding game...');
     try {
         var roundSnap = await db.collection('rounds')
             .where('status', 'in', ['selecting', 'playing'])
+            .where('stake', '==', stake)
             .orderBy('created_at', 'desc')
             .limit(1).get();
 
@@ -20,7 +24,7 @@ async function playNow() {
             _previewCache = {};
             roundData = {
                 status: 'selecting',
-                stake: STAKE,
+                stake: stake,
                 players: {},
                 player_count: 0,
                 taken_cartelas: [],
@@ -61,7 +65,7 @@ async function playNow() {
                     completed_at: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(function() {});
                 hideLoading();
-                playNow();
+                playNow(stake);
                 return;
             }
             if (roundData.players && roundData.players[String(currentUser.id)]) {
@@ -131,7 +135,7 @@ async function playNow() {
                     completed_at: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(function() {});
                 hideLoading();
-                playNow();
+                playNow(currentStake);
                 return;
             }
         }
@@ -152,9 +156,9 @@ async function showCardSelection(roundId, roundData) {
     updateSelectedInfo();
 
     var playerCount = roundData.player_count || 0;
-    var estimatedETB = Math.round(Math.max(1, playerCount) * STAKE * 0.75 * 10) / 10;
+    var estimatedETB = Math.round(Math.max(1, playerCount) * currentStake * 0.75 * 10) / 10;
     var el;
-    if (el = document.getElementById('cs-stake')) el.textContent = STAKE + ' ETB';
+    if (el = document.getElementById('cs-stake')) el.textContent = currentStake + ' ETB';
     if (el = document.getElementById('cs-derash')) el.textContent = estimatedETB + ' ETB';
     if (el = document.getElementById('cs-main-wallet')) el.textContent = (currentUser.balance || 0) + ' ETB';
     if (el = document.getElementById('cs-play-wallet')) el.textContent = (currentUser.play_wallet || 0) + ' ETB';
@@ -242,7 +246,7 @@ async function showCardSelection(roundId, roundData) {
             }
 
             var livePlayerCount = rd.player_count || 0;
-            var liveETB = Math.round(Math.max(1, livePlayerCount) * STAKE * 0.75 * 10) / 10;
+            var liveETB = Math.round(Math.max(1, livePlayerCount) * currentStake * 0.75 * 10) / 10;
             var derashEl;
             if (derashEl = document.getElementById('cs-derash')) derashEl.textContent = liveETB + ' ETB';
 
@@ -256,7 +260,7 @@ async function showCardSelection(roundId, roundData) {
                     myCartelas = {};
                     calledNumbers = new Set();
                     _previewCache = {};
-                    playNow();
+                    playNow(currentStake);
                     return;
                 }
             }
@@ -282,7 +286,7 @@ async function showCardSelection(roundId, roundData) {
                         payout_processed: true,
                         completed_at: firebase.firestore.FieldValue.serverTimestamp()
                     }).catch(function() {});
-                    playNow();
+                    playNow(currentStake);
                     return;
                 }
                 var uid = String(currentUser.id);
@@ -322,7 +326,7 @@ function toggleCardSelection(num, cell) {
             showToast('Maximum ' + MAX_CARTELAS + ' cartelas!');
             return;
         }
-        var budgetMax = Math.floor((currentUser.play_wallet || 0) / STAKE);
+        var budgetMax = Math.floor((currentUser.play_wallet || 0) / currentStake);
         if (selectedCartelas.length >= budgetMax) {
             showToast('Not enough balance for more cards!');
             return;
@@ -418,7 +422,7 @@ function updateSelectedInfo() {
         var sc = document.getElementById('cs-selected-count');
         var st = document.getElementById('cs-selected-total');
         if (sc) sc.textContent = count + '/' + MAX_CARTELAS;
-        if (st) st.textContent = (count * STAKE) + ' ETB';
+        if (st) st.textContent = (count * currentStake) + ' ETB';
     } else {
         if (info) info.classList.add('hidden');
     }
@@ -458,7 +462,7 @@ async function confirmSelection() {
     showLoading('Joining round...');
 
     try {
-        var totalCost = selectedCartelas.length * STAKE;
+        var totalCost = selectedCartelas.length * currentStake;
         var uidStr = String(currentUser.id);
         var roundRef = db.collection('rounds').doc(currentRoundId);
         var userRef = db.collection('users').doc(uidStr);
@@ -535,7 +539,7 @@ async function confirmSelection() {
         if (msg.indexOf('Spectating') !== -1 || msg.indexOf('already started') !== -1 || msg.indexOf('finished') !== -1) {
             showToast('Round ended just before your pick was confirmed. Finding new game...');
             if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
-            playNow();
+            playNow(currentStake);
         } else {
             showToast('Error: ' + msg);
         }

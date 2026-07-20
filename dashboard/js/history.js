@@ -46,7 +46,8 @@ async function loadHistory() {
                         name: d.winner_name,
                         prize: Math.round((d.prize_per_winner || 0) * 10) / 10,
                         date: date,
-                        cartela: d.winning_cartela || '?'
+                        cartela: d.winning_cartela || '?',
+                        stake: d.stake || 10
                     });
                 }
             }
@@ -67,7 +68,7 @@ async function loadHistory() {
                     '<div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style="background: linear-gradient(135deg, #FFD700, #FF8C00); color: #1a1a2e;">&#127942;</div>' +
                     '<div>' +
                     '<div class="text-sm font-bold text-white">' + w.name + '</div>' +
-                    '<div class="text-[10px] text-white/40">Cartela #' + w.cartela + ' &middot; ' + w.date + '</div>' +
+                    '<div class="text-[10px] text-white/40">Cartela #' + w.cartela + ' &middot; ' + w.stake + ' ETB &middot; ' + w.date + '</div>' +
                     '</div>' +
                     '</div>' +
                     '<div class="text-right">' +
@@ -102,6 +103,7 @@ async function loadHistory() {
                 var el = document.createElement('div');
                 el.className = 'glass rounded-xl p-3';
                 var prize = isWinner ? (Math.round((d.prize_per_winner || 0) * 10) / 10) : 0;
+                var stake = d.stake || 10;
                 var date = '';
                 if (d.created_at) {
                     var dt = d.created_at.toDate ? d.created_at.toDate() : new Date(d.created_at);
@@ -109,7 +111,7 @@ async function loadHistory() {
                 }
                 el.innerHTML = '<div class="flex items-center justify-between mb-1">' +
                     '<span class="text-sm font-bold ' + (isWinner ? 'text-bingo-green' : 'text-red-400') + '">' + (isWinner ? '&#127942; Won!' : '&#10060; Lost') + '</span>' +
-                    '<span class="text-xs text-white/40">' + date + '</span>' +
+                    '<span class="text-xs text-white/40">' + stake + ' ETB &middot; ' + date + '</span>' +
                     '</div>' +
                     '<div class="flex items-center justify-between text-xs text-white/60">' +
                     '<span>Players: ' + (d.player_count || 0) + '</span>' +

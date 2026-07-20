@@ -1,5 +1,6 @@
 // ==================== CONSTANTS ====================
 const STAKE = 10;
+const VALID_STAKES = [10, 20];
 const MAX_CARTELAS = 2;
 
 const BINGO_RANGES = [

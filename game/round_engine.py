@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 # ─── Constants ───
 TOTAL_CARTELAS = 500
-STAKE = 10
+DEFAULT_STAKE = 10
+VALID_STAKES = [10, 20]
 ADMIN_CUT_RATIO = 0.25          # 25% of pool goes to admin
 SELECTION_DURATION = 35          # seconds for card selection phase
 NUMBER_CALL_INTERVAL = 5        # seconds between each called number (5s countdown)
@@ -113,11 +114,12 @@ class RoundEngine:
     # ═══════════════════════════════════════════════════════════════
     # Round Lifecycle
     # ═══════════════════════════════════════════════════════════════
-    async def get_active_round(self) -> Optional[dict]:
-        """Find the current active round (selecting or playing)."""
+    async def get_active_round(self, stake: int = DEFAULT_STAKE) -> Optional[dict]:
+        """Find the current active round (selecting or playing) for a given stake."""
         for status in ['selecting', 'playing']:
             docs = list(self.rounds_ref
                        .where('status', '==', status)
+                       .where('stake', '==', stake)
                        .order_by('created_at', 'DESCENDING')
                        .limit(1)
                        .get())
@@ -126,17 +128,19 @@ class RoundEngine:
                 return {'id': doc.id, **doc.to_dict()}
         return None
 
-    async def create_round(self) -> dict:
+    async def create_round(self, stake: int = DEFAULT_STAKE) -> dict:
         """Create a new round in 'selecting' state."""
-        # Check for existing active round
-        active = await self.get_active_round()
+        if stake not in VALID_STAKES:
+            stake = DEFAULT_STAKE
+        # Check for existing active round with same stake
+        active = await self.get_active_round(stake=stake)
         if active:
             return active
 
         now = datetime.now(tz=timezone.utc)
         round_data = {
             'status': 'selecting',
-            'stake': STAKE,
+            'stake': stake,
             'players': {},
             'player_count': 0,
             'taken_cartelas': [],
@@ -207,7 +211,8 @@ class RoundEngine:
             return {'error': 'You already joined this round'}
 
         # Deduct play wallet
-        total_cost = STAKE * len(cartela_numbers)
+        round_stake = round_data.get('stake', DEFAULT_STAKE)
+        total_cost = round_stake * len(cartela_numbers)
         user_ref = self.db.collection('users').document(uid_str)
         user_doc = user_ref.get()
         if not user_doc.exists:
@@ -258,7 +263,8 @@ class RoundEngine:
             return {'error': 'Round already started or completed'}
 
         player_count = data.get('player_count', 0)
-        total_pool = player_count * STAKE
+        round_stake = data.get('stake', DEFAULT_STAKE)
+        total_pool = player_count * round_stake
         derash = total_pool * 0.75
 
         now = datetime.now(tz=timezone.utc)
@@ -416,7 +422,8 @@ class RoundEngine:
             return {'error': 'Round not in a valid state for ending'}
 
         player_count = data.get('player_count', 0)
-        total_pool = player_count * STAKE
+        round_stake = data.get('stake', DEFAULT_STAKE)
+        total_pool = player_count * round_stake
         derash = total_pool * 0.75
         admin_profit = total_pool * 0.25
 

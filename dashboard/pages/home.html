@@ -19,11 +19,19 @@
             </div>
         </div>
         <div class="px-4 mb-6">
-            <button onclick="playNow()" class="w-full rounded-2xl p-5 btn-hover text-center shadow-lg" style="background: linear-gradient(135deg, #10B981, #059669); box-shadow: 0 8px 25px rgba(16,185,129,0.3);">
-                <div class="text-3xl mb-2">🎮</div>
-                <div class="text-xl font-black text-white">Play Now — 10 ETB</div>
-                <div class="text-xs text-white/80 mt-1">Max 2 cartelas • Prize: <span class="font-bold">(Players × Stake × 0.75) / Winners</span></div>
-            </button>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="playNow(10)" class="rounded-2xl p-4 btn-hover text-center shadow-lg" style="background: linear-gradient(135deg, #10B981, #059669); box-shadow: 0 8px 25px rgba(16,185,129,0.3);">
+                    <div class="text-2xl mb-1">🎮</div>
+                    <div class="text-lg font-black text-white">10 ETB</div>
+                    <div class="text-[10px] text-white/80 mt-1">Standard</div>
+                </button>
+                <button onclick="playNow(20)" class="rounded-2xl p-4 btn-hover text-center shadow-lg" style="background: linear-gradient(135deg, #8B5CF6, #6D28D9); box-shadow: 0 8px 25px rgba(139,92,246,0.3);">
+                    <div class="text-2xl mb-1">🎯</div>
+                    <div class="text-lg font-black text-white">20 ETB</div>
+                    <div class="text-[10px] text-white/80 mt-1">High Stakes</div>
+                </button>
+            </div>
+            <div class="text-center mt-2 text-[10px] text-white/40">Max 2 cartelas &middot; Prize = (Players × Stake × 0.75) / Winners</div>
         </div>
         <div class="px-4 mb-6">
             <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Live Stats</h3>
@@ -58,7 +66,7 @@
             <div class="glass rounded-2xl p-4">
                 <h3 class="text-sm font-semibold text-white/70 mb-3">How to Play</h3>
                 <div class="space-y-2 text-xs text-white/60">
-                    <div class="flex items-start gap-2"><span class="text-bingo-green font-bold">1.</span> Tap Play Now (10 ETB per cartela)</div>
+                    <div class="flex items-start gap-2"><span class="text-bingo-green font-bold">1.</span> Choose 10 or 20 ETB stake</div>
                     <div class="flex items-start gap-2"><span class="text-bingo-blue font-bold">2.</span> Pick up to 2 cartelas</div>
                     <div class="flex items-start gap-2"><span class="text-bingo-purple font-bold">3.</span> Numbers are called — mark your card</div>
                     <div class="flex items-start gap-2"><span class="text-bingo-orange font-bold">4.</span> Complete a row, column, or diagonal to win!</div>
