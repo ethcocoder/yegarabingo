@@ -109,7 +109,14 @@ class UserManager:
         """Validate a withdrawal request. Returns {'ok': True} or {'ok': False, 'error': str}."""
         try:
             from datetime import timedelta
-            import config
+            from handlers.bot_content import get_config_value
+
+            # Read live config from Firestore (admin-editable via Config tab)
+            min_withdraw = get_config_value('cfg_min_withdraw', self.db, as_type=int)
+            max_withdraw = get_config_value('cfg_max_withdraw', self.db, as_type=int)
+            min_initial_deposit = get_config_value('cfg_min_initial_deposit', self.db, as_type=int)
+            max_per_day = get_config_value('cfg_max_withdraw_per_day', self.db, as_type=int)
+            cooldown_hours = get_config_value('cfg_withdraw_cooldown_hours', self.db, as_type=int)
 
             user = await self.get_user(user_id)
             if not user:
@@ -119,12 +126,12 @@ class UserManager:
                 return {'ok': False, 'error': 'no_phone'}
 
             bal = user.get('balance', 0)
-            if amount < config.MIN_WITHDRAW:
-                return {'ok': False, 'error': 'below_min', 'min': config.MIN_WITHDRAW, 'balance': bal}
+            if amount < min_withdraw:
+                return {'ok': False, 'error': 'below_min', 'min': min_withdraw, 'balance': bal}
             if amount > bal:
                 return {'ok': False, 'error': 'insufficient', 'balance': bal}
-            if amount > config.MAX_WITHDRAW:
-                return {'ok': False, 'error': 'above_max', 'max': config.MAX_WITHDRAW}
+            if amount > max_withdraw:
+                return {'ok': False, 'error': 'above_max', 'max': max_withdraw}
 
             created = user.get('created_at')
             if created:
@@ -133,6 +140,14 @@ class UserManager:
                 account_age = datetime.now(tz=timezone.utc) - created
                 if account_age < timedelta(days=1):
                     return {'ok': False, 'error': 'account_new'}
+
+            try:
+                approved_deposits = list(self.db.collection('deposits').where('userId', '==', str(user_id)).where('status', '==', 'approved').get())
+                total_deposited = sum(d.to_dict().get('amount', 0) for d in approved_deposits)
+                if total_deposited < min_initial_deposit:
+                    return {'ok': False, 'error': 'deposit_required', 'min_deposit': min_initial_deposit, 'current_deposit': total_deposited}
+            except Exception:
+                pass
 
             try:
                 pending = list(self.db.collection('withdrawals').where('userId', '==', str(user_id)).where('status', '==', 'pending').limit(1).get())
@@ -154,8 +169,8 @@ class UserManager:
                                 created_at = created_at.replace(tzinfo=timezone.utc)
                             if created_at >= today_start:
                                 today_count += 1
-                if today_count >= config.MAX_WITHDRAW_PER_DAY:
-                    return {'ok': False, 'error': 'daily_limit', 'limit': config.MAX_WITHDRAW_PER_DAY}
+                if today_count >= max_per_day:
+                    return {'ok': False, 'error': 'daily_limit', 'limit': max_per_day}
             except Exception:
                 pass
 
@@ -168,10 +183,10 @@ class UserManager:
                     if last_time:
                         if hasattr(last_time, 'tzinfo') and not last_time.tzinfo:
                             last_time = last_time.replace(tzinfo=timezone.utc)
-                        cooldown_end = last_time + timedelta(hours=config.WITHDRAW_COOLDOWN_HOURS)
+                        cooldown_end = last_time + timedelta(hours=cooldown_hours)
                         if datetime.now(tz=timezone.utc) < cooldown_end:
                             remaining = (cooldown_end - datetime.now(tz=timezone.utc)).total_seconds() / 60
-                            return {'ok': False, 'error': 'cooldown', 'minutes': int(remaining), 'hours': config.WITHDRAW_COOLDOWN_HOURS}
+                            return {'ok': False, 'error': 'cooldown', 'minutes': int(remaining), 'hours': cooldown_hours}
             except Exception:
                 pass
 

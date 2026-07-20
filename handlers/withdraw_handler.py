@@ -7,9 +7,9 @@ from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
-from config import db, MIN_WITHDRAW
+from config import db
 from handlers.user_manager import UserManager
-from handlers.bot_content import get_bot_text
+from handlers.bot_content import get_bot_text, get_config_value
 
 user_manager = UserManager(db)
 
@@ -30,7 +30,8 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     uid = query.from_user.id
-    val = await user_manager.validate_withdrawal(uid, MIN_WITHDRAW)
+    min_withdraw = get_config_value('cfg_min_withdraw', db, as_type=int)
+    val = await user_manager.validate_withdrawal(uid, min_withdraw)
     if not val['ok']:
         error_key = f"withdraw_{val['error']}"
         kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
@@ -40,7 +41,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = await user_manager.get_user(uid)
     balance = user.get('balance', 0) if user else 0
 
-    text = get_bot_text('withdraw_ask_amount', db, balance=balance, min_withdraw=MIN_WITHDRAW)
+    text = get_bot_text('withdraw_ask_amount', db, balance=balance, min_withdraw=min_withdraw)
 
     await query.edit_message_text(text, parse_mode='Markdown')
     context.user_data["awaiting_withdraw_amount"] = True

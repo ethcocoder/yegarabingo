@@ -53,6 +53,7 @@ DEFAULTS = {
 
     # ── Withdraw ──
     "withdraw_min_not_met": "❌ Minimum withdrawal is {min_withdraw} ETB.\nYour balance: {balance} ETB",
+    "withdraw_deposit_required": "❌ You must deposit at least {min_deposit} ETB before you can make your first withdrawal.\n\nYour total deposits: {current_deposit} ETB",
     "withdraw_ask_amount": "🎰 *Withdraw*\n\nYour balance: *{balance} ETB*\nMinimum: {min_withdraw} ETB\n\nEnter amount:",
     "withdraw_invalid_range": "❌ Enter amount between {min_withdraw} and {balance} ETB.",
     "withdraw_invalid_number": "❌ Enter a valid number.",
@@ -187,3 +188,59 @@ def get_all_defaults():
             categories[cat] = {}
         categories[cat][key] = value
     return categories
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Config value defaults (matching dashboard Config tab)
+# ═══════════════════════════════════════════════════════════════════
+_CONFIG_DEFAULTS = {
+    'cfg_min_withdraw': 50,
+    'cfg_max_withdraw': 50000,
+    'cfg_min_initial_deposit': 50,
+    'cfg_max_withdraw_per_day': 3,
+    'cfg_withdraw_cooldown_hours': 4,
+    'cfg_referral_bonus': 10,
+    'cfg_bonus_to_etb_rate': 10,
+    'cfg_support_username': 'kelemsupport',
+}
+
+
+def get_config_value(key: str, db=None, as_type=int):
+    """
+    Get a system config value from Firestore (cfg_* keys).
+    Uses the same cache as bot messages. Falls back to _CONFIG_DEFAULTS.
+    as_type: int, float, or str — used to cast the stored string value.
+    """
+    global _cache
+
+    # Check cache
+    if key in _cache:
+        text, expiry = _cache[key]
+        if time.time() < expiry:
+            try:
+                return as_type(text)
+            except (ValueError, TypeError):
+                return _CONFIG_DEFAULTS.get(key, text)
+
+    # Try Firestore
+    if db:
+        try:
+            doc = db.collection('bot_content').document(key).get()
+            if doc.exists:
+                data = doc.to_dict()
+                text = data.get('content', '')
+                if text:
+                    _cache[key] = (text, time.time() + _cache_ttl)
+                    try:
+                        return as_type(text)
+                    except (ValueError, TypeError):
+                        return _CONFIG_DEFAULTS.get(key, text)
+        except Exception as e:
+            logger.warning(f"Failed to fetch config/{key}: {e}")
+
+    # Fall back to default
+    default = _CONFIG_DEFAULTS.get(key)
+    if default is not None:
+        _cache[key] = (str(default), time.time() + _cache_ttl)
+        return default
+    return None

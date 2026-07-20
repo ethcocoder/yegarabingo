@@ -34,6 +34,7 @@ var BOT_CONTENT_DEFAULTS = {
     },
     withdraw: {
         withdraw_min_not_met: { label: 'Minimum Not Met', default: '❌ Minimum withdrawal is {min_withdraw} ETB.\nYour balance: {balance} ETB', vars: 'min_withdraw, balance' },
+        withdraw_deposit_required: { label: 'Initial Deposit Required', default: '❌ You must deposit at least {min_deposit} ETB before you can make your first withdrawal.\n\nYour total deposits: {current_deposit} ETB', vars: 'min_deposit, current_deposit' },
         withdraw_ask_amount: { label: 'Ask Amount', default: '🎰 *Withdraw*\n\nYour balance: *{balance} ETB*\nMinimum: {min_withdraw} ETB\n\nEnter amount:', vars: 'balance, min_withdraw' },
         withdraw_invalid_range: { label: 'Invalid Range', default: '❌ Enter amount between {min_withdraw} and {balance} ETB.', vars: 'min_withdraw, balance' },
         withdraw_invalid_number: { label: 'Invalid Number', default: '❌ Enter a valid number.', vars: '' },
@@ -87,6 +88,16 @@ var BOT_CONTENT_DEFAULTS = {
         history_no_games: { label: 'No History', default: 'No game history yet. Play a game first!', vars: '' },
         history_title: { label: 'History Title', default: '📋 *Your Recent Games*\n', vars: '' },
         cancel: { label: 'Cancel Message', default: 'Cancelled.', vars: '' },
+    },
+    config: {
+        cfg_min_withdraw: { label: '💰 Minimum Withdrawal (ETB)', default: '50', vars: '', type: 'number', description: 'The minimum amount a user can withdraw.' },
+        cfg_max_withdraw: { label: '💰 Maximum Withdrawal (ETB)', default: '50000', vars: '', type: 'number', description: 'The maximum amount a user can withdraw per request.' },
+        cfg_min_initial_deposit: { label: '💵 Min Deposit Before First Withdrawal (ETB)', default: '50', vars: '', type: 'number', description: 'User must deposit at least this amount before they can withdraw for the first time.' },
+        cfg_max_withdraw_per_day: { label: '📊 Max Withdrawals Per Day', default: '3', vars: '', type: 'number', description: 'How many withdrawals a user can make per day.' },
+        cfg_withdraw_cooldown_hours: { label: '⏳ Withdrawal Cooldown (Hours)', default: '4', vars: '', type: 'number', description: 'Hours a user must wait between withdrawals.' },
+        cfg_referral_bonus: { label: '🎁 Referral Bonus (ETB)', default: '10', vars: '', type: 'number', description: 'ETB earned when a referred user registers.' },
+        cfg_bonus_to_etb_rate: { label: '🔄 Bonus Coin to ETB Rate', default: '10', vars: '', type: 'number', description: 'How many bonus coins equal 1 ETB (e.g. 10 coins = 1 ETB).' },
+        cfg_support_username: { label: '🆘 Support Username', default: 'kelemsupport', vars: '', type: 'text', description: 'Telegram username for customer support (without @).' },
     }
 };
 
@@ -98,7 +109,7 @@ var VAR_SAMPLES = {
     wins: '8', losses: '17', win_rate: '32%', bonus: '150', stake: '10',
     players: '12', coins: '500', rate: '10', etb: '50', link: 'https://t.me/YourBotUsername?start=ref_123',
     referral_bonus: '10', support_username: 'kelemsupport', limit: '3',
-    minutes: '30', hours: '4', max: '50000'
+    minutes: '30', hours: '4', max: '50000', min_deposit: '50', current_deposit: '10'
 };
 
 var VAR_LABELS = {
@@ -110,7 +121,7 @@ var VAR_LABELS = {
     bonus: 'Bonus Coins', stake: 'Stake', players: 'Player Count', coins: 'Bonus Coins',
     rate: 'Conversion Rate', etb: 'ETB Amount', link: 'Referral Link',
     referral_bonus: 'Referral Bonus', support_username: 'Support Username',
-    limit: 'Daily Limit', minutes: 'Minutes', hours: 'Hours', max: 'Max Amount'
+    limit: 'Daily Limit', minutes: 'Minutes', hours: 'Hours', max: 'Max Amount', min_deposit: 'Min Deposit', current_deposit: 'Current Deposit'
 };
 
 // ── Inject CSS for variable chips ──
@@ -197,6 +208,12 @@ function loadBotCategory(cat) {
     if (!editor) return;
     editor.innerHTML = '';
 
+    // Config tab uses simple input fields
+    if (cat === 'config') {
+        _renderConfigTab(messages, editor);
+        return;
+    }
+
     Object.keys(messages).forEach(function(key) {
         var msg = messages[key];
         var currentVal = _botContentCache[key] || msg.default;
@@ -208,7 +225,6 @@ function loadBotCategory(cat) {
 
         var helperHtml = '';
         if (hasVars) {
-            // Build list of variable chips used in this message
             var varList = msg.vars.split(',').map(function(v) { return v.trim(); });
             var chipExamples = varList.map(function(v) {
                 var label = VAR_LABELS[v] || v;
@@ -246,6 +262,97 @@ function loadBotCategory(cat) {
     });
 
     loadBotContentFromFirestore();
+}
+
+function _renderConfigTab(configs, editor) {
+    // Header
+    var header = document.createElement('div');
+    header.className = 'mb-6 px-2';
+    header.innerHTML = '<div class="flex items-center gap-2 mb-2"><span style="font-size:20px;">⚙️</span><span class="text-lg font-bold text-white">System Configuration</span></div>' +
+        '<p class="text-xs text-gray-400">Change game rules, limits, and settings. Values are applied instantly across the bot and web app.</p>';
+    editor.appendChild(header);
+
+    Object.keys(configs).forEach(function(key) {
+        var cfg = configs[key];
+        var currentVal = _botContentCache[key] || cfg.default;
+        var inputType = cfg.type || 'text';
+
+        var card = document.createElement('div');
+        card.className = 'mb-4 rounded-xl overflow-hidden';
+        card.style.cssText = 'background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.06);';
+
+        card.innerHTML =
+            '<div class="px-4 py-3 flex items-center justify-between">' +
+                '<div class="flex-1 mr-4">' +
+                    '<div class="text-sm font-semibold text-white mb-1">' + escHtml(cfg.label) + '</div>' +
+                    '<div class="text-[11px] text-gray-500">' + escHtml(cfg.description || '') + '</div>' +
+                '</div>' +
+                '<div class="flex items-center gap-2">' +
+                    '<input id="bce-' + key + '" type="' + inputType + '" value="' + escAttr(currentVal) + '" ' +
+                        'class="rounded-lg px-3 py-2 text-sm text-white border font-semibold text-center" ' +
+                        'style="background: #0D1117; border-color: rgba(255,255,255,0.1); width: 120px;" />' +
+                    '<button onclick="saveConfigValue(\'' + key + '\')" class="px-3 py-2 rounded-lg text-xs font-semibold transition-all" ' +
+                        'style="background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.2);">Save</button>' +
+                    '<button onclick="resetConfigValue(\'' + key + '\')" class="px-3 py-2 rounded-lg text-xs font-semibold transition-all" ' +
+                        'style="background: rgba(255,255,255,0.05); color: #9CA3AF; border: 1px solid rgba(255,255,255,0.08);">Reset</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="bce-status-' + key + '" class="text-[10px] text-gray-500 px-4 pb-2 h-4"></div>';
+        editor.appendChild(card);
+    });
+
+    // Load live values from Firestore
+    db.collection('bot_content').get().then(function(snap) {
+        snap.forEach(function(doc) {
+            _botContentCache[doc.id] = doc.data().content;
+            var input = document.getElementById('bce-' + doc.id);
+            if (input && input.tagName === 'INPUT') {
+                input.value = doc.data().content;
+            }
+        });
+    }).catch(function(e) { console.warn('Failed to load config:', e); });
+}
+
+function saveConfigValue(key) {
+    var input = document.getElementById('bce-' + key);
+    if (!input) return;
+    var value = input.value.trim();
+    var statusEl = document.getElementById('bce-status-' + key);
+
+    db.collection('bot_content').doc(key).set({
+        key: key,
+        content: value,
+        category: 'config',
+        updatedAt: new Date()
+    }).then(function() {
+        _botContentCache[key] = value;
+        if (statusEl) {
+            statusEl.textContent = '✓ Saved — active now';
+            statusEl.className = 'text-[10px] text-[#10B981] px-4 pb-2';
+            setTimeout(function() { statusEl.textContent = ''; }, 3000);
+        }
+    }).catch(function(e) {
+        if (statusEl) {
+            statusEl.textContent = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] text-red-400 px-4 pb-2';
+        }
+    });
+}
+
+function resetConfigValue(key) {
+    var configs = BOT_CONTENT_DEFAULTS.config || {};
+    var cfg = configs[key];
+    if (!cfg) return;
+    var input = document.getElementById('bce-' + key);
+    if (input) input.value = cfg.default;
+    db.collection('bot_content').doc(key).delete().catch(function() {});
+    delete _botContentCache[key];
+    var statusEl = document.getElementById('bce-status-' + key);
+    if (statusEl) {
+        statusEl.textContent = '✓ Reset to default (' + cfg.default + ')';
+        statusEl.className = 'text-[10px] text-[#FF8C00] px-4 pb-2';
+        setTimeout(function() { statusEl.textContent = ''; }, 3000);
+    }
 }
 
 function loadBotContentFromFirestore() {

@@ -21,7 +21,7 @@ from config import (
 )
 from telegram import Bot
 from handlers.user_manager import UserManager
-from handlers.bot_content import get_bot_text, invalidate_cache
+from handlers.bot_content import get_bot_text, invalidate_cache, get_config_value
 from firestore_db import FieldFilter, Increment
 
 logging.basicConfig(level=logging.INFO)
@@ -384,7 +384,8 @@ async def _show_withdraw_flow_msg(update: Update, context: ContextTypes.DEFAULT_
         await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
-    val = await user_manager.validate_withdrawal(uid, MIN_WITHDRAW)
+    min_withdraw = get_config_value('cfg_min_withdraw', db, as_type=int)
+    val = await user_manager.validate_withdrawal(uid, min_withdraw)
     if not val['ok']:
         error_key = f"withdraw_{val['error']}"
         kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
@@ -396,7 +397,7 @@ async def _show_withdraw_flow_msg(update: Update, context: ContextTypes.DEFAULT_
 
     bal = u.get('balance', 0)
     await update.effective_message.reply_text(
-        get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW),
+        get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=min_withdraw),
         reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown',
     )
     return WITHDRAW_AMOUNT
@@ -412,7 +413,8 @@ async def _show_withdraw_flow(query, context):
             await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('play_need_start', db))
         return ConversationHandler.END
 
-    val = await user_manager.validate_withdrawal(uid, MIN_WITHDRAW)
+    min_withdraw = get_config_value('cfg_min_withdraw', db, as_type=int)
+    val = await user_manager.validate_withdrawal(uid, min_withdraw)
     if not val['ok']:
         error_key = f"withdraw_{val['error']}"
         kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
@@ -425,9 +427,9 @@ async def _show_withdraw_flow(query, context):
 
     bal = u.get('balance', 0)
     try:
-        await query.edit_message_text(get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW))
+        await query.edit_message_text(get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=min_withdraw))
     except Exception:
-        await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW))
+        await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=min_withdraw))
     return WITHDRAW_AMOUNT
 
 
@@ -617,7 +619,8 @@ async def handle_convert_bonus(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.effective_message.reply_text(get_bot_text('bonus_no_coins', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
-    etb = coins / BONUS_TO_ETB_RATE
+    rate = get_config_value("cfg_bonus_to_etb_rate", db, as_type=int)
+    etb = coins / rate
     context.user_data['convert_etb'] = etb
     context.user_data['convert_coins'] = coins
 
@@ -626,7 +629,7 @@ async def handle_convert_bonus(update: Update, context: ContextTypes.DEFAULT_TYP
          InlineKeyboardButton("❌ Cancel", callback_data="bonus_no")],
     ])
     await update.effective_message.reply_text(
-        get_bot_text('bonus_convert_info', db, coins=coins, rate=BONUS_TO_ETB_RATE, etb=etb),
+        get_bot_text('bonus_convert_info', db, coins=coins, rate=rate, etb=etb),
         reply_markup=kb, parse_mode='Markdown',
     )
     return BONUS_CONFIRM
@@ -641,7 +644,8 @@ async def bonus_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     uid = query.from_user.id
-    etb = await user_manager.convert_bonus(uid, BONUS_TO_ETB_RATE)
+    rate = get_config_value("cfg_bonus_to_etb_rate", db, as_type=int)
+    etb = await user_manager.convert_bonus(uid, rate)
     if etb is not None:
         await query.edit_message_text(get_bot_text('bonus_converted', db, etb=etb))
     else:
@@ -658,8 +662,9 @@ async def handle_invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     bot_username = context.bot.username if context.bot else "YourBotUsername"
     link = f"https://t.me/{bot_username}?start=ref_{uid}"
+    referral_bonus = get_config_value('cfg_referral_bonus', db, as_type=int)
     await update.effective_message.reply_text(
-        get_bot_text('invite_link', db, link=link, referral_bonus=REFERRAL_BONUS),
+        get_bot_text('invite_link', db, link=link, referral_bonus=referral_bonus),
         reply_markup=MAIN_KEYBOARD, parse_mode='Markdown',
     )
 
@@ -688,10 +693,11 @@ async def handle_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🏠 Menu", callback_data="menu_back")],
     ])
+    support_username = get_config_value('cfg_support_username', db, as_type=str)
     await update.effective_message.reply_text(
         f"🆘 ድጋፍ ይፈልጋሉ?\n\n"
         f"👇 ለማንኛውም ጥያቄ ወይም አስተያየት 👇\n\n"
-        f"👤 @{SUPPORT_USERNAME}",
+        f"👤 @{support_username}",
         reply_markup=kb,
     )
 
@@ -915,8 +921,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🆘 Support (slash command)
 # ═══════════════════════════════════════════════════════════════════
 async def handle_support_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    support_username = get_config_value('cfg_support_username', db, as_type=str)
     await update.effective_message.reply_text(
-        get_bot_text('support_info', db, support_username=SUPPORT_USERNAME)
+        get_bot_text('support_info', db, support_username=support_username)
     )
 
 
