@@ -93,6 +93,18 @@ function loadBotCategory(cat) {
         activeTab.classList.remove('text-gray-400');
     }
 
+    var VAR_DESCRIPTIONS = {
+        name: 'User\'s name', balance: 'Wallet balance', play_wallet: 'Play wallet balance',
+        phone: 'Phone number', amount: 'Amount in ETB', telebirr_name: 'TeleBirr name',
+        transaction_id: 'Transaction number', deposit_id: 'Deposit ID', withdrawal_id: 'Withdrawal ID',
+        timestamp: 'Date & time', first_name: 'User first name', username: 'Telegram username',
+        min_withdraw: 'Min withdrawal', total: 'Total games', wins: 'Win count',
+        losses: 'Loss count', win_rate: 'Win percentage', bonus: 'Bonus coins',
+        stake: 'Stake amount', players: 'Player count', coins: 'Bonus coins',
+        rate: 'Conversion rate', etb: 'ETB amount', link: 'Referral link',
+        referral_bonus: 'Referral bonus amount', support_username: 'Support username',
+    };
+
     var messages = BOT_CONTENT_DEFAULTS[cat] || {};
     var editor = document.getElementById('botContentEditor');
     if (!editor) return;
@@ -101,25 +113,66 @@ function loadBotCategory(cat) {
     Object.keys(messages).forEach(function(key) {
         var msg = messages[key];
         var currentVal = _botContentCache[key] || msg.default;
+        var vars = msg.vars ? msg.vars.split(',').map(function(v) { return v.trim(); }).filter(Boolean) : [];
 
         var card = document.createElement('div');
-        card.className = 'mb-6 p-4 rounded-xl bg-white/[0.02] border border-white/5';
+        card.className = 'mb-6 rounded-xl overflow-hidden';
+        card.style.cssText = 'background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.06);';
+
+        var varsHtml = '';
+        if (vars.length > 0) {
+            varsHtml = '<div class="flex flex-wrap items-center gap-1.5 mt-2">' +
+                '<span class="text-[10px] text-gray-500 mr-1">Insert:</span>' +
+                vars.map(function(v) {
+                    var desc = VAR_DESCRIPTIONS[v] || v;
+                    return '<button type="button" onclick="insertVar(\'' + key + '\', \'' + v + '\')" ' +
+                        'class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer" ' +
+                        'style="background: rgba(16,185,129,0.1); color: #34D399; border: 1px solid rgba(16,185,129,0.2);" ' +
+                        'onmouseover="this.style.background=\'rgba(16,185,129,0.2)\'" onmouseout="this.style.background=\'rgba(16,185,129,0.1)\'">' +
+                        '<span style="color: #6EE7B7;">{</span>' + escHtml(v) + '<span style="color: #6EE7B7;">}</span>' +
+                        '</button>';
+                }).join('') +
+                '</div>';
+        }
+
         card.innerHTML =
-            '<div class="flex items-center justify-between mb-2">' +
-                '<label class="text-sm font-semibold text-white">' + escHtml(msg.label) + '</label>' +
-                '<span class="text-[10px] text-gray-500 font-mono">' + key + '</span>' +
+            '<div class="px-4 py-3 flex items-center justify-between" style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04);">' +
+                '<div>' +
+                    '<span class="text-sm font-semibold text-white">' + escHtml(msg.label) + '</span>' +
+                    '<span class="text-[10px] text-gray-500 font-mono ml-2">' + key + '</span>' +
+                '</div>' +
+                '<div class="flex items-center gap-2">' +
+                    '<button onclick="saveBotMessage(\'' + key + '\')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.2);">Save</button>' +
+                    '<button onclick="resetBotMessage(\'' + key + '\')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background: rgba(255,255,255,0.05); color: #9CA3AF; border: 1px solid rgba(255,255,255,0.08);">Reset</button>' +
+                '</div>' +
             '</div>' +
-            (msg.vars ? '<div class="text-[10px] text-gray-500 mb-2">Variables: <code class="text-[#10B981]">' + escHtml(msg.vars) + '</code></div>' : '') +
-            '<textarea id="bce-' + key + '" rows="3" class="w-full rounded-lg px-3 py-2 text-sm text-white bg-[#0D1117] border border-white/10 font-mono resize-y">' + escHtml(currentVal) + '</textarea>' +
-            '<div class="flex items-center gap-2 mt-2">' +
-                '<button onclick="saveBotMessage(\'' + key + '\')" class="px-4 py-1.5 rounded-lg bg-[#10B981]/20 text-[#10B981] text-xs font-semibold hover:bg-[#10B981]/30 transition-all">Save</button>' +
-                '<button onclick="resetBotMessage(\'' + key + '\')" class="px-4 py-1.5 rounded-lg bg-white/5 text-gray-400 text-xs font-semibold hover:bg-white/10 transition-all">Reset to Default</button>' +
-                '<span id="bce-status-' + key + '" class="text-[10px] text-gray-500 ml-2"></span>' +
+            '<div class="p-4">' +
+                '<textarea id="bce-' + key + '" rows="3" ' +
+                    'class="w-full rounded-lg px-3 py-2.5 text-sm text-white border font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#10B981]/30 focus:border-[#10B981]/50 transition-all" ' +
+                    'style="background: #0D1117; border-color: rgba(255,255,255,0.08);" ' +
+                    'placeholder="Type your message here..."' +
+                '>' + escHtml(currentVal) + '</textarea>' +
+                varsHtml +
+                '<div id="bce-status-' + key + '" class="text-[10px] text-gray-500 mt-2 h-4"></div>' +
             '</div>';
         editor.appendChild(card);
     });
 
     loadBotContentFromFirestore();
+}
+
+function insertVar(key, varName) {
+    var textarea = document.getElementById('bce-' + key);
+    if (!textarea) return;
+    var start = textarea.selectionStart;
+    var end = textarea.selectionEnd;
+    var text = textarea.value;
+    var before = text.substring(0, start);
+    var after = text.substring(end);
+    textarea.value = before + '{' + varName + '}' + after;
+    textarea.selectionStart = textarea.selectionEnd = start + varName.length + 2;
+    textarea.focus();
+    textarea.dispatchEvent(new Event('input'));
 }
 
 function loadBotContentFromFirestore() {
