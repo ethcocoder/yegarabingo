@@ -478,7 +478,8 @@ async function confirmSelection() {
     showLoading('Joining round...');
 
     try {
-        var res = await fetch('/api/rounds/' + currentRoundId + '/join', {
+        var apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
+        var res = await fetch(apiBase + '/api/rounds/' + currentRoundId + '/join', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
