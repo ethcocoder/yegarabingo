@@ -16,7 +16,7 @@ from telegram.ext import (
 from config import (
     db, BOT_TOKEN, ADMIN_CHAT_ID, ADMIN_BOT_TOKEN,
     DEFAULT_STAKE_10, DEFAULT_STAKE_20,
-    SUPPORT_USERNAME, REFERRAL_BONUS, BONUS_TO_ETB_RATE, MIN_WITHDRAW,
+    SUPPORT_USERNAME, REFERRAL_BONUS, BONUS_TO_ETB_RATE, MIN_WITHDRAW, MAX_WITHDRAW,
     TELEBIRR_NUMBER,
 )
 from telegram import Bot
@@ -380,14 +380,17 @@ async def _show_withdraw_flow_msg(update: Update, context: ContextTypes.DEFAULT_
         await update.effective_message.reply_text(get_bot_text('play_need_start', db), reply_markup=MAIN_KEYBOARD)
         return ConversationHandler.END
 
-    bal = u.get('balance', 0)
-    if bal < MIN_WITHDRAW:
+    val = await user_manager.validate_withdrawal(uid, MIN_WITHDRAW)
+    if not val['ok']:
+        error_key = f"withdraw_{val['error']}"
+        kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
         await update.effective_message.reply_text(
-            get_bot_text('withdraw_min_not_met', db, min_withdraw=MIN_WITHDRAW, balance=bal),
+            get_bot_text(error_key, db, **kwargs),
             reply_markup=MAIN_KEYBOARD,
         )
         return ConversationHandler.END
 
+    bal = u.get('balance', 0)
     await update.effective_message.reply_text(
         get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW),
         reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown',
@@ -404,13 +407,19 @@ async def _show_withdraw_flow(query, context):
         except Exception:
             await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('play_need_start', db))
         return ConversationHandler.END
-    bal = u.get('balance', 0)
-    if bal < MIN_WITHDRAW:
+
+    val = await user_manager.validate_withdrawal(uid, MIN_WITHDRAW)
+    if not val['ok']:
+        error_key = f"withdraw_{val['error']}"
+        kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
+        text = get_bot_text(error_key, db, **kwargs)
         try:
-            await query.edit_message_text(get_bot_text('withdraw_min_not_met', db, min_withdraw=MIN_WITHDRAW, balance=bal))
+            await query.edit_message_text(text)
         except Exception:
-            await context.bot.send_message(chat_id=query.message.chat_id, text=get_bot_text('withdraw_min_not_met', db, min_withdraw=MIN_WITHDRAW, balance=bal))
+            await context.bot.send_message(chat_id=query.message.chat_id, text=text)
         return ConversationHandler.END
+
+    bal = u.get('balance', 0)
     try:
         await query.edit_message_text(get_bot_text('withdraw_ask_amount', db, balance=bal, min_withdraw=MIN_WITHDRAW))
     except Exception:
@@ -426,11 +435,11 @@ async def withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return WITHDRAW_AMOUNT
 
     uid = update.effective_user.id
-    u = await user_manager.get_user(uid)
-    bal = u.get('balance', 0) if u else 0
-
-    if amount < MIN_WITHDRAW or amount > bal:
-        await update.effective_message.reply_text(get_bot_text('withdraw_invalid_range', db, min_withdraw=MIN_WITHDRAW, balance=bal))
+    val = await user_manager.validate_withdrawal(uid, amount)
+    if not val['ok']:
+        error_key = f"withdraw_{val['error']}"
+        kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
+        await update.effective_message.reply_text(get_bot_text(error_key, db, **kwargs))
         return WITHDRAW_AMOUNT
 
     context.user_data['withdraw_amount'] = amount

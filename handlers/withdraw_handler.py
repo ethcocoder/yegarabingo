@@ -6,76 +6,53 @@ from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
-from config import db
+from config import db, MIN_WITHDRAW
+from handlers.user_manager import UserManager
+from handlers.bot_content import get_bot_text
+
+user_manager = UserManager(db)
 
 async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle withdrawal request from game wallet screen"""
     query = update.callback_query
     await query.answer()
 
-    user_id = query.from_user.id
-
-    user_doc = db.collection("users").document(str(user_id)).get()
-    if not user_doc.exists:
-        await query.edit_message_text("❌ User not found.")
+    uid = query.from_user.id
+    val = await user_manager.validate_withdrawal(uid, MIN_WITHDRAW)
+    if not val['ok']:
+        error_key = f"withdraw_{val['error']}"
+        kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
+        await query.edit_message_text(get_bot_text(error_key, db, **kwargs))
         return
 
-    user = user_doc.to_dict()
-    balance = user.get("balance", 0)
+    user = await user_manager.get_user(uid)
+    balance = user.get('balance', 0) if user else 0
 
-    if balance <= 0:
-        await query.edit_message_text("❌ Insufficient balance for withdrawal.")
-        return
-
-    text = f"""💸 *Withdrawal Request*
-
-*Your Balance:* {balance:.2f} ETB
-
-Enter the amount you want to withdraw:
-
-*Minimum:* 10 ETB
-*Maximum:* {balance:.2f} ETB
-
-Send the amount as a number (e.g., 50)"""
+    text = get_bot_text('withdraw_ask_amount', db, balance=balance, min_withdraw=MIN_WITHDRAW)
 
     await query.edit_message_text(text, parse_mode='Markdown')
     context.user_data["awaiting_withdraw_amount"] = True
 
 async def process_withdraw_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the withdrawal amount entered by user"""
-    user_id = update.effective_user.id
+    uid = update.effective_user.id
     text = update.message.text.strip()
 
     try:
         amount = float(text)
     except ValueError:
-        await update.message.reply_text("❌ Please enter a valid number.")
+        await update.message.reply_text(get_bot_text('withdraw_invalid_number', db))
         return
 
-    if amount < 10:
-        await update.message.reply_text("❌ Minimum withdrawal is 10 ETB.")
+    val = await user_manager.validate_withdrawal(uid, amount)
+    if not val['ok']:
+        error_key = f"withdraw_{val['error']}"
+        kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
+        await update.message.reply_text(get_bot_text(error_key, db, **kwargs))
         return
 
-    user_doc = db.collection("users").document(str(user_id)).get()
-    if not user_doc.exists:
-        await update.message.reply_text("❌ User not found.")
-        return
-
-    balance = user_doc.to_dict().get("balance", 0)
-
-    if amount > balance:
-        await update.message.reply_text(f"❌ Insufficient balance. Your balance: {balance:.2f} ETB")
-        return
-
-    text = f"""📱 *TeleBirr Number*
-
-Amount: *{amount:.2f} ETB*
-
-Please enter your TeleBirr phone number:
-Format: +251XXXXXXXXX"""
-
-    await update.message.reply_text(text, parse_mode='Markdown')
     context.user_data["withdraw_amount"] = amount
+    await update.message.reply_text(get_bot_text('withdraw_ask_name', db))
     context.user_data["awaiting_telebirr_number"] = True
 
 async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -88,16 +65,16 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("❌ Invalid phone number. Must start with +251 and be at least 12 digits.")
         return
 
-    user_ref = db.collection("users").document(str(user.id))
-    user_doc = user_ref.get()
-    current_balance = user_doc.to_dict().get("balance", 0)
-
-    if amount > current_balance:
-        await update.message.reply_text("❌ Insufficient balance.")
+    uid = user.id
+    val = await user_manager.validate_withdrawal(uid, amount)
+    if not val['ok']:
+        error_key = f"withdraw_{val['error']}"
+        kwargs = {k: v for k, v in val.items() if k != 'ok' and k != 'error'}
+        await update.message.reply_text(get_bot_text(error_key, db, **kwargs))
         return
 
     withdrawal_data = {
-        "userId": user.id,
+        "userId": str(uid),
         "username": user.username or "unknown",
         "firstName": user.first_name,
         "amount": amount,
@@ -115,15 +92,8 @@ async def process_telebirr_number(update: Update, context: ContextTypes.DEFAULT_
     context.user_data.pop("awaiting_withdraw_amount", None)
     context.user_data.pop("awaiting_telebirr_number", None)
 
-    text = f"""✅ *Withdrawal Request Submitted*
-
-💰 *Amount:* {amount:.2f} ETB
-📱 *TeleBirr:* `{telebirr}`
-⏳ *Status:* Pending
-
-You'll receive the money within 24 hours after admin approval.
-
-Request ID: `{withdrawal_id}`"""
-
-    await update.message.reply_text(text, parse_mode='Markdown')
-    logger.info(f"Withdrawal request {withdrawal_id} created for user {user.id}")
+    await update.message.reply_text(
+        get_bot_text('withdraw_submitted', db, amount=amount, phone=telebirr, withdrawal_id=withdrawal_id),
+        parse_mode='Markdown'
+    )
+    logger.info(f"Withdrawal request {withdrawal_id} created for user {uid}")

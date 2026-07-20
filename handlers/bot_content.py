@@ -57,6 +57,12 @@ DEFAULTS = {
     "withdraw_submitted": "✅ Withdrawal request submitted!\n\nAmount: {amount} ETB\nPhone: {phone}\nID: `{withdrawal_id}`\n\nAdmin will process it shortly.",
     "withdraw_approved": "✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.",
     "withdraw_rejected": "❌ Withdrawal rejected.\nPlease contact support.",
+    "withdraw_no_phone": "❌ Please register with your phone number first.\nUse /register to complete registration.",
+    "withdraw_above_max": "❌ Maximum withdrawal is {max} ETB per request.",
+    "withdraw_account_new": "❌ Your account is too new.\nPlease wait 24 hours after registration before withdrawing.",
+    "withdraw_pending_exists": "❌ You already have a pending withdrawal.\nWait for it to be processed before requesting another.",
+    "withdraw_daily_limit": "❌ Daily withdrawal limit reached.\nYou can make up to {limit} withdrawals per day. Try again tomorrow.",
+    "withdraw_cooldown": "⏳ Please wait {minutes} minutes before making another withdrawal.\n(Cooldown: {hours} hours between requests)",
 
     # ── Transfer ──
     "transfer_no_balance": "❌ No balance to transfer.\nYour balance: {balance} ETB",

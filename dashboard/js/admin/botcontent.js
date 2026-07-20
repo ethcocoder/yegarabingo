@@ -40,6 +40,12 @@ var BOT_CONTENT_DEFAULTS = {
         withdraw_submitted: { label: 'Withdrawal Submitted', default: '✅ Withdrawal request submitted!\n\nAmount: {amount} ETB\nPhone: {phone}\nID: `{withdrawal_id}`\n\nAdmin will process it shortly.', vars: 'amount, phone, withdrawal_id' },
         withdraw_approved: { label: 'Withdrawal Approved', default: '✅ Withdrawal approved!\n💰 {amount} ETB will be sent to your TeleBirr.', vars: 'amount' },
         withdraw_rejected: { label: 'Withdrawal Rejected', default: '❌ Withdrawal rejected.\nPlease contact support.', vars: '' },
+        withdraw_no_phone: { label: 'No Phone', default: '❌ Please register with your phone number first.\nUse /register to complete registration.', vars: '' },
+        withdraw_above_max: { label: 'Above Maximum', default: '❌ Maximum withdrawal is {max} ETB per request.', vars: 'max' },
+        withdraw_account_new: { label: 'Account Too New', default: '❌ Your account is too new.\nPlease wait 24 hours after registration before withdrawing.', vars: '' },
+        withdraw_pending_exists: { label: 'Pending Exists', default: '❌ You already have a pending withdrawal.\nWait for it to be processed before requesting another.', vars: '' },
+        withdraw_daily_limit: { label: 'Daily Limit', default: '❌ Daily withdrawal limit reached.\nYou can make up to {limit} withdrawals per day. Try again tomorrow.', vars: 'limit' },
+        withdraw_cooldown: { label: 'Cooldown', default: '⏳ Please wait {minutes} minutes before making another withdrawal.\n(Cooldown: {hours} hours between requests)', vars: 'minutes, hours' },
     },
     transfer: {
         transfer_no_balance: { label: 'No Balance', default: '❌ No balance to transfer.\nYour balance: {balance} ETB', vars: 'balance' },

@@ -14,9 +14,26 @@ async function submitWithdrawal() {
     const amount = parseInt(document.getElementById('withdrawAmount').value);
     const phone = document.getElementById('withdrawTelebirr').value.trim();
     const name = document.getElementById('withdrawTelebirrName').value.trim();
-    if (!amount || amount < 10) { showToast('Min withdrawal: 10 ETB'); return; }
+    if (!amount || amount < 50) { showToast('Minimum withdrawal: 50 ETB'); return; }
     if (!phone) { showToast('Enter phone number'); return; }
     try {
+        const apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
+        const valRes = await fetch(apiBase + '/api/validate-withdrawal/' + currentUser.id + '?amount=' + amount);
+        const val = await valRes.json();
+        if (!val.ok) {
+            const errorMessages = {
+                below_min: 'Minimum withdrawal is ' + (val.min || 50) + ' ETB',
+                insufficient: 'Insufficient balance! Your balance: ' + (val.balance || 0) + ' ETB',
+                above_max: 'Maximum withdrawal is ' + (val.max || 50000) + ' ETB',
+                no_phone: 'Please register with your phone number first',
+                account_new: 'Your account is too new. Wait 24 hours after registration.',
+                pending_exists: 'You already have a pending withdrawal. Wait for it to be processed.',
+                daily_limit: 'Daily withdrawal limit reached (' + (val.limit || 3) + '/day). Try again tomorrow.',
+                cooldown: 'Please wait ' + (val.minutes || 0) + ' minutes before another withdrawal.',
+            };
+            showToast(errorMessages[val.error] || 'Withdrawal not allowed');
+            return;
+        }
         const userRef = db.collection('users').doc(String(currentUser.id));
         const snap = await userRef.get();
         const bal = (snap.data().balance || 0);
@@ -31,9 +48,7 @@ async function submitWithdrawal() {
             status: 'pending',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        // Notify admin bot
         try {
-            const apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
             await fetch(apiBase + '/api/admin/withdrawals/notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

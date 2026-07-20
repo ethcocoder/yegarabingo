@@ -712,6 +712,15 @@ class SettingsRequest(BaseModel):
     data: dict
 
 
+@app.get("/api/validate-withdrawal/{user_id}")
+async def validate_withdrawal(user_id: str, amount: float):
+    """Validate a withdrawal request from the web dashboard."""
+    from handlers.user_manager import UserManager
+    um = UserManager(db)
+    result = await um.validate_withdrawal(int(user_id), amount)
+    return result
+
+
 @app.get("/api/admin/deposits")
 async def admin_get_deposits(status: Optional[str] = None, limit: int = 50):
     ref = db.collection('deposits')
