@@ -165,7 +165,7 @@ async function playNow(stake) {
 
 // ==================== CARD SELECTION ====================
 async function showCardSelection(roundId, roundData) {
-    _stopTakenPolling();
+    _stopRoundPolling();
     selectedCartelas = [];
     _originalPlayWallet = currentUser.play_wallet || 0;
     listenerReady = false;
@@ -275,7 +275,7 @@ async function showCardSelection(roundId, roundData) {
                 var selectScreen = document.getElementById('card-select-screen');
                 if (selectScreen && selectScreen.classList.contains('hidden')) return;
                 if (selectScreen && !selectScreen.classList.contains('hidden')) {
-                    _stopTakenPolling();
+                    _stopRoundPolling();
                     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
                     stopSelectionCountdown();
                     selectedCartelas = [];
@@ -290,7 +290,7 @@ async function showCardSelection(roundId, roundData) {
             if (rd.status === 'playing') {
                 var cs = document.getElementById('card-select-screen');
                 if (cs && cs.classList.contains('hidden')) return;
-                _stopTakenPolling();
+                _stopRoundPolling();
                 var livePC = rd.player_count || 0;
                 if (livePC <= 0) {
                     // 0-player round started playing — cancel and restart
@@ -334,7 +334,7 @@ async function showCardSelection(roundId, roundData) {
         });
 
         // Polling fallback for taken cartelas
-        _startTakenPolling(roundId, grid);
+        _startRoundPolling(roundId, grid);
 
     } catch (err) {
         console.error('Error loading cartelas:', err);
@@ -342,65 +342,69 @@ async function showCardSelection(roundId, roundData) {
     }
 }
 
-// ── Debug helper ────────────────────────────────────────────
-function _debugTaken() {
-    console.warn('=== [TAKEN DEBUG] ===');
-    console.warn('Poll timer exists:', !!_takenPollTimer);
-    console.warn('currentRoundId:', currentRoundId);
-    console.warn('grid element:', document.getElementById('card-select-grid'));
-    var grid = document.getElementById('card-select-grid');
-    if (grid) {
-        var cells = grid.querySelectorAll('.card-tile');
-        console.warn('Grid cells:', cells.length);
-        cells.forEach(function(c) {
-            if (c.classList.contains('taken')) console.warn('  taken cell #' + c.dataset.num);
-        });
-    }
-    if (currentRoundId) {
-        console.warn('Fetching round', currentRoundId, 'via REST...');
-        var apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
-        fetch(apiBase + '/api/db/rounds/' + currentRoundId)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                console.warn('Round data:', JSON.stringify(data, null, 2));
-                console.warn('taken_cartelas:', JSON.stringify(data.data && data.data.taken_cartelas));
-            })
-            .catch(function(e) { console.warn('Fetch error:', e); });
-    } else {
-        console.warn('No currentRoundId set');
-    }
-    return 'Debug info printed to console';
+var _roundPollTimer = null;
+function _stopRoundPolling() {
+    if (_roundPollTimer) { clearInterval(_roundPollTimer); _roundPollTimer = null; }
 }
-
-var _takenPollTimer = null;
-function _showDebugStatus(status, takenCount) {
-    var el = document.getElementById('cs-debug-bar');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'cs-debug-bar';
-        el.style.cssText = 'position:fixed;top:2px;right:2px;z-index:9999;font-size:9px;font-family:monospace;background:rgba(0,0,0,0.8);color:#0f0;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;';
-        document.body.appendChild(el);
-    }
-    var now = new Date();
-    var ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
-    el.textContent = status + ' | taken:' + takenCount + ' | ' + ts;
-}
-function _startTakenPolling(roundId, grid) {
-    _stopTakenPolling();
-    _showDebugStatus('POLL:STOPPED', '?');
-    if (!roundId) { _showDebugStatus('ERR:no roundId', '?'); return; }
-    if (!grid) { _showDebugStatus('ERR:no grid', '?'); return; }
-    _showDebugStatus('POLL:START ' + roundId.slice(0,6), '?');
-    _takenPollTimer = setInterval(async function() {
+function _startRoundPolling(roundId, grid) {
+    _stopRoundPolling();
+    if (!roundId || !grid) return;
+    _roundPollTimer = setInterval(async function() {
         try {
-            if (!grid || !grid.parentNode) { _stopTakenPolling(); _showDebugStatus('POLL:grid gone', '?'); return; }
-            if (!roundId) { _stopTakenPolling(); _showDebugStatus('ERR:roundId lost', '?'); return; }
-            _showDebugStatus('POLL:FETCH ' + roundId.slice(0,6), '...');
+            if (!grid || !grid.parentNode) { _stopRoundPolling(); return; }
             var doc = await db.collection('rounds').doc(roundId).get();
-            if (!doc.exists) { _showDebugStatus('POLL:not found', '?'); return; }
+            if (!doc.exists) return;
             var rd = doc.data();
+
+            // 1) Handle status transitions (completed/playing)
+            if (rd.status === 'completed' || rd.status === 'cancelled') {
+                var sc = document.getElementById('card-select-screen');
+                if (sc && !sc.classList.contains('hidden')) {
+                    _stopRoundPolling();
+                    if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+                    stopSelectionCountdown();
+                    selectedCartelas = [];
+                    myCartelas = {};
+                    calledNumbers = new Set();
+                    _previewCache = {};
+                    playNow(currentStake);
+                }
+                return;
+            }
+            if (rd.status === 'playing') {
+                var cs = document.getElementById('card-select-screen');
+                if (cs && !cs.classList.contains('hidden')) {
+                    _stopRoundPolling();
+                    stopSelectionCountdown();
+                    var livePC = rd.player_count || 0;
+                    if (livePC <= 0) {
+                        if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+                        selectedCartelas = [];
+                        myCartelas = {};
+                        calledNumbers = new Set();
+                        _previewCache = {};
+                        db.collection('rounds').doc(roundId).update({
+                            status: 'completed', winners: [], winner_name: 'No players',
+                            prize_per_winner: 0, admin_profit: 0, payout_processed: true,
+                            completed_at: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(function() {});
+                        playNow(currentStake);
+                    } else {
+                        var uid = String(currentUser.id);
+                        cs.classList.add('hidden');
+                        if (rd.players && rd.players[uid]) {
+                            navigateTo('game').then(function() { loadMyCartelas(rd); listenToRound(roundId); });
+                        } else {
+                            isSpectator = true;
+                            navigateTo('game').then(function() { setupGameBoard(); listenToRound(roundId); });
+                        }
+                    }
+                }
+                return;
+            }
+
+            // 2) Update taken cartelas on the grid
             var rawTaken = rd.taken_cartelas || [];
-            _showDebugStatus('POLL:OK', rawTaken.length);
             var nowTaken = new Set(rawTaken.map(function(v) { return parseInt(v) || v; }));
             var changed = false;
             grid.querySelectorAll('.card-tile').forEach(function(cell) {
@@ -420,21 +424,16 @@ function _startTakenPolling(roundId, grid) {
             if (changed) {
                 updateSelectedInfo();
                 renderAllPreviews();
-                _showDebugStatus('POLL:CHANGED!', rawTaken.length);
             }
+
+            // 3) Update player count / derash
             _lastKnownPlayerCount = rd.player_count || 0;
             var liveETB = calcDerash(_lastKnownPlayerCount, selectedCartelas.length, currentStake);
             var derEl = document.getElementById('cs-derash');
             if (derEl) derEl.textContent = liveETB + ' ETB';
-        } catch(e) { _showDebugStatus('POLL:ERR ' + e.message, '?'); }
+        } catch(e) {}
     }, 1500);
 }
-function _stopTakenPolling() {
-    if (_takenPollTimer) { clearInterval(_takenPollTimer); _takenPollTimer = null; _showDebugStatus('POLL:STOPPED', '?'); }
-}
-
-// Make debug accessible from Telegram context
-window._debugTaken = _debugTaken;
 
 var _confirming = false;
 function toggleCardSelection(num, cell) {
@@ -596,7 +595,7 @@ function updateSelectedInfo() {
 
 // ==================== SPECTATOR / CANCEL ====================
 function cancelCardSelect() {
-    _stopTakenPolling();
+    _stopRoundPolling();
     selectedCartelas = [];
     _originalPlayWallet = 0;
     stopSelectionCountdown();
@@ -615,7 +614,7 @@ function cancelCardSelect() {
 }
 
 async function enterSpectatorMode() {
-    _stopTakenPolling();
+    _stopRoundPolling();
     isSpectator = true;
     var cs = document.getElementById('card-select-screen');
     if (cs) cs.classList.add('hidden');
@@ -703,7 +702,7 @@ async function confirmSelection() {
         if (pc) pc.classList.add('hidden');
         var cs = document.getElementById('card-select-screen');
         if (cs) cs.classList.add('hidden');
-        _stopTakenPolling();
+        _stopRoundPolling();
         stopSelectionCountdown();
         if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
         await navigateTo('game');

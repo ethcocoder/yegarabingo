@@ -108,20 +108,14 @@ function startSelectionCountdown(deadlineMs) {
         }
         if (remaining <= 0) {
             stopSelectionCountdown();
-            if (typeof _showDebugStatus === 'function') _showDebugStatus('TIMER:0s calling confirm', selectedCartelas.length);
             if (selectedCartelas.length > 0 && typeof confirmSelection === 'function') {
                 confirmSelection();
             } else {
                 var cs = document.getElementById('card-select-screen');
                 if (cs && !cs.classList.contains('hidden')) {
                     cs.classList.add('hidden');
-                    if (typeof _showDebugStatus === 'function') _showDebugStatus('TIMER:0s no picks, restart', '?');
                     playNow(currentStake);
                 }
-            }
-        } else {
-            if (typeof _showDebugStatus === 'function') {
-                _showDebugStatus('T-' + remaining + 's sel=' + selectedCartelas.length, '?');
             }
         }
     }, 200);
