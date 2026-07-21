@@ -471,10 +471,24 @@ function updateSelectedInfo() {
         }
     }
 
+    // Update DERASH: total pool = all cartelas * stake * 0.75
     var liveDerashEl = document.getElementById('cs-derash');
     if (liveDerashEl) {
         var baseCount = _lastKnownPlayerCount || 0;
-        liveDerashEl.textContent = calcDerash(baseCount, count, currentStake) + ' ETB';
+        var totalCartelas = baseCount + count;
+        var totalPool = totalCartelas * currentStake * 0.75;
+        liveDerashEl.textContent = Math.round(totalPool * 10) / 10 + ' ETB';
+    }
+
+    // Update per-player DERASH: what this player would win
+    var perPlayerEl = document.getElementById('cs-per-player');
+    if (perPlayerEl) {
+        var baseCount2 = _lastKnownPlayerCount || 0;
+        var totalCartelas2 = baseCount2 + count;
+        var totalPool2 = totalCartelas2 * currentStake * 0.75;
+        // Assume at least 1 winner (this player), split by estimated winners
+        var perPlayer = count > 0 ? Math.round(totalPool2 * 10) / 10 : 0;
+        perPlayerEl.textContent = perPlayer + ' ETB';
     }
 }
 

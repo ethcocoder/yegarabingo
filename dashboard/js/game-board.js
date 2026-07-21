@@ -187,6 +187,44 @@ function manualMark(cell, num) {
     if (cell.classList.contains('marked')) return;
     markCartelaCell(cell, num);
     playMarkSound();
+    // Sync marked numbers to server
+    _syncMarkedToServer();
+}
+
+var _markedNumbers = new Set();
+var _syncDebounce = null;
+
+function _syncMarkedToServer() {
+    // Collect all marked numbers from all cartelas
+    _markedNumbers.clear();
+    document.querySelectorAll('.cartela-cell.marked').forEach(function(cell) {
+        var n = parseInt(cell.dataset.num);
+        if (n > 0) _markedNumbers.add(n);
+    });
+    
+    // Debounce sync to server
+    if (_syncDebounce) clearTimeout(_syncDebounce);
+    _syncDebounce = setTimeout(function() {
+        _syncDebounce = null;
+        _sendMarksToServer();
+    }, 500);
+}
+
+async function _sendMarksToServer() {
+    if (!currentUser || !currentRoundId) return;
+    try {
+        var apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
+        await fetch(apiBase + '/api/rounds/' + currentRoundId + '/sync-marks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                marked_numbers: Array.from(_markedNumbers)
+            })
+        });
+    } catch(e) {
+        console.error('Failed to sync marks:', e);
+    }
 }
 
 function highlightMasterNumber(num, isLast) {
@@ -220,15 +258,18 @@ function addCalledNumberTag(num) {
 function autoMarkAllCartelas(num) {
     if (!autoMarkEnabled) return;
     var gridIds = ['cartela-grid-1', 'cartela-grid-2'];
+    var marked = false;
     for (var gi = 0; gi < gridIds.length; gi++) {
         var grid = document.getElementById(gridIds[gi]);
         if (!grid) continue;
         grid.querySelectorAll('.cartela-cell').forEach(function(cell) {
             if (parseInt(cell.dataset.num) === num && !cell.classList.contains('marked')) {
                 markCartelaCell(cell, num);
+                marked = true;
             }
         });
     }
+    if (marked) _syncMarkedToServer();
 }
 
 function toggleAutoMark() {
@@ -256,10 +297,23 @@ function listenToRound(roundId) {
 
         var playerCount = data.player_count || 0;
         var roundStake = data.stake || currentStake || 10;
-        var derash = Math.round(playerCount * roundStake * 0.75 * 10) / 10;
+        var totalPool = Math.round(playerCount * roundStake * 0.75 * 10) / 10;
+        var numWinners = (data.winners || []).length;
+        var perPlayer = numWinners > 0 ? Math.round(totalPool / numWinners * 10) / 10 : totalPool;
+        
         if (elPlayers) elPlayers.textContent = playerCount;
-        if (elDerash) elDerash.textContent = derash + ' ETB';
+        if (elDerash) elDerash.textContent = totalPool + ' ETB';
         if (elCalledCount) elCalledCount.textContent = (data.called_numbers || []).length;
+        
+        // Show per-player DERASH
+        var elPerPlayer = document.getElementById('game-per-player');
+        if (elPerPlayer) {
+            if (numWinners > 0) {
+                elPerPlayer.textContent = perPlayer + ' ETB each';
+            } else {
+                elPerPlayer.textContent = totalPool + ' ETB';
+            }
+        }
 
         if (data.status === 'selecting') {
             if (elCountdown) {
