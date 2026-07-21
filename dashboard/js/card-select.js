@@ -342,22 +342,65 @@ async function showCardSelection(roundId, roundData) {
     }
 }
 
+// ── Debug helper ────────────────────────────────────────────
+function _debugTaken() {
+    console.warn('=== [TAKEN DEBUG] ===');
+    console.warn('Poll timer exists:', !!_takenPollTimer);
+    console.warn('currentRoundId:', currentRoundId);
+    console.warn('grid element:', document.getElementById('card-select-grid'));
+    var grid = document.getElementById('card-select-grid');
+    if (grid) {
+        var cells = grid.querySelectorAll('.card-tile');
+        console.warn('Grid cells:', cells.length);
+        cells.forEach(function(c) {
+            if (c.classList.contains('taken')) console.warn('  taken cell #' + c.dataset.num);
+        });
+    }
+    if (currentRoundId) {
+        console.warn('Fetching round', currentRoundId, 'via REST...');
+        var apiBase = window.API_BASE || window.location.origin || (window.location.protocol + '//' + window.location.host);
+        fetch(apiBase + '/api/db/rounds/' + currentRoundId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                console.warn('Round data:', JSON.stringify(data, null, 2));
+                console.warn('taken_cartelas:', JSON.stringify(data.data && data.data.taken_cartelas));
+            })
+            .catch(function(e) { console.warn('Fetch error:', e); });
+    } else {
+        console.warn('No currentRoundId set');
+    }
+    return 'Debug info printed to console';
+}
+
 var _takenPollTimer = null;
+function _showDebugStatus(status, takenCount) {
+    var el = document.getElementById('cs-debug-bar');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'cs-debug-bar';
+        el.style.cssText = 'position:fixed;top:2px;right:2px;z-index:9999;font-size:9px;font-family:monospace;background:rgba(0,0,0,0.8);color:#0f0;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;';
+        document.body.appendChild(el);
+    }
+    var now = new Date();
+    var ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+    el.textContent = status + ' | taken:' + takenCount + ' | ' + ts;
+}
 function _startTakenPolling(roundId, grid) {
     _stopTakenPolling();
-    if (!roundId) { console.warn('[TAKEN] No roundId, skipping polling'); return; }
-    if (!grid) { console.warn('[TAKEN] No grid, skipping polling'); return; }
-    console.warn('[TAKEN] Starting polling every 1.5s for round', roundId);
+    _showDebugStatus('POLL:STOPPED', '?');
+    if (!roundId) { _showDebugStatus('ERR:no roundId', '?'); return; }
+    if (!grid) { _showDebugStatus('ERR:no grid', '?'); return; }
+    _showDebugStatus('POLL:START ' + roundId.slice(0,6), '?');
     _takenPollTimer = setInterval(async function() {
         try {
-            if (!grid || !grid.parentNode) { _stopTakenPolling(); console.warn('[TAKEN] Grid detached, stopping'); return; }
-            if (!roundId) { _stopTakenPolling(); console.warn('[TAKEN] roundId lost, stopping'); return; }
-            console.warn('[TAKEN] Fetching round', roundId);
+            if (!grid || !grid.parentNode) { _stopTakenPolling(); _showDebugStatus('POLL:grid gone', '?'); return; }
+            if (!roundId) { _stopTakenPolling(); _showDebugStatus('ERR:roundId lost', '?'); return; }
+            _showDebugStatus('POLL:FETCH ' + roundId.slice(0,6), '...');
             var doc = await db.collection('rounds').doc(roundId).get();
-            if (!doc.exists) { console.warn('[TAKEN] Round doc not found'); return; }
+            if (!doc.exists) { _showDebugStatus('POLL:not found', '?'); return; }
             var rd = doc.data();
             var rawTaken = rd.taken_cartelas || [];
-            console.warn('[TAKEN] taken_cartelas:', JSON.stringify(rawTaken));
+            _showDebugStatus('POLL:OK', rawTaken.length);
             var nowTaken = new Set(rawTaken.map(function(v) { return parseInt(v) || v; }));
             var changed = false;
             grid.querySelectorAll('.card-tile').forEach(function(cell) {
@@ -377,17 +420,21 @@ function _startTakenPolling(roundId, grid) {
             if (changed) {
                 updateSelectedInfo();
                 renderAllPreviews();
+                _showDebugStatus('POLL:CHANGED!', rawTaken.length);
             }
             _lastKnownPlayerCount = rd.player_count || 0;
             var liveETB = calcDerash(_lastKnownPlayerCount, selectedCartelas.length, currentStake);
             var derEl = document.getElementById('cs-derash');
             if (derEl) derEl.textContent = liveETB + ' ETB';
-        } catch(e) { console.warn('[TAKEN] Poll error:', e); }
+        } catch(e) { _showDebugStatus('POLL:ERR ' + e.message, '?'); }
     }, 1500);
 }
 function _stopTakenPolling() {
-    if (_takenPollTimer) { clearInterval(_takenPollTimer); _takenPollTimer = null; }
+    if (_takenPollTimer) { clearInterval(_takenPollTimer); _takenPollTimer = null; _showDebugStatus('POLL:STOPPED', '?'); }
 }
+
+// Make debug accessible from Telegram context
+window._debugTaken = _debugTaken;
 
 function toggleCardSelection(num, cell) {
     var idx = selectedCartelas.indexOf(num);
