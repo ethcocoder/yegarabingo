@@ -165,6 +165,7 @@ async function playNow(stake) {
 
 // ==================== CARD SELECTION ====================
 async function showCardSelection(roundId, roundData) {
+    _stopTakenPolling();
     selectedCartelas = [];
     _originalPlayWallet = currentUser.play_wallet || 0;
     listenerReady = false;
@@ -274,6 +275,7 @@ async function showCardSelection(roundId, roundData) {
                 var selectScreen = document.getElementById('card-select-screen');
                 if (selectScreen && selectScreen.classList.contains('hidden')) return;
                 if (selectScreen && !selectScreen.classList.contains('hidden')) {
+                    _stopTakenPolling();
                     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
                     stopSelectionCountdown();
                     selectedCartelas = [];
@@ -288,6 +290,7 @@ async function showCardSelection(roundId, roundData) {
             if (rd.status === 'playing') {
                 var cs = document.getElementById('card-select-screen');
                 if (cs && cs.classList.contains('hidden')) return;
+                _stopTakenPolling();
                 var livePC = rd.player_count || 0;
                 if (livePC <= 0) {
                     // 0-player round started playing — cancel and restart
@@ -329,10 +332,55 @@ async function showCardSelection(roundId, roundData) {
                 }
             }
         });
+
+        // Polling fallback for taken cartelas
+        _startTakenPolling(roundId, grid);
+
     } catch (err) {
         console.error('Error loading cartelas:', err);
         if (grid) grid.innerHTML = '<div class="col-span-8 text-center py-8"><p class="text-red-400 text-sm">Error: ' + err.message + '</p></div>';
     }
+}
+
+var _takenPollTimer = null;
+function _startTakenPolling(roundId, grid) {
+    _stopTakenPolling();
+    _takenPollTimer = setInterval(async function() {
+        if (!grid || !grid.isConnected) { _stopTakenPolling(); return; }
+        try {
+            var doc = await db.collection('rounds').doc(roundId).get();
+            if (!doc.exists) return;
+            var rd = doc.data();
+            var rawTaken = rd.taken_cartelas || [];
+            var nowTaken = new Set(rawTaken.map(function(v) { return parseInt(v) || v; }));
+            var changed = false;
+            grid.querySelectorAll('.card-tile').forEach(function(cell) {
+                var n = parseInt(cell.dataset.num);
+                if (nowTaken.has(n) || nowTaken.has(String(n))) {
+                    if (!cell.classList.contains('taken')) {
+                        cell.classList.add('taken', 'taken-flash');
+                        cell.onclick = function() { showToast('Card #' + n + ' is already taken by another player'); };
+                        var idx = selectedCartelas.indexOf(n);
+                        if (idx > -1) {
+                            selectedCartelas.splice(idx, 1);
+                            changed = true;
+                        }
+                    }
+                }
+            });
+            if (changed) {
+                updateSelectedInfo();
+                renderAllPreviews();
+            }
+            _lastKnownPlayerCount = rd.player_count || 0;
+            var liveETB = calcDerash(_lastKnownPlayerCount, selectedCartelas.length, currentStake);
+            var derEl = document.getElementById('cs-derash');
+            if (derEl) derEl.textContent = liveETB + ' ETB';
+        } catch(e) {}
+    }, 1500);
+}
+function _stopTakenPolling() {
+    if (_takenPollTimer) { clearInterval(_takenPollTimer); _takenPollTimer = null; }
 }
 
 function toggleCardSelection(num, cell) {
@@ -494,6 +542,7 @@ function updateSelectedInfo() {
 
 // ==================== SPECTATOR / CANCEL ====================
 function cancelCardSelect() {
+    _stopTakenPolling();
     selectedCartelas = [];
     _originalPlayWallet = 0;
     stopSelectionCountdown();
@@ -512,6 +561,7 @@ function cancelCardSelect() {
 }
 
 async function enterSpectatorMode() {
+    _stopTakenPolling();
     isSpectator = true;
     var cs = document.getElementById('card-select-screen');
     if (cs) cs.classList.add('hidden');
@@ -596,6 +646,7 @@ async function confirmSelection() {
         if (pc) pc.classList.add('hidden');
         var cs = document.getElementById('card-select-screen');
         if (cs) cs.classList.add('hidden');
+        _stopTakenPolling();
         stopSelectionCountdown();
         if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
         await navigateTo('game');
