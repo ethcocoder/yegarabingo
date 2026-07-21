@@ -345,13 +345,19 @@ async function showCardSelection(roundId, roundData) {
 var _takenPollTimer = null;
 function _startTakenPolling(roundId, grid) {
     _stopTakenPolling();
+    if (!roundId) { console.warn('[TAKEN] No roundId, skipping polling'); return; }
+    if (!grid) { console.warn('[TAKEN] No grid, skipping polling'); return; }
+    console.warn('[TAKEN] Starting polling every 1.5s for round', roundId);
     _takenPollTimer = setInterval(async function() {
-        if (!grid || !grid.isConnected) { _stopTakenPolling(); return; }
         try {
+            if (!grid || !grid.parentNode) { _stopTakenPolling(); console.warn('[TAKEN] Grid detached, stopping'); return; }
+            if (!roundId) { _stopTakenPolling(); console.warn('[TAKEN] roundId lost, stopping'); return; }
+            console.warn('[TAKEN] Fetching round', roundId);
             var doc = await db.collection('rounds').doc(roundId).get();
-            if (!doc.exists) return;
+            if (!doc.exists) { console.warn('[TAKEN] Round doc not found'); return; }
             var rd = doc.data();
             var rawTaken = rd.taken_cartelas || [];
+            console.warn('[TAKEN] taken_cartelas:', JSON.stringify(rawTaken));
             var nowTaken = new Set(rawTaken.map(function(v) { return parseInt(v) || v; }));
             var changed = false;
             grid.querySelectorAll('.card-tile').forEach(function(cell) {
@@ -376,7 +382,7 @@ function _startTakenPolling(roundId, grid) {
             var liveETB = calcDerash(_lastKnownPlayerCount, selectedCartelas.length, currentStake);
             var derEl = document.getElementById('cs-derash');
             if (derEl) derEl.textContent = liveETB + ' ETB';
-        } catch(e) {}
+        } catch(e) { console.warn('[TAKEN] Poll error:', e); }
     }, 1500);
 }
 function _stopTakenPolling() {
