@@ -108,20 +108,13 @@ function startStatsListener() {
         if (sp) sp.textContent = totalCartelas;
     });
     function refreshCompletedStats() {
-        db.collection('rounds').where('status', '==', 'completed').get().then(function(snap) {
-            var count = 0;
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                if ((d.player_count || 0) > 0) count++;
-            });
-            var sg = document.getElementById('stat-games');
-            if (sg) sg.textContent = count;
-        }).catch(function() {});
         var today = new Date(); today.setHours(0, 0, 0, 0);
         db.collection('rounds').where('status', '==', 'completed').get().then(function(snap) {
+            var count = 0;
             var winners = 0;
             snap.forEach(function(doc) {
                 var d = doc.data();
+                if ((d.player_count || 0) > 0) count++;
                 if (d.winners && d.winners.length > 0) {
                     var ca = d.completed_at;
                     if (ca) {
@@ -130,6 +123,8 @@ function startStatsListener() {
                     }
                 }
             });
+            var sg = document.getElementById('stat-games');
+            if (sg) sg.textContent = count;
             var sw = document.getElementById('stat-winners');
             if (sw) sw.textContent = winners;
         }).catch(function() {});

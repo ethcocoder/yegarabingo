@@ -68,7 +68,7 @@ async function loadHistory() {
                         name: d.winner_name,
                         prize: Math.round((d.prize_per_winner || 0) * 10) / 10,
                         date: date,
-                        cartela: d.winning_cartela || '?',
+                        cartela: Array.isArray(d.winning_cartela) ? d.winning_cartela.join(', ') : (d.winning_cartela || '?'),
                         stake: d.stake || 10
                     });
                 }

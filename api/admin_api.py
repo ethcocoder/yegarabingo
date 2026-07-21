@@ -287,25 +287,10 @@ async def _game_loop(round_id: str):
                 })
                 await broadcast_event('rounds', round_id)
                 return
-            # After 60 numbers, bypass predictor to ensure a winner is found
-            num_called_so_far = len(data.get('called_numbers', []))
+            # Always use smart predictor to avoid multiple winners
             try:
-                if num_called_so_far >= 60:
-                    import random as _rand
-                    number = _rand.choice(available)
-                    now_ts = datetime.now(tz=timezone.utc)
-                    called_list = list(data.get('called_numbers', []))
-                    called_list.append(number)
-                    db.collection('rounds').document(round_id).update({
-                        'called_numbers': called_list,
-                        'last_called_number': number,
-                        'last_called_at': now_ts,
-                        'next_number_at': now_ts + timedelta(seconds=NUMBER_CALL_INTERVAL),
-                    })
-                    await broadcast_event('rounds', round_id)
-                else:
-                    number = await engine.call_number(round_id)
-                    await broadcast_event('rounds', round_id)
+                number = await engine.call_number(round_id)
+                await broadcast_event('rounds', round_id)
             except Exception as e:
                 logger.warning(f"Smart predictor error for {round_id}: {e}")
                 # Fallback to pure random choice if predictor crashes
@@ -344,8 +329,8 @@ async def _game_loop(round_id: str):
 
             called_now = rd_after.get('called_numbers', [])
             players = rd_after.get('players', {})
-            bingo_winner_id = None
-            bingo_cartela = None
+            bingo_winners = []       # list of uid_str
+            bingo_cartelas = []      # parallel list of cartela numbers
 
             for uid_str, p_info in players.items():
                 for cnum in p_info.get('cartelas', []):
@@ -354,38 +339,38 @@ async def _game_loop(round_id: str):
                         continue
                     flat = cartela_doc.to_dict().get('cartela', [])
                     if engine.check_bingo_for_cartela(flat, called_now):
-                        bingo_winner_id = uid_str
-                        bingo_cartela = cnum
-                        break
-                if bingo_winner_id:
-                    break
+                        bingo_winners.append(uid_str)
+                        bingo_cartelas.append(cnum)
 
-            if bingo_winner_id:
+            if bingo_winners:
                 now = datetime.now(tz=timezone.utc)
                 player_count = rd_after.get('player_count', 1)
                 round_stake = rd_after.get('stake', DEFAULT_STAKE)
-                prize_per_winner = round(player_count * round_stake * 0.75)
+                total_prize = player_count * round_stake * 0.75
+                num_winners = len(bingo_winners)
+                prize_per_winner = total_prize / num_winners if num_winners > 0 else 0
+                winner_names = [players.get(w, {}).get('name', 'Player') for w in bingo_winners]
                 db.collection('rounds').document(round_id).update({
                     'status': 'completed',
-                    'winners': [bingo_winner_id],
-                    'winner_name': players.get(bingo_winner_id, {}).get('name', 'Player'),
-                    'winning_cartela': int(bingo_cartela),
+                    'winners': bingo_winners,
+                    'winner_name': winner_names[0] if len(winner_names) == 1 else ', '.join(winner_names),
+                    'winning_cartela': int(bingo_cartelas[0]) if len(bingo_cartelas) == 1 else [int(c) for c in bingo_cartelas],
                     'prize_per_winner': prize_per_winner,
                     'completed_at': now,
                 })
                 await broadcast_event('rounds', round_id)
                 # Process payout (handles wallet credit, wins/losses tracking)
                 try:
-                    await engine.end_round(round_id, [int(bingo_winner_id)])
+                    await engine.end_round(round_id, [int(w) for w in bingo_winners])
                 except Exception as e:
                     logger.error(f"[GameLoop] Error distributing prizes: {e}")
                 # Broadcast user updates so frontend sees balance/wins change
-                for uid in list(players.keys()) + [bingo_winner_id]:
+                for uid in list(players.keys()) + bingo_winners:
                     try: await broadcast_event('users', str(uid))
                     except: pass
                 db.collection('rounds').document(round_id).update({'payout_processed': True})
                 await broadcast_event('rounds', round_id)
-                logger.info(f"[GameLoop] BINGO! Player {bingo_winner_id} won round {round_id} with cartela {bingo_cartela}")
+                logger.info(f"[GameLoop] BINGO! {num_winners} winner(s) for round {round_id}: {bingo_winners} with cartelas {bingo_cartelas}")
                 return
 
             await asyncio.sleep(NUMBER_CALL_INTERVAL)

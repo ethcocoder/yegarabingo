@@ -1,13 +1,18 @@
 // ==================== HELPERS ====================
+var _originalPlayWallet = 0;
+
 function calcDerash(existingCartelas, mySelections, stake) {
     var totalCartelas = (existingCartelas || 0) + (mySelections || 0);
-    if (totalCartelas < 1) totalCartelas = 1;
+    if (totalCartelas < 1) return 0;
     return Math.round(totalCartelas * (stake || 10) * 0.75 * 10) / 10;
 }
 
 // ==================== PLAY NOW ====================
+var _playNowRunning = false;
 async function playNow(stake) {
-    if (!currentUser) { showToast('Loading user data...'); return; }
+    if (_playNowRunning) return;
+    _playNowRunning = true;
+    if (!currentUser) { showToast('Loading user data...'); _playNowRunning = false; return; }
     stake = stake || currentStake || 10;
     if (VALID_STAKES.indexOf(stake) === -1) stake = 10;
     currentStake = stake;
@@ -153,12 +158,15 @@ async function playNow(stake) {
         hideLoading();
         console.error('Error finding round:', err);
         showToast('Error: ' + err.message);
+    } finally {
+        _playNowRunning = false;
     }
 }
 
 // ==================== CARD SELECTION ====================
 async function showCardSelection(roundId, roundData) {
     selectedCartelas = [];
+    _originalPlayWallet = currentUser.play_wallet || 0;
     listenerReady = false;
     updateSelectedInfo();
 
@@ -203,7 +211,7 @@ async function showCardSelection(roundId, roundData) {
             return;
         }
 
-        var takenSet = new Set(roundData.taken_cartelas || []);
+        var takenSet = new Set((roundData.taken_cartelas || []).map(function(v) { return parseInt(v) || v; }));
 
         if (grid) grid.innerHTML = '';
         masterSnap.forEach(function(doc) {
@@ -214,8 +222,8 @@ async function showCardSelection(roundId, roundData) {
             cell.textContent = num;
             cell.dataset.num = num;
 
-            if (takenSet.has(num)) {
-                cell.classList.add('taken');
+            if (takenSet.has(num) || takenSet.has(String(num))) {
+                cell.classList.add('taken', 'taken-flash');
                 cell.onclick = (function(n) { return function() { showToast('Card #' + n + ' is already taken by another player'); }; })(num);
             } else {
                 cell.onclick = (function(n, c) { return function() { toggleCardSelection(n, c); }; })(num, cell);
@@ -227,14 +235,15 @@ async function showCardSelection(roundId, roundData) {
         roundUnsubscribe = db.collection('rounds').doc(roundId).onSnapshot(function(snap) {
             if (!snap.exists) return;
             var rd = snap.data();
-            var nowTaken = new Set(rd.taken_cartelas || []);
+            var rawTaken = rd.taken_cartelas || [];
+            var nowTaken = new Set(rawTaken.map(function(v) { return parseInt(v) || v; }));
             if (grid) {
                 var changed = false;
                 grid.querySelectorAll('.card-tile').forEach(function(cell) {
                     var n = parseInt(cell.dataset.num);
-                    if (nowTaken.has(n)) {
+                    if (nowTaken.has(n) || nowTaken.has(String(n))) {
                         if (!cell.classList.contains('taken')) {
-                            cell.className = 'card-tile taken';
+                            cell.className = 'card-tile taken taken-flash';
                             cell.onclick = (function(num) { return function() { showToast('Card #' + num + ' is already taken by another player'); }; })(n);
                             var selIdx = selectedCartelas.indexOf(n);
                             if (selIdx > -1) {
@@ -346,7 +355,16 @@ function toggleCardSelection(num, cell) {
         cell.className = 'card-tile selected';
     }
     updateSelectedInfo();
-    renderAllPreviews();
+    schedulePreviewRender();
+}
+
+var _previewDebounce = null;
+function schedulePreviewRender() {
+    if (_previewDebounce) clearTimeout(_previewDebounce);
+    _previewDebounce = setTimeout(function() {
+        _previewDebounce = null;
+        renderAllPreviews();
+    }, 150);
 }
 
 var _previewCache = {};
@@ -437,6 +455,22 @@ function updateSelectedInfo() {
     } else {
         if (info) info.classList.add('hidden');
     }
+
+    // Update PLAY WALLET to show pending deduction
+    var pendingCost = count * currentStake;
+    var originalBalance = _originalPlayWallet || (currentUser.play_wallet || 0);
+    var remaining = originalBalance - pendingCost;
+    if (remaining < 0) remaining = 0;
+    var pwEl = document.getElementById('cs-play-wallet');
+    if (pwEl) {
+        pwEl.textContent = remaining + ' ETB';
+        if (pendingCost > 0 && remaining < currentStake) {
+            pwEl.style.color = '#EF4444';
+        } else {
+            pwEl.style.color = '';
+        }
+    }
+
     var liveDerashEl = document.getElementById('cs-derash');
     if (liveDerashEl) {
         var baseCount = _lastKnownPlayerCount || 0;
@@ -447,9 +481,12 @@ function updateSelectedInfo() {
 // ==================== SPECTATOR / CANCEL ====================
 function cancelCardSelect() {
     selectedCartelas = [];
+    _originalPlayWallet = 0;
     stopSelectionCountdown();
     var pc = document.getElementById('cs-preview-container');
     if (pc) pc.classList.add('hidden');
+    var pwEl = document.getElementById('cs-play-wallet');
+    if (pwEl) pwEl.style.color = '';
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
     // Unsubscribe from Socket.IO rooms
     if (window._bingoSocket && currentRoundId) {
@@ -474,6 +511,39 @@ async function enterSpectatorMode() {
 // ==================== CONFIRM SELECTION & JOIN ROUND ====================
 async function confirmSelection() {
     if (selectedCartelas.length === 0) return;
+    
+    // Hard client-side validation
+    var currentRoundData = null;
+    try {
+        var roundDoc = await db.collection('rounds').doc(currentRoundId).get();
+        if (roundDoc.exists) currentRoundData = roundDoc.data();
+    } catch(e) {}
+    
+    if (currentRoundData) {
+        var takenNow = new Set((currentRoundData.taken_cartelas || []).map(function(v) { return parseInt(v) || v; }));
+        for (var i = 0; i < selectedCartelas.length; i++) {
+            var cn = selectedCartelas[i];
+            if (takenNow.has(cn) || takenNow.has(String(cn))) {
+                showToast('Card #' + cn + ' was just taken! Removing...');
+                selectedCartelas.splice(i, 1);
+                i--;
+            }
+        }
+        if (selectedCartelas.length === 0) {
+            showToast('All selected cards are taken. Pick different cards.');
+            return;
+        }
+        var uniqueCheck = {};
+        for (var j = 0; j < selectedCartelas.length; j++) {
+            if (uniqueCheck[selectedCartelas[j]]) {
+                showToast('Duplicate card detected. Please reselect.');
+                selectedCartelas = [];
+                return;
+            }
+            uniqueCheck[selectedCartelas[j]] = true;
+        }
+    }
+    
     isSpectator = false;
     showLoading('Joining round...');
 
@@ -496,9 +566,14 @@ async function confirmSelection() {
 
         for (var i = 0; i < selectedCartelas.length; i++) {
             var num = selectedCartelas[i];
-            var cartelaDoc = await db.collection('cartelas_master').doc(String(num)).get();
-            if (cartelaDoc.exists) {
-                myCartelas[num] = cartelaDoc.data().cartela;
+            if (_previewCache[num]) {
+                myCartelas[num] = _previewCache[num];
+            } else {
+                var cartelaDoc = await db.collection('cartelas_master').doc(String(num)).get();
+                if (cartelaDoc.exists) {
+                    myCartelas[num] = cartelaDoc.data().cartela;
+                    _previewCache[num] = cartelaDoc.data().cartela;
+                }
             }
         }
 

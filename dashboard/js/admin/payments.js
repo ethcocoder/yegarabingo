@@ -98,9 +98,9 @@ function renderPayments() {
     // 3. Processed deposits history (status != pending)
     var processedDeposits = allDeposits.filter(function (d) { return d.status !== 'pending'; });
     processedDeposits.sort(function (a, b) {
-        var tA = a.processedAt ? fmtDateFull(a.processedAt) : '';
-        var tB = b.processedAt ? fmtDateFull(b.processedAt) : '';
-        return tB > tA ? 1 : (tB < tA ? -1 : 0);
+        var tA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+        var tB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+        return tB - tA;
     });
     var dList = document.getElementById('payProcessedList');
     var dItems = processedDeposits.slice(0, 10).map(function (d) {
@@ -154,9 +154,9 @@ function renderPayments() {
     // 5. Processed withdrawals history
     var processedWithdrawals = allWithdrawals.filter(function (d) { return d.status !== 'pending'; });
     processedWithdrawals.sort(function (a, b) {
-        var tA = a.processedAt ? fmtDateFull(a.processedAt) : '';
-        var tB = b.processedAt ? fmtDateFull(b.processedAt) : '';
-        return tB > tA ? 1 : (tB < tA ? -1 : 0);
+        var tA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+        var tB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+        return tB - tA;
     });
     var wHistList = document.getElementById('withdrawProcessedList');
     var wHistItems = processedWithdrawals.slice(0, 10).map(function (d) {

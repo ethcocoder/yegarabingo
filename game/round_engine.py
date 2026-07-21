@@ -169,6 +169,10 @@ class RoundEngine:
             if num < 1 or num > TOTAL_CARTELAS:
                 return {'error': f'Invalid cartela number: {num}'}
 
+        # Check for duplicates in selection
+        if len(cartela_numbers) != len(set(cartela_numbers)):
+            return {'error': 'Duplicate cartela numbers in selection'}
+
         round_doc = self.rounds_ref.document(round_id).get()
         if not round_doc.exists:
             return {'error': 'Round not found'}
@@ -178,7 +182,7 @@ class RoundEngine:
             return {'error': 'Round is no longer accepting players'}
 
         # Check if cartelas are already taken
-        taken = round_data.get('taken_cartelas', [])
+        taken = set(round_data.get('taken_cartelas', []))
         for num in cartela_numbers:
             if num in taken:
                 return {'error': f'Cartela #{num} is already taken'}
@@ -207,6 +211,21 @@ class RoundEngine:
             'is_playing': True,
             'updated_at': datetime.now(tz=timezone.utc),
         })
+
+        # Second validation check right before update (reduce race condition window)
+        round_doc_final = self.rounds_ref.document(round_id).get()
+        if round_doc_final.exists:
+            round_data_final = round_doc_final.to_dict()
+            taken_final = set(round_data_final.get('taken_cartelas', []))
+            for num in cartela_numbers:
+                if num in taken_final:
+                    # Rollback: refund the user
+                    user_ref.update({
+                        'play_wallet': pw,
+                        'is_playing': False,
+                        'updated_at': datetime.now(tz=timezone.utc),
+                    })
+                    return {'error': f'Cartela #{num} was just taken by another player. Please select different cards.'}
 
         self.rounds_ref.document(round_id).update({
             f'players.{uid_str}': {
@@ -265,8 +284,11 @@ class RoundEngine:
         if not available:
             return None
 
-        # ── SMART STATISTIC PREDICTION: PREVENT > 2 WINNERS ──
-        # Guarantee no single draw creates 3+ winners. Over-optimize to target <= 1 winner if possible.
+        # ── SMART STATISTIC PREDICTION: PREVENT MULTIPLE WINNERS ──
+        # Phase 1 (<=39 called): ABSOLUTE zero tolerance — no winner allowed
+        # Phase 2 (40-54 called): Target 0, allow 1 if unavoidable
+        # Phase 3 (55+ called): Target minimum winners (game must end eventually)
+        num_called = len(called)
         players = data.get('players', {})
         
         # 1. Warm up cache if needed to avoid DB reads
@@ -308,13 +330,35 @@ class RoundEngine:
                         candidate_winners_count += 1
                         break # Only count the player once
             
-            if candidate_winners_count <= 1:
-                best_number = candidate
-                break  # Perfect safe number found!
-                
+            # Phase 1 (early game): ABSOLUTE zero — no winner allowed before 40 numbers
+            if num_called < 40:
+                if candidate_winners_count == 0:
+                    best_number = candidate
+                    break
+                if candidate_winners_count < min_winners:
+                    min_winners = candidate_winners_count
+                    best_number = candidate
+                continue
+            
+            # Phase 2 (mid game): Target 0, allow 1 if impossible
+            if num_called < 55:
+                if candidate_winners_count == 0:
+                    best_number = candidate
+                    break
+                if candidate_winners_count <= 1 and min_winners > 1:
+                    best_number = candidate
+                    min_winners = candidate_winners_count
+                if candidate_winners_count < min_winners:
+                    min_winners = candidate_winners_count
+                    best_number = candidate
+                continue
+            
+            # Phase 3 (late game): Pick minimum, game must end
             if candidate_winners_count < min_winners:
                 min_winners = candidate_winners_count
                 best_number = candidate
+            if min_winners == 0:
+                break
 
         number = best_number
         called.append(number)
@@ -433,19 +477,21 @@ class RoundEngine:
                         'updated_at': datetime.now(tz=timezone.utc),
                     })
 
-        # Get winner name for spectator display
-        winner_name = 'Unknown'
-        if winner_ids:
-            first_winner_ref = self.db.collection('users').document(str(winner_ids[0]))
-            first_winner_doc = first_winner_ref.get()
-            if first_winner_doc.exists:
-                winner_name = first_winner_doc.to_dict().get('first_name', 'Unknown')
+        # Get winner names for spectator display
+        winner_names = []
+        for wid in winner_ids:
+            user_ref = self.db.collection('users').document(str(wid))
+            user_doc = user_ref.get()
+            if user_doc.exists:
+                winner_names.append(user_doc.to_dict().get('first_name', 'Unknown'))
+            else:
+                winner_names.append('Unknown')
 
         # Update round
         self.rounds_ref.document(round_id).update({
             'status': 'completed',
             'winners': [str(w) for w in winner_ids],
-            'winner_name': winner_name,
+            'winner_name': winner_names[0] if len(winner_names) == 1 else ', '.join(winner_names),
             'prize_per_winner': prize_per_winner,
             'admin_profit': admin_profit,
             'completed_at': datetime.now(tz=timezone.utc),

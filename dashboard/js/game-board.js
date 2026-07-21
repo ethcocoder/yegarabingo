@@ -1,4 +1,5 @@
 // ==================== GAME BOARD ====================
+var _announceTimeout = null;
 function setupGameBoard() {
     const nums = Object.keys(myCartelas).map(Number);
     calledNumbers = new Set();
@@ -243,29 +244,30 @@ function toggleAutoMark() {
 // ==================== LISTEN TO ROUND (real-time) ====================
 function listenToRound(roundId) {
     if (roundUnsubscribe) roundUnsubscribe();
-    var prevCalledCount = calledNumbers.size;
 
     roundUnsubscribe = db.collection('rounds').doc(roundId).onSnapshot(function(snap) {
         if (!snap.exists) return;
         var data = snap.data();
 
+        var elPlayers = document.getElementById('game-players');
+        var elDerash = document.getElementById('game-derash');
+        var elCalledCount = document.getElementById('game-called-count');
+        var elCountdown = document.getElementById('game-countdown');
+
         var playerCount = data.player_count || 0;
         var roundStake = data.stake || currentStake || 10;
         var derash = Math.round(playerCount * roundStake * 0.75 * 10) / 10;
-        var el;
-        if (el = document.getElementById('game-players')) el.textContent = playerCount;
-        if (el = document.getElementById('game-derash')) el.textContent = derash + ' ETB';
-        if (el = document.getElementById('game-called-count')) el.textContent = (data.called_numbers || []).length;
+        if (elPlayers) elPlayers.textContent = playerCount;
+        if (elDerash) elDerash.textContent = derash + ' ETB';
+        if (elCalledCount) elCalledCount.textContent = (data.called_numbers || []).length;
 
         if (data.status === 'selecting') {
-            var gc = document.getElementById('game-countdown');
-            if (gc) {
-                gc.classList.remove('hidden');
-                gc.textContent = 'Waiting for players...';
+            if (elCountdown) {
+                elCountdown.classList.remove('hidden');
+                elCountdown.textContent = 'Waiting for players...';
             }
         } else if (data.status === 'playing') {
-            var gc2 = document.getElementById('game-countdown');
-            if (gc2) gc2.classList.add('hidden');
+            if (elCountdown) elCountdown.classList.add('hidden');
 
             if (playerCount <= 0) {
                 if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
@@ -295,7 +297,8 @@ function listenToRound(roundId) {
             }
 
             var called = data.called_numbers || [];
-            for (var i = prevCalledCount; i < called.length; i++) {
+            var prevCount = calledNumbers.size;
+            for (var i = prevCount; i < called.length; i++) {
                 var num = called[i];
                 if (!calledNumbers.has(num)) {
                     calledNumbers.add(num);
@@ -311,7 +314,6 @@ function listenToRound(roundId) {
                     }
                 }
             }
-            prevCalledCount = called.length;
 
             if (called.length >= 4 && !isSpectator) {
                 checkMyBingo();
@@ -331,8 +333,10 @@ function showNumberAnnouncement(num) {
     if (al) { al.textContent = letter; al.style.color = color; }
     if (an) an.textContent = num;
     if (na) na.classList.remove('hidden');
-    setTimeout(function() {
+    if (_announceTimeout) clearTimeout(_announceTimeout);
+    _announceTimeout = setTimeout(function() {
         if (na) na.classList.add('hidden');
+        _announceTimeout = null;
     }, 4500);
 }
 
@@ -397,7 +401,12 @@ function handleRoundCompleted(data) {
     } else if (isSpectator) {
         var winnerName = data.winner_name || 'Unknown';
         var prize = Math.round((data.prize_per_winner || 0) * 10) / 10;
-        showToast(winnerName + ' won ' + prize + ' ETB!');
+        var winnerCount = (data.winners || []).length;
+        if (winnerCount > 1) {
+            showToast(winnerCount + ' winners split ' + prize + ' ETB each!');
+        } else {
+            showToast(winnerName + ' won ' + prize + ' ETB!');
+        }
         setTimeout(async function() { isSpectator = false; await navigateTo('home'); }, 5000);
     } else {
         showToast('Game over! Better luck next time.');
@@ -410,10 +419,10 @@ function showWinModal(data) {
     var wc = document.getElementById('winner-cartela');
     var wp = document.getElementById('winner-prize');
     if (wn) wn.textContent = (currentUser ? currentUser.first_name : 'Player') || 'Player';
-    if (wc) wc.textContent = data.winning_cartela || '?';
+    var cartelaNum = Array.isArray(data.winning_cartela) ? data.winning_cartela[0] : data.winning_cartela;
+    if (wc) wc.textContent = cartelaNum || '?';
     if (wp) wp.textContent = (Math.round((data.prize_per_winner || 0) * 10) / 10) + ' ETB';
 
-    var cartelaNum = data.winning_cartela;
     var flat = myCartelas[cartelaNum];
     var winGrid = document.getElementById('win-cartela-grid');
     if (winGrid) {
@@ -501,6 +510,7 @@ function leaveGame() {
     isSpectator = false;
     listenerReady = false;
     if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+    if (_announceTimeout) { clearTimeout(_announceTimeout); _announceTimeout = null; }
     // Unsubscribe from Socket.IO rooms
     if (window._bingoSocket && currentRoundId) {
         window._bingoSocket.emit('unsubscribe', { collection: 'rounds', doc_id: currentRoundId });
