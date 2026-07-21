@@ -41,3 +41,4 @@ logs/
 # Data
 data/
 log.md
+*.db
