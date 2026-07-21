@@ -346,10 +346,95 @@ var _roundPollTimer = null;
 function _stopRoundPolling() {
     if (_roundPollTimer) { clearInterval(_roundPollTimer); _roundPollTimer = null; }
 }
+async function _pollRound(roundId, grid) {
+    try {
+        if (!grid || !grid.parentNode) { _stopRoundPolling(); return; }
+        var doc = await db.collection('rounds').doc(roundId).get();
+        if (!doc.exists) return;
+        var rd = doc.data();
+
+        // 1) Handle status transitions (completed/playing)
+        if (rd.status === 'completed' || rd.status === 'cancelled') {
+            var sc = document.getElementById('card-select-screen');
+            if (sc && !sc.classList.contains('hidden')) {
+                _stopRoundPolling();
+                if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+                stopSelectionCountdown();
+                selectedCartelas = [];
+                myCartelas = {};
+                calledNumbers = new Set();
+                _previewCache = {};
+                playNow(currentStake);
+            }
+            return;
+        }
+        if (rd.status === 'playing') {
+            var cs = document.getElementById('card-select-screen');
+            if (cs && !cs.classList.contains('hidden')) {
+                _stopRoundPolling();
+                stopSelectionCountdown();
+                var livePC = rd.player_count || 0;
+                if (livePC <= 0) {
+                    if (roundUnsubscribe) { roundUnsubscribe(); roundUnsubscribe = null; }
+                    selectedCartelas = [];
+                    myCartelas = {};
+                    calledNumbers = new Set();
+                    _previewCache = {};
+                    db.collection('rounds').doc(roundId).update({
+                        status: 'completed', winners: [], winner_name: 'No players',
+                        prize_per_winner: 0, admin_profit: 0, payout_processed: true,
+                        completed_at: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(function() {});
+                    playNow(currentStake);
+                } else {
+                    var uid = String(currentUser.id);
+                    cs.classList.add('hidden');
+                    if (rd.players && rd.players[uid]) {
+                        navigateTo('game').then(function() { loadMyCartelas(rd); listenToRound(roundId); });
+                    } else {
+                        isSpectator = true;
+                        navigateTo('game').then(function() { setupGameBoard(); listenToRound(roundId); });
+                    }
+                }
+            }
+            return;
+        }
+
+        // 2) Update taken cartelas on the grid
+        var rawTaken = rd.taken_cartelas || [];
+        var nowTaken = new Set(rawTaken.map(function(v) { return parseInt(v) || v; }));
+        var changed = false;
+        grid.querySelectorAll('.card-tile').forEach(function(cell) {
+            var n = parseInt(cell.dataset.num);
+            if (nowTaken.has(n) || nowTaken.has(String(n))) {
+                if (!cell.classList.contains('taken')) {
+                    cell.classList.add('taken', 'taken-flash');
+                    cell.onclick = function() { showToast('Card #' + n + ' is already taken by another player'); };
+                    var idx = selectedCartelas.indexOf(n);
+                    if (idx > -1) {
+                        selectedCartelas.splice(idx, 1);
+                        changed = true;
+                    }
+                }
+            }
+        });
+        if (changed) {
+            updateSelectedInfo();
+            renderAllPreviews();
+        }
+
+        // 3) Update player count / derash
+        _lastKnownPlayerCount = rd.player_count || 0;
+        var liveETB = calcDerash(_lastKnownPlayerCount, selectedCartelas.length, currentStake);
+        var derEl = document.getElementById('cs-derash');
+        if (derEl) derEl.textContent = liveETB + ' ETB';
+    } catch(e) {}
+}
 function _startRoundPolling(roundId, grid) {
     _stopRoundPolling();
     if (!roundId || !grid) return;
-    _roundPollTimer = setInterval(async function() {
+    _pollRound(roundId, grid); // immediate first poll
+    _roundPollTimer = setInterval(function() { _pollRound(roundId, grid); }, 1500);
         try {
             if (!grid || !grid.parentNode) { _stopRoundPolling(); return; }
             var doc = await db.collection('rounds').doc(roundId).get();
