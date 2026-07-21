@@ -436,12 +436,15 @@ function _stopTakenPolling() {
 // Make debug accessible from Telegram context
 window._debugTaken = _debugTaken;
 
+var _confirmDebounce = null;
+var _confirming = false;
 function toggleCardSelection(num, cell) {
     var idx = selectedCartelas.indexOf(num);
     if (idx > -1) {
         selectedCartelas.splice(idx, 1);
         cell.className = 'card-tile';
         cell.style.boxShadow = '';
+        if (_confirmDebounce) { clearTimeout(_confirmDebounce); _confirmDebounce = null; }
     } else {
         if (selectedCartelas.length >= MAX_CARTELAS) {
             showToast('Maximum ' + MAX_CARTELAS + ' cartelas!');
@@ -454,6 +457,11 @@ function toggleCardSelection(num, cell) {
         }
         selectedCartelas.push(num);
         cell.className = 'card-tile selected';
+        if (_confirmDebounce) clearTimeout(_confirmDebounce);
+        _confirmDebounce = setTimeout(function() {
+            _confirmDebounce = null;
+            confirmSelection();
+        }, 400);
     }
     updateSelectedInfo();
     schedulePreviewRender();
@@ -628,6 +636,9 @@ async function enterSpectatorMode() {
 // ==================== CONFIRM SELECTION & JOIN ROUND ====================
 async function confirmSelection() {
     if (selectedCartelas.length === 0) return;
+    if (_confirming) return;
+    _confirming = true;
+    if (_confirmDebounce) { clearTimeout(_confirmDebounce); _confirmDebounce = null; }
     
     // Hard client-side validation
     var currentRoundData = null;
@@ -718,4 +729,5 @@ async function confirmSelection() {
             showToast('Error: ' + msg);
         }
     }
+    _confirming = false;
 }

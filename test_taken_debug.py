@@ -1,149 +1,113 @@
 #!/usr/bin/env python3
-"""Deep debug script for taken-cartela polling. Tests the REST API directly.
+"""Deep debug script for taken-cartela polling. Tests the REST API directly."""
+import argparse, json, urllib.parse, urllib.request, urllib.error
 
-Usage:
-    python test_taken_debug.py [--round ROUND_ID] [--url BASE_URL]
+DEFAULT_URL = "https://kelem-bingo-api.onrender.com"
 
-Run from your local machine while a game is in progress.
-"""
-
-import argparse
-import json
-import sys
-import urllib.request
-import urllib.error
-
-BASE = "https://kelem-bingo-api.onrender.com"
-
-def fetch_json(path):
-    url = BASE + path
+def fetch_json(base, path):
+    url = base + path
     req = urllib.request.Request(url)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             return resp.status, json.loads(resp.read())
     except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read()) if e.code != 404 else {"detail": "Not found"}
+        body = e.read()
+        try:
+            return e.code, json.loads(body)
+        except Exception:
+            return e.code, {"detail": body.decode(errors="replace")}
+
+def _docs(data):
+    """Extract list of {id, data} from any response format."""
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and "documents" in data:
+        return data["documents"]
+    if isinstance(data, dict) and "id" in data:
+        return [data]
+    return []
+
+def _id(d):
+    return d["id"] if isinstance(d, dict) else str(d)
+
+def _dat(d):
+    if isinstance(d, dict):
+        dd = d.get("data")
+        return dd if isinstance(dd, dict) else d
+    return {}
 
 def main():
-    parser = argparse.ArgumentParser(description="Debug taken-cartela polling")
-    parser.add_argument("--round", "-r", help="Specific round ID to inspect")
-    parser.add_argument("--url", "-u", default=BASE, help="Server base URL")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--round", "-r", help="Round ID to inspect")
+    parser.add_argument("--url", "-u", default=DEFAULT_URL)
     args = parser.parse_args()
-
-    global BASE
-    if args.url:
-        BASE = args.url.rstrip("/")
-
+    BASE = args.url.rstrip("/")
     print(f"\n{'='*60}")
-    print(f"TAKEN-CARTELA DEEP DEBUG")
-    print(f"{'='*60}")
-    print(f"Server: {BASE}")
-    print()
+    print(f"TAKEN-CARTELA DEEP DEBUG — {BASE}")
+    print(f"{'='*60}\n")
 
-    # Step 1: Find active rounds (selecting or playing)
-    print("--- Step 1: Find active rounds (status in [selecting, playing]) ---")
-    status, data = fetch_json("/api/db/rounds?filters=" + urllib.parse.quote(json.dumps([["status", "in", ["selecting", "playing"]]])))
-    print(f"  HTTP {status}")
-    if status == 200:
-        docs = data.get("documents", data if isinstance(data, list) else [])
-        if isinstance(data, dict) and "documents" in data:
-            docs = data["documents"]
-        elif isinstance(data, dict):
-            docs = [data]
-        print(f"  Found {len(docs)} active round(s)")
-        if not docs:
-            print("  ❌ No active rounds found")
-        for d in docs:
-            rid = d.get("id", "?")
-            rd = d.get("data", {})
-            print(f"  Round: {rid}")
-            print(f"    status: {rd.get('status')}")
-            print(f"    player_count: {rd.get('player_count')}")
-            tc = rd.get("taken_cartelas", [])
-            print(f"    taken_cartelas ({len(tc)}): {tc[:20]}{'...' if len(tc) > 20 else ''}")
-            print(f"    stake: {rd.get('stake')}")
-            print(f"    players: {list(rd.get('players', {}).keys())}")
-    else:
-        print(f"  ❌ Error: {data}")
+    # ── Step 1: Find active rounds ──
+    print("1) Query active rounds (status in [selecting, playing])...")
+    filt = urllib.parse.quote(json.dumps([["status", "in", ["selecting", "playing"]]]))
+    s1, d1 = fetch_json(BASE, f"/api/db/rounds?filters={filt}")
+    print(f"   HTTP {s1}")
+    docs1 = _docs(d1)
+    print(f"   Found {len(docs1)} result(s)")
+    for doc in docs1:
+        rid = _id(doc)
+        rd = _dat(doc)
+        tc = rd.get("taken_cartelas", [])
+        print(f"     Round {rid}: status={rd.get('status')} "
+              f"players={len(rd.get('players',{}))} "
+              f"taken={len(tc)} {tc[:10]}")
 
-    # Step 2: If round ID provided, fetch that specific document
-    print()
-    print("--- Step 2: Fetch specific round document via REST ---")
+    # ── Step 2: Resolve round ID ──
     round_id = args.round
     if not round_id:
-        # Find first selecting round
-        status2, data2 = fetch_json("/api/db/rounds?filters=" + urllib.parse.quote(json.dumps([["status", "==", "selecting"]])))
-        if status2 == 200:
-            docs2 = data2.get("documents", []) if isinstance(data2, dict) and "documents" in data2 else (data2 if isinstance(data2, list) else [])
+        s2, d2 = fetch_json(BASE, "/api/db/rounds?filters=" + urllib.parse.quote(json.dumps([["status", "==", "selecting"]])))
+        if s2 == 200:
+            docs2 = _docs(d2)
             if docs2:
-                round_id = docs2[0].get("id", docs2[0] if isinstance(docs2[0], str) else None)
+                round_id = _id(docs2[0])
+                print(f"\n   Auto-selected round: {round_id}")
+    print(f"\n   Using round_id = {round_id or 'NONE'}")
 
+    # ── Step 3: Direct document GET ──
+    print("\n2) Direct document GET /api/db/rounds/{id}...")
     if round_id:
-        print(f"  Fetching round: {round_id}")
-        status3, data3 = fetch_json(f"/api/db/rounds/{round_id}")
-        print(f"  HTTP {status3}")
-        if status3 == 200:
-            rd_data = data3.get("data", {})
-            print(f"  ✅ Round document found")
-            print(f"    status: {rd_data.get('status')}")
-            print(f"    taken_cartelas ({len(rd_data.get('taken_cartelas', []))}): {rd_data.get('taken_cartelas', [])[:30]}")
-            print(f"    player_count: {rd_data.get('player_count')}")
-            print(f"    players: {list(rd_data.get('players', {}).keys())}")
-            print(f"    stake: {rd_data.get('stake')}")
-            print(f"    created_at: {rd_data.get('created_at')}")
+        s3, d3 = fetch_json(BASE, f"/api/db/rounds/{round_id}")
+        print(f"   HTTP {s3}")
+        if s3 == 200:
+            rd3 = d3.get("data", {})
+            tc3 = rd3.get("taken_cartelas", [])
+            print(f"   [OK] status={rd3.get('status')}")
+            print(f"   [OK] player_count={rd3.get('player_count')}")
+            print(f"   [OK] taken_cartelas({len(tc3)}): {tc3}")
+            print(f"   [OK] players={list(rd3.get('players',{}).keys())}")
+            print(f"   [OK] created_at={rd3.get('created_at')}")
         else:
-            print(f"  ❌ Error: {data3}")
+            print(f"   ERROR {d3}")
     else:
-        print("  ❌ No round ID available")
+        print("   ERROR No round ID — cannot fetch")
 
-    # Step 3: Test the onSnapshot endpoint (direct document GET)
-    print()
-    print("--- Step 3: Direct document GET (same as polling does) ---")
-    if round_id:
-        status4, data4 = fetch_json(f"/api/db/rounds/{round_id}")
-        print(f"  HTTP {status4}")
-        if status4 == 200:
-            rd_data = data4.get("data", {})
-            tc = rd_data.get("taken_cartelas", [])
-            print(f"  ✅ taken_cartelas = {tc[:30]}{'...' if len(tc) > 30 else ''}")
-            print(f"  ✅ count = {len(tc)}")
-            print(f"  ✅ document complete: {list(rd_data.keys())}")
-        else:
-            print(f"  ❌ Error fetching document: {data4}")
+    # ── Step 4: Cartelas master ──
+    print("\n3) Cartelas master count...")
+    s4, d4 = fetch_json(BASE, "/api/db/cartelas_master?order_by=number&order_dir=ASCENDING")
+    docs4 = _docs(d4)
+    print(f"   HTTP {s4}, {len(docs4)} cartelas" if s4 == 200 else f"   ERROR {d4}")
 
-    # Step 4: Check cartelas_master (does the client fetch this?)
-    print()
-    print("--- Step 4: Cartelas master count ---")
-    status5, data5 = fetch_json("/api/db/cartelas_master?order_by=number&order_dir=ASCENDING")
-    print(f"  HTTP {status5}")
-    if status5 == 200:
-        docs5 = data5.get("documents", []) if isinstance(data5, dict) else (data5 if isinstance(data5, list) else [])
-        print(f"  ✅ {len(docs5)} cartelas exist")
-    else:
-        print(f"  ❌ Error: {data5}")
-
-    print()
-    print("--- CONCLUSION ---")
-    if round_id and status == 200:
-        rd_data = data3.get("data", {})
-        tc = rd_data.get("taken_cartelas", [])
-        print(f"  Round {round_id}")
-        print(f"  Status: {rd_data.get('status')}")
-        print(f"  taken_cartelas: {len(tc)} items")
-        print(f"  Players: {list(rd_data.get('players', {}).keys())}")
-        if tc:
-            print(f"  ✅ taken_cartelas HAS data — polling SHOULD detect these")
-            print(f"  ❓ If the page still doesn't show 'TAKEN', the polling code is not running on the client")
-        else:
-            print(f"  ⚠️ taken_cartelas is empty — no player has confirmed yet")
-    else:
-        print("  ❌ Could not complete analysis")
-
+    # ── Summary ──
     print(f"\n{'='*60}")
-    print("To see live polling on the client, add this to the card-select page:")
-    print("  A visible debug indicator has been added to the page (top-right corner)")
-    print("  Look for the small 'TAKEN' debug badge on the card selection screen")
-    print(f"{'='*60}")
+    if round_id and s3 == 200 and len(tc3) > 0:
+        print("   taken_cartelas HAS DATA — the polling SHOULD detect these.")
+        print("   If the page shows no TAKEN marks, the client-side polling")
+        print("   is not running. Check the debug bar visible on the page.")
+    elif round_id and s3 == 200 and len(tc3) == 0:
+        print("   taken_cartelas is EMPTY — no player has confirmed yet.")
+        print("   Open a second device, confirm a cartela, then re-run.")
+    else:
+        print("   Could not complete analysis.")
+    print(f"{'='*60}\n")
 
 if __name__ == "__main__":
     main()
